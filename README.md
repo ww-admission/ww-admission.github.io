@@ -13,7 +13,7 @@ World Wise Admission est une start-up panafricaine accompagnant les bacheliers e
 
 Le site WWA est un site web développé avec AstroJS et Tailwind CSS. Designé à partir d'un template Astro, taillé pour optimiser les performances, le référencement SEO et offrir une expérience utilisateur agréable grâce à son design simple et moderne et responsive.
 
-![just-the-basics](https://services.qatorze.com/public/wwa-showup-image-2.svg)
+![just-the-basics](https://services.qatorze.com/public/wwa-showup-image-2.png)
 
 ### Fonctionnalités
 
