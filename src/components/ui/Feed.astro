@@ -19,7 +19,7 @@ type Props = {
 const { data, classes } = Astro.props
 ---
 
-<ul aria-label="Changelog feed" role="feed" class:list={['feed', { [`${classes}`]: classes }]}>
+<ul aria-label="process feed" role="feed" class:list={['feed', { [`${classes}`]: classes }]}>
 	{
 		data.map((item) => (
 			<li role="article" class="feed__item">

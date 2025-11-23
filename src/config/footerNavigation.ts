@@ -61,8 +61,8 @@ export const footerNavigationData: FooterData = {
 				// 	subCategoryLink: '/pricing'
 				// },
 				// {
-				// 	subCategory: 'Changelog',
-				// 	subCategoryLink: '/changelog'
+				// 	subCategory: 'process',
+				// 	subCategoryLink: '/process'
 				// },
 				// {
 				// 	subCategory: 'Terms',

@@ -57,7 +57,7 @@ Le site WWA est un site web développé avec AstroJS et Tailwind CSS. Designé �
 | Collection de guides           | ❌                         | ✅                                                               |
 | Page feuille de route          | ❌                         | ✅                                                               |
 | Page d'inscription             | ❌                         | ✅                                                               |
-| Page changelog                 | ✅                         | ✅                                                               |
+| Page process                 | ✅                         | ✅                                                               |
 | Page FAQ                       | ✅                         | ✅                                                               |
 | Page conditions d'utilisation  | ✅                         | ✅                                                               |
 | Page contact fonctionnelle     | ❌                         | ✅                                                               |

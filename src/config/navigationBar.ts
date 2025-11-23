@@ -39,16 +39,16 @@ export const navigationBarData: NavData = {
 	},
 	navItems: [
 		{ name: 'Acceuil', link: '/' },
-		{ name: 'Tarifs', link: '/pricing' },
+		// { name: 'Tarifs', link: '/pricing' },
 		{ name: 'Notre service', link: '/features' },
 		{
 			name: 'Resources',
 			link: '#',
 			submenu: [
-				{ name: 'Blog', link: '/blog' },
-				{ name: 'Changelog', link: '/changelog' },
-				{ name: 'FAQ', link: '/faq' },
-				{ name: 'Terms', link: '/terms' }
+				// { name: 'Blog', link: '/blog' },
+				{ name: 'Process', link: '/process' },
+				// { name: 'FAQ', link: '/faq' },
+				// { name: 'Terms', link: '/terms' }
 			]
 		},
 		{ name: 'Contact', link: '/contact' }
