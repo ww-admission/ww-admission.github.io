@@ -7,8 +7,12 @@ import sitemap from "@astrojs/sitemap";
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://worldwise-admission.com',
-  base: '/',
+  // Le nom de domaine sur lequel le site est déployé
+  site: 'https://worldwise-admission.com', 
+  // Le chemin de base du site
+  base: '/', 
+  // Le dossier de destination
+  outDir: 'dist', 
   integrations: [
     tailwind(),
     icon(),

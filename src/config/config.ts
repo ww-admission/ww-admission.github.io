@@ -7,7 +7,7 @@ export interface Logo {
 	alt: string
 }
 
-export type Mode = 'auto' | 'light' | 'dark'
+export type Mode = 'light' | 'auto' | 'dark'
 
 export interface Config {
 	siteTitle: string
@@ -31,6 +31,6 @@ export const configData: Config = {
 	},
 	canonical: true,
 	noindex: false,
-	mode: 'auto',
+	mode: 'light',
 	scrollAnimations: true
 }
