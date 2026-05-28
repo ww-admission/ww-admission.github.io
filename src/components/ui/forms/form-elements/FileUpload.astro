@@ -1,0 +1,282 @@
+---
+// File Upload
+// ------------
+// Description: Zone de dépôt de fichier avec drag & drop et prévisualisation.
+// Propriétés :
+// - id: identifiant unique du champ
+// - label: intitulé du document
+// - description: texte explicatif sous le label
+// - accept: types MIME acceptés (ex: ".pdf,.jpg,.jpeg,.png")
+// - maxMo: taille maximale en Mo
+// - required: document obligatoire
+
+type Props = {
+  id: string
+  label: string
+  description?: string
+  accept: string
+  maxMo: number
+  required?: boolean
+}
+
+const { id, label, description, accept, maxMo, required } = Astro.props
+---
+
+<div
+  class="file-upload"
+  data-file-upload
+  data-id={id}
+  data-max-mo={maxMo}
+>
+  <!-- Zone de drop -->
+  <label
+    for={`file-${id}`}
+    class="file-upload__zone"
+    data-file-upload-zone
+  >
+    <!-- Input caché -->
+    <input
+      type="file"
+      id={`file-${id}`}
+      name={id}
+      accept={accept}
+      class="sr-only"
+      data-file-input
+    />
+
+    <!-- Icône et texte (état initial) -->
+    <div class="file-upload__default" data-file-default>
+      <svg xmlns="http://www.w3.org/2000/svg" class="file-upload__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <div class="file-upload__text">
+        <span class="file-upload__action">
+          {required && <span class="text-primary-500 mr-1">*</span>}{label}
+        </span>
+        {description && <span class="file-upload__description">{description}</span>}
+        <span class="file-upload__hint">
+          {accept.split(',').join(', ').toUpperCase().replace(/\./g, '')} — max {maxMo} Mo
+        </span>
+      </div>
+    </div>
+
+    <!-- Prévisualisation (état rempli) -->
+    <div class="file-upload__preview hidden" data-file-preview>
+      <img
+        class="file-upload__preview-img hidden"
+        alt="Aperçu"
+        data-file-preview-img
+      />
+      <svg xmlns="http://www.w3.org/2000/svg" class="file-upload__preview-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-file-preview-icon aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      <div class="file-upload__preview-info">
+        <span class="file-upload__preview-name" data-file-preview-name></span>
+        <span class="file-upload__preview-size" data-file-preview-size></span>
+      </div>
+      <button
+        type="button"
+        class="file-upload__remove"
+        aria-label="Supprimer le fichier"
+        data-file-remove
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </label>
+
+  <!-- Message d'erreur -->
+  <small class="file-upload__error hidden" data-file-error role="alert"></small>
+</div>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const uploads = document.querySelectorAll<HTMLElement>('[data-file-upload]')
+    uploads.forEach(initFileUpload)
+  })
+
+  function initFileUpload(container: HTMLElement) {
+    const maxMo = parseFloat(container.dataset.maxMo || '5')
+    const zone = container.querySelector<HTMLElement>('[data-file-upload-zone]')!
+    const input = container.querySelector<HTMLInputElement>('[data-file-input]')!
+    const defaultView = container.querySelector<HTMLElement>('[data-file-default]')!
+    const previewView = container.querySelector<HTMLElement>('[data-file-preview]')!
+    const previewImg = container.querySelector<HTMLImageElement>('[data-file-preview-img]')!
+    const previewIcon = container.querySelector<HTMLElement>('[data-file-preview-icon]')!
+    const previewName = container.querySelector<HTMLElement>('[data-file-preview-name]')!
+    const previewSize = container.querySelector<HTMLElement>('[data-file-preview-size]')!
+    const removeBtn = container.querySelector<HTMLButtonElement>('[data-file-remove]')!
+    const errorEl = container.querySelector<HTMLElement>('[data-file-error]')!
+
+    function showFile(file: File) {
+      clearError()
+      if (file.size > maxMo * 1024 * 1024) {
+        showError(`Fichier trop volumineux (max ${maxMo} Mo)`)
+        input.value = ''
+        return
+      }
+
+      const isImage = file.type.startsWith('image/')
+      previewName.textContent = file.name
+      previewSize.textContent = file.size < 1024 * 1024
+        ? `${(file.size / 1024).toFixed(0)} Ko`
+        : `${(file.size / (1024 * 1024)).toFixed(1)} Mo`
+
+      if (isImage) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          previewImg.src = e.target?.result as string
+          previewImg.classList.remove('hidden')
+          previewIcon.classList.add('hidden')
+        }
+        reader.readAsDataURL(file)
+      } else {
+        previewImg.classList.add('hidden')
+        previewIcon.classList.remove('hidden')
+      }
+
+      defaultView.classList.add('hidden')
+      previewView.classList.remove('hidden')
+      zone.classList.add('file-upload__zone--filled')
+    }
+
+    function clearFile() {
+      input.value = ''
+      defaultView.classList.remove('hidden')
+      previewView.classList.add('hidden')
+      zone.classList.remove('file-upload__zone--filled', 'file-upload__zone--drag')
+      previewImg.src = ''
+      clearError()
+    }
+
+    function showError(msg: string) {
+      errorEl.textContent = msg
+      errorEl.classList.remove('hidden')
+      zone.classList.add('file-upload__zone--error')
+    }
+
+    function clearError() {
+      errorEl.textContent = ''
+      errorEl.classList.add('hidden')
+      zone.classList.remove('file-upload__zone--error')
+    }
+
+    input.addEventListener('change', () => {
+      if (input.files?.[0]) showFile(input.files[0])
+    })
+
+    removeBtn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      clearFile()
+    })
+
+    // Drag & drop
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      zone.classList.add('file-upload__zone--drag')
+    })
+
+    zone.addEventListener('dragleave', () => {
+      zone.classList.remove('file-upload__zone--drag')
+    })
+
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault()
+      zone.classList.remove('file-upload__zone--drag')
+      const file = e.dataTransfer?.files[0]
+      if (file) {
+        const dt = new DataTransfer()
+        dt.items.add(file)
+        input.files = dt.files
+        showFile(file)
+      }
+    })
+  }
+</script>
+
+<style>
+  .file-upload {
+    @apply w-full;
+  }
+
+  .file-upload__zone {
+    @apply flex cursor-pointer items-center gap-4 rounded border border-dashed border-neutral-200 bg-white p-4 transition-all hover:border-primary-400 hover:bg-primary-50/30 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-600;
+  }
+
+  .file-upload__zone--drag {
+    @apply border-primary-500 bg-primary-50/50 dark:bg-primary-950/20;
+  }
+
+  .file-upload__zone--filled {
+    @apply border-solid border-primary-200 dark:border-primary-900;
+  }
+
+  .file-upload__zone--error {
+    @apply border-solid border-red-300 dark:border-red-800;
+  }
+
+  .file-upload__icon {
+    @apply h-8 w-8 flex-shrink-0 text-neutral-300 dark:text-neutral-600;
+  }
+
+  .file-upload__default {
+    @apply flex flex-1 items-center gap-4;
+  }
+
+  .file-upload__text {
+    @apply flex flex-col gap-0.5;
+  }
+
+  .file-upload__action {
+    @apply text-sm font-medium text-neutral-600 dark:text-neutral-300;
+  }
+
+  .file-upload__description {
+    @apply text-xs text-neutral-400 dark:text-neutral-500;
+  }
+
+  .file-upload__hint {
+    @apply text-xs text-neutral-300 dark:text-neutral-600;
+  }
+
+  .file-upload__preview {
+    @apply flex flex-1 items-center gap-3;
+  }
+
+  .file-upload__preview-img {
+    @apply h-12 w-12 flex-shrink-0 rounded border border-neutral-100 object-cover dark:border-neutral-800;
+  }
+
+  .file-upload__preview-icon {
+    @apply h-12 w-12 flex-shrink-0 text-primary-400 dark:text-primary-600;
+  }
+
+  .file-upload__preview-info {
+    @apply flex flex-1 flex-col gap-0.5;
+  }
+
+  .file-upload__preview-name {
+    @apply truncate text-sm font-medium text-neutral-700 dark:text-neutral-200;
+  }
+
+  .file-upload__preview-size {
+    @apply text-xs text-neutral-400;
+  }
+
+  .file-upload__remove {
+    @apply flex-shrink-0 rounded p-1 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 dark:hover:text-red-400;
+  }
+
+  .file-upload__error {
+    @apply mt-1 block px-1 text-xs text-red-500;
+  }
+</style>

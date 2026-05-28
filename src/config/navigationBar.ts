@@ -38,7 +38,7 @@ export const navigationBarData: NavData = {
 		text: 'WWA'
 	},
 	navItems: [
-		{ name: 'Acceuil', link: '/' },
+		{ name: 'Accueil', link: '/' },
 		// { name: 'Tarifs', link: '/pricing' },
 		{ name: 'Notre service', link: '/features' },
 		{
@@ -53,5 +53,7 @@ export const navigationBarData: NavData = {
 		},
 		{ name: 'Contact', link: '/contact' }
 	],
-	navActions: [{ name: 'Se connecter', link: '/', style: 'primary', size: 'lg' }]
+	navActions: [
+		{ name: 'Se connecter', link: '/', style: 'primary', size: 'lg' },
+	]
 }

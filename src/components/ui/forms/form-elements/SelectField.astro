@@ -1,0 +1,106 @@
+---
+// Select Field
+// ------------
+// Description: Dropdown select visuellement identique à InputField.
+// Le label est toujours en position "flottée" (les selects ont toujours une valeur affichée).
+// Supporte les options plates et les optgroups.
+
+type FlatOption = { value: string; label: string }
+type GroupedOption = { group: string; options: FlatOption[] }
+
+type Props = {
+  id: string
+  label: string
+  options: FlatOption[] | GroupedOption[]
+  placeholder?: string
+  required?: boolean
+  disabled?: boolean
+  helperText?: string
+  classes?: string
+}
+
+const {
+  id,
+  label,
+  options,
+  placeholder = 'Sélectionner…',
+  required,
+  disabled,
+  helperText,
+  classes,
+} = Astro.props
+
+const isGrouped = options.length > 0 && 'group' in options[0]
+
+// Classes directement copiées de InputField.astro pour cohérence parfaite
+const fieldClasses = [
+  'peer',
+  'relative h-12 w-full',
+  'rounded border border-neutral-200',
+  'bg-transparent',
+  'px-4 pr-10',
+  'text-neutral-500 text-sm',
+  'outline-none transition-all',
+  'focus:border-amber-400 focus:outline-none focus-visible:outline-none',
+  'disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400',
+  'dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400',
+  'dark:disabled:bg-neutral-600',
+  'cursor-pointer appearance-none',
+].join(' ')
+
+// Label toujours en position flottée (même pattern que InputField mais sans peer-placeholder-shown)
+const labelClasses = [
+  'absolute -top-2 left-2 z-[1]',
+  'cursor-default px-2 text-xs text-neutral-400',
+  'transition-colors',
+  'before:absolute before:left-0 before:top-0 before:z-[-1]',
+  'before:block before:h-full before:w-full',
+  'before:bg-white before:transition-all',
+  'peer-focus:text-amber-500',
+  'peer-disabled:cursor-not-allowed peer-disabled:text-neutral-300',
+  'dark:before:bg-neutral-900',
+].join(' ')
+---
+
+<div class:list={['relative w-full', { [`${classes}`]: classes }]}>
+  <select
+    id={id}
+    name={id}
+    required={required}
+    disabled={disabled}
+    aria-describedby={helperText ? `${id}-helper` : undefined}
+    class={fieldClasses}
+  >
+    <option value="" disabled selected>{placeholder}</option>
+
+    {isGrouped
+      ? (options as GroupedOption[]).map((group) => (
+          <optgroup label={group.group}>
+            {group.options.map((opt) => (
+              <option value={opt.value}>{opt.label}</option>
+            ))}
+          </optgroup>
+        ))
+      : (options as FlatOption[]).map((opt) => (
+          <option value={opt.value}>{opt.label}</option>
+        ))
+    }
+  </select>
+
+  <label for={id} class={labelClasses}>
+    {label}{required && <span class="text-neutral-400" aria-hidden="true"> *</span>}
+  </label>
+
+  <!-- Flèche dropdown custom (SVG inline via style) -->
+  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  </span>
+
+  {helperText && (
+    <small id={`${id}-helper`} class="absolute flex w-full justify-between px-4 py-1 text-xs text-neutral-400">
+      <span>{helperText}</span>
+    </small>
+  )}
+</div>

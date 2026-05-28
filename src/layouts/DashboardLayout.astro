@@ -1,0 +1,186 @@
+---
+import Header from '../components/blocks/head/Header.astro'
+import '../styles/global.css'
+import '@fontsource-variable/inter'
+import '@fontsource-variable/outfit'
+
+interface Props {
+  title: string
+  activeNav?: string
+}
+
+const { title, activeNav = '' } = Astro.props
+---
+
+<!doctype html>
+<html lang="fr" class="scroll-smooth antialiased">
+  <Header title={`${title} — WWA`} description="Espace WorldWise Admission" />
+  <body class="min-h-screen bg-neutral-50">
+
+    <!-- Spinner affiché jusqu'à ce que JS confirme l'auth -->
+    <div id="auth-loading" class="fixed inset-0 z-50 bg-neutral-50 flex items-center justify-center">
+      <div class="animate-spin h-8 w-8 rounded-full border-2 border-primary-500 border-t-transparent"></div>
+    </div>
+
+    <div id="app-shell" class="hidden">
+      <div class="flex h-screen overflow-hidden">
+
+        <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+        <aside
+          id="sidebar"
+          class="fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-neutral-100 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300"
+        >
+          <!-- Logo -->
+          <div class="flex items-center gap-2.5 px-5 h-16 border-b border-neutral-100 shrink-0">
+            <img src="/logo.svg" alt="WWA" width="32" height="32" />
+            <div>
+              <p class="font-headings font-black text-sm tracking-wide text-neutral-700 leading-none">WorldWise</p>
+              <p class="font-headings text-xs text-neutral-400">Admission</p>
+            </div>
+          </div>
+
+          <!-- Badge rôle -->
+          <div class="px-5 py-3 border-b border-neutral-100 shrink-0">
+            <span id="role-badge" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-neutral-100 text-neutral-500">
+              <span id="role-dot" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>
+              <span id="role-label">…</span>
+            </span>
+          </div>
+
+          <!-- Navigation -->
+          <nav id="sidebar-nav" class="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+            <!-- Peuplé par JS -->
+          </nav>
+
+          <!-- User info + déconnexion -->
+          <div class="border-t border-neutral-100 p-4 shrink-0">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                <span id="user-initial" class="text-sm font-semibold text-primary-600">?</span>
+              </div>
+              <div class="min-w-0">
+                <p id="user-name" class="text-sm font-medium text-neutral-700 truncate">—</p>
+                <p id="user-email" class="text-xs text-neutral-400 truncate">—</p>
+              </div>
+            </div>
+            <button
+              id="logout-btn"
+              type="button"
+              class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              Déconnexion
+            </button>
+          </div>
+        </aside>
+
+        <!-- Overlay mobile -->
+        <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black/30 hidden lg:hidden" aria-hidden="true"></div>
+
+        <!-- ── Contenu principal ─────────────────────────────────────────── -->
+        <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
+          <header class="h-16 bg-white border-b border-neutral-100 flex items-center gap-4 px-4 shrink-0 lg:hidden">
+            <button id="sidebar-toggle" class="p-2 rounded-lg text-neutral-500 hover:bg-neutral-50 transition" aria-label="Menu">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
+            <img src="/logo.svg" alt="WWA" width="28" height="28" />
+            <span class="font-headings font-black text-sm tracking-wide text-neutral-700">WWA</span>
+          </header>
+
+          <main class="flex-1 overflow-y-auto">
+            <slot />
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <script is:inline define:vars={{ activeNav }}>
+      const ADMIN_NAV = [
+        { href: '/admin', label: 'Tableau de bord', key: 'overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+        { href: '/admin/candidatures', label: 'Candidatures', key: 'candidatures', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+        { href: '/admin/messages', label: 'Messages', key: 'messages', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+        { href: '/admin/logs', label: 'Logs', key: 'logs', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+      ]
+      const CANDIDATE_NAV = [
+        { href: '/dashboard', label: 'Aperçu', key: 'overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+        { href: '/dashboard/candidature', label: 'Ma candidature', key: 'candidature', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+        { href: '/dashboard/messages', label: 'Messages', key: 'messages', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+      ]
+
+      function renderNav(items) {
+        const nav = document.getElementById('sidebar-nav')
+        if (!nav) return
+        nav.innerHTML = items.map(item => {
+          const isActive = activeNav === item.key || (item.key === 'overview' && activeNav === '')
+          return `<a href="${item.href}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? 'bg-primary-50 text-primary-600' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="${item.icon}" />
+            </svg>
+            ${item.label}
+          </a>`
+        }).join('')
+      }
+
+      function init() {
+        let session = null
+        try { session = JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch {}
+
+        if (!session?.token || !session?.role) {
+          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname)
+          return
+        }
+
+        const isAdmin = session.role === 'admin'
+
+        renderNav(isAdmin ? ADMIN_NAV : CANDIDATE_NAV)
+
+        const badge = document.getElementById('role-badge')
+        const dot   = document.getElementById('role-dot')
+        const label = document.getElementById('role-label')
+        if (isAdmin) {
+          badge?.classList.replace('bg-neutral-100', 'bg-primary-50')
+          badge?.classList.replace('text-neutral-500', 'text-primary-600')
+          dot?.classList.replace('bg-neutral-400', 'bg-primary-500')
+          if (label) label.textContent = 'Super Admin'
+        } else {
+          badge?.classList.replace('bg-neutral-100', 'bg-amber-50')
+          badge?.classList.replace('text-neutral-500', 'text-amber-700')
+          dot?.classList.replace('bg-neutral-400', 'bg-amber-500')
+          if (label) label.textContent = 'Candidat'
+        }
+
+        const initial = document.getElementById('user-initial')
+        const name    = document.getElementById('user-name')
+        const email   = document.getElementById('user-email')
+        if (initial) initial.textContent = (session.name || '?').charAt(0).toUpperCase()
+        if (name)    name.textContent    = session.name  || '—'
+        if (email)   email.textContent   = session.email || '—'
+
+        document.getElementById('auth-loading')?.remove()
+        const shell = document.getElementById('app-shell')
+        if (shell) { shell.classList.remove('hidden'); shell.classList.add('flex') }
+      }
+
+      init()
+
+      document.getElementById('logout-btn')?.addEventListener('click', () => {
+        localStorage.removeItem('wwa_session')
+        window.location.href = '/login'
+      })
+
+      const toggle  = document.getElementById('sidebar-toggle')
+      const sidebar = document.getElementById('sidebar')
+      const overlay = document.getElementById('sidebar-overlay')
+
+      function openSidebar()  { sidebar?.classList.remove('-translate-x-full'); overlay?.classList.remove('hidden'); document.body.style.overflow = 'hidden' }
+      function closeSidebar() { sidebar?.classList.add('-translate-x-full');    overlay?.classList.add('hidden');    document.body.style.overflow = ''       }
+
+      toggle?.addEventListener('click', openSidebar)
+      overlay?.addEventListener('click', closeSidebar)
+    </script>
+  </body>
+</html>

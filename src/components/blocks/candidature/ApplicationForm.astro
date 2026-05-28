@@ -1,0 +1,1811 @@
+---
+// Application Form — Formulaire de candidature multi-étapes (6 panneaux)
+// Soumission via FormBold. Persistance localStorage avec auto-sauvegarde.
+
+import Card from '../../ui/cards/partials/Card.astro'
+import CardBody from '../../ui/cards/partials/CardBody.astro'
+import FormField from '../../ui/forms/partials/FormField.astro'
+import InputField from '../../ui/forms/form-elements/InputField.astro'
+import SelectField from '../../ui/forms/form-elements/SelectField.astro'
+import MultiSelect from '../../ui/forms/form-elements/MultiSelect.astro'
+import PhoneInput from '../../ui/forms/form-elements/PhoneInput.astro'
+import FileUpload from '../../ui/forms/form-elements/FileUpload.astro'
+import { Icon } from 'astro-icon/components'
+
+import {
+  NIVEAUX_ETUDE,
+  SPECIALITES,
+  DOCUMENTS_REQUIS,
+  DESTINATIONS,
+  SEXES,
+  SITUATIONS_MATRIMONIALES,
+  SOURCES_FINANCEMENT,
+  LIENS_PARENTE,
+} from '../../../config/candidature.config'
+import { getProgrammesByDomain } from '../../../config/programs.config'
+
+const niveauxOptions     = NIVEAUX_ETUDE.map((n) => ({ value: n.value, label: n.label }))
+const niveauxViseOptions = niveauxOptions.slice(3)
+
+const specialitesGrouped = [
+  ...SPECIALITES.map((cat) => ({
+    group: cat.category,
+    options: cat.items.map((item) => ({ value: item, label: item })),
+  })),
+  { group: 'Autre', options: [{ value: 'autre', label: 'Autre (préciser)' }] },
+]
+
+const programmesByDomain = getProgrammesByDomain()
+const programmesGrouped  = Object.entries(programmesByDomain).map(([domain, progs]) => ({
+  group: domain,
+  options: progs.map((p) => ({ value: p.value, label: p.label })),
+}))
+
+const situationsOptions = SITUATIONS_MATRIMONIALES.map((s) => ({ value: s.value, label: s.label }))
+const sourcesOptions    = SOURCES_FINANCEMENT.map((s) => ({ value: s.value, label: s.label }))
+const liensOptions      = LIENS_PARENTE.map((l) => ({ value: l.value, label: l.label }))
+const staticDocs        = DOCUMENTS_REQUIS.filter((d) => d.id !== 'releve_notes')
+
+const todayStr = new Date().toISOString().split('T')[0]
+
+type Props = { classes?: string }
+const { classes } = Astro.props
+
+const inputClass       = 'peer relative h-12 w-full rounded border border-neutral-200 bg-transparent px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all focus:border-amber-400 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400'
+const labelClass       = 'absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 peer-required:after:text-neutral-400 peer-required:after:content-[\'\\00a0*\'] peer-disabled:text-neutral-300 peer-disabled:before:bg-transparent dark:before:bg-neutral-900'
+const selectLabelClass = 'absolute -top-2 left-2 z-[1] cursor-default px-2 text-xs text-neutral-400 transition-colors before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-focus:text-amber-500 peer-required:after:text-neutral-400 peer-required:after:content-[\'\\00a0*\'] dark:before:bg-neutral-900'
+const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutral-200 bg-transparent px-4 pr-10 text-sm text-neutral-500 outline-none transition-all focus:border-amber-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 cursor-pointer appearance-none'
+---
+
+<div class={classes}>
+  <Card>
+    <CardBody>
+
+      <!-- ════════════════════════════════════════
+           VUE : CANDIDATURE DÉJÀ SOUMISE
+           Affichée si localStorage contient une candidature envoyée.
+           ════════════════════════════════════════ -->
+      <div id="submittedView" class="hidden">
+
+        <!-- En-tête -->
+        <div class="mb-8 flex items-center gap-4 border-b border-neutral-100 pb-6 dark:border-neutral-800">
+          <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-950/50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <h2 class="mb-0 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Candidature envoyée</h2>
+            <p id="submittedDate" class="mt-0.5 text-sm text-neutral-400"></p>
+          </div>
+        </div>
+
+        <!-- Grille 2 colonnes -->
+        <div class="grid gap-8 lg:grid-cols-2">
+
+          <!-- ── Colonne gauche : Récapitulatif ── -->
+          <div>
+            <h3 class="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Votre dossier</h3>
+            <div id="submittedRecap" class="flex flex-col gap-px overflow-hidden rounded border border-neutral-100 dark:border-neutral-800"></div>
+          </div>
+
+          <!-- ── Colonne droite : Suivi ── -->
+          <div>
+            <h3 class="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Suivi de traitement</h3>
+
+            <!-- Timeline de statut -->
+            <div class="relative flex flex-col gap-0">
+
+              <!-- Ligne verticale de connexion -->
+              <div class="absolute left-4 top-8 h-[calc(100%-2rem)] w-px bg-neutral-100 dark:bg-neutral-800" aria-hidden="true"></div>
+
+              <!-- Étape 1 : Envoyée ✅ -->
+              <div class="relative flex items-start gap-4 pb-6">
+                <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-green-500 bg-green-500 text-white z-10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="pt-1">
+                  <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Candidature envoyée</p>
+                  <p class="text-xs text-neutral-400">Votre dossier a bien été reçu par l'équipe WWA.</p>
+                </div>
+              </div>
+
+              <!-- Étape 2 : En cours ⏳ -->
+              <div class="relative flex items-start gap-4 pb-6">
+                <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 z-10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="pt-1">
+                  <p class="text-sm font-semibold text-amber-600 dark:text-amber-400">En cours de traitement</p>
+                  <p class="text-xs text-neutral-400">L'équipe examine votre dossier et vos documents.</p>
+                </div>
+              </div>
+
+              <!-- Étape 3 : Réponse ○ -->
+              <div class="relative flex items-start gap-4">
+                <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900 z-10">
+                  <div class="h-2 w-2 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
+                </div>
+                <div class="pt-1">
+                  <p class="text-sm font-semibold text-neutral-400 dark:text-neutral-500">Réponse de l'équipe WWA</p>
+                  <p class="text-xs text-neutral-400">Vous serez contacté(e) à l'adresse email renseignée.</p>
+                </div>
+              </div>
+
+            </div><!-- /timeline -->
+
+            <!-- Message d'information -->
+            <div class="mt-6 rounded border border-neutral-100 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
+              <p class="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Rappel important</p>
+              <p class="mb-0 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+                N'oubliez pas d'envoyer vos <strong>pièces jointes</strong> (diplôme, relevé de notes, pièce d'identité, photo) par email à
+                <a href="mailto:info@worldwise-admission.com" class="font-medium text-primary-500 hover:underline">info@worldwise-admission.com</a>
+                en indiquant votre nom et prénom dans l'objet.
+              </p>
+            </div>
+
+            <!-- Bouton réinitialiser -->
+            <button
+              id="btnNewCandidature"
+              type="button"
+              class="mt-6 text-xs text-neutral-300 transition-colors hover:text-red-400 dark:text-neutral-600 dark:hover:text-red-500"
+            >
+              Soumettre une nouvelle candidature
+            </button>
+
+          </div><!-- /colonne droite -->
+        </div><!-- /grille -->
+      </div><!-- /#submittedView -->
+
+
+      <!-- ════════════════════════════════════════
+           VUE : FORMULAIRE
+           ════════════════════════════════════════ -->
+      <div id="formContent">
+
+      <!-- Indicateur de progression -->
+      <div id="stepIndicatorDynamic" class="mb-6" aria-label="Progression du formulaire"></div>
+
+      <!-- Indicateur de sauvegarde automatique -->
+      <div id="draftIndicator" class="mb-6 hidden text-xs text-neutral-400"></div>
+
+      <form id="applicationForm" novalidate>
+
+        <!-- ════════════════════════════════════════
+             PANEL 1 — Informations personnelles
+             ════════════════════════════════════════ -->
+        <div data-step-panel="1">
+          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations personnelles</h2>
+          <p class="mb-8 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+
+          <FormField>
+            <InputField type="text" id="nom"    label="Nom"    required />
+            <InputField type="text" id="prenom" label="Prénom" required />
+          </FormField>
+
+          <FormField>
+            <div class="relative w-full">
+              <input type="date" id="dateNaissance" name="dateNaissance" required
+                class={inputClass}
+                max={todayStr}
+              />
+              <label for="dateNaissance" class={selectLabelClass}>Date de naissance <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span></label>
+            </div>
+            <InputField type="text" id="lieuNaissance" label="Lieu de naissance" required />
+          </FormField>
+
+          <FormField>
+            <MultiSelect id="nationalites" label="Nationalité(s)" placeholder="Rechercher un pays…" required />
+          </FormField>
+
+          <FormField>
+            <!-- Sexe -->
+            <div class="relative w-full">
+              <fieldset class="rounded border border-neutral-200 px-4 pb-3.5 pt-2 transition-colors dark:border-neutral-800" data-radio-group="sexe">
+                <legend class="px-1 text-xs text-neutral-400">Sexe <span aria-hidden="true">*</span></legend>
+                <div class="mt-1.5 flex gap-6">
+                  {SEXES.map((s) => (
+                    <label class="flex cursor-pointer items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                      <input type="radio" name="sexe" value={s.value} class="h-4 w-4 accent-[#E2187D]" />
+                      {s.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+            <!-- Situation matrimoniale -->
+            <SelectField id="situationMatrimoniale" label="Situation matrimoniale" options={situationsOptions} required />
+          </FormField>
+
+          <FormField>
+            <InputField type="text" id="numPasseport" label="Numéro de passeport" required />
+            <div class="relative w-full">
+              <input type="date" id="dateExpirationPasseport" name="dateExpirationPasseport" required
+                class={inputClass}
+                min={todayStr}
+              />
+              <label for="dateExpirationPasseport" class={selectLabelClass}>Expiration du passeport <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span></label>
+              <p id="passportExpiryWarning" class="hidden mt-1 px-1 text-xs"></p>
+            </div>
+          </FormField>
+
+          <!-- Adresse + géoloc -->
+          <FormField>
+            <div class="relative w-full" data-address-wrapper>
+              <InputField type="text" id="adresse" label="Adresse" />
+              <div
+                class="absolute left-0 top-full z-50 mt-0.5 hidden w-full overflow-y-auto rounded border border-neutral-100 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
+                style="max-height:12rem"
+                data-address-suggestions
+              ></div>
+            </div>
+            <button
+              type="button"
+              id="geolocBtn"
+              class="flex h-12 flex-shrink-0 cursor-pointer items-center gap-2 rounded border border-neutral-200 bg-neutral-50 px-4 text-sm text-neutral-500 transition-all hover:border-primary-400 hover:text-primary-500 disabled:cursor-wait dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-400"
+              aria-label="Utiliser ma position"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+              </svg>
+              <span id="geolocBtnText" class="whitespace-nowrap">Ma position</span>
+            </button>
+          </FormField>
+
+          <FormField>
+            <InputField type="text" id="ville" label="Ville" />
+            <div class="relative w-full">
+              <select id="pays" name="pays" class={selectFieldClass} data-pays-select>
+                <option value="">Sélectionner…</option>
+              </select>
+              <label for="pays" class={selectLabelClass}>Pays</label>
+              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
+            </div>
+          </FormField>
+
+          <FormField>
+            <PhoneInput id="telephone" label="Téléphone" required />
+          </FormField>
+
+          <FormField>
+            <div class="relative w-full">
+              <InputField type="email" id="email" label="Adresse email" required />
+              <span id="emailStatus" class="absolute right-3 top-3 text-base leading-none" aria-live="polite"></span>
+            </div>
+          </FormField>
+        </div><!-- /panel 1 -->
+
+
+        <!-- ════════════════════════════════════════
+             PANEL 2 — Informations académiques
+             ════════════════════════════════════════ -->
+        <div data-step-panel="2" class="hidden">
+          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations académiques</h2>
+          <p class="mb-8 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+
+          <FormField>
+            <SelectField id="niveauEtude" label="Niveau d'étude actuel" options={niveauxOptions} required />
+          </FormField>
+
+          <FormField>
+            <div class="relative w-full" data-etablissement-wrapper>
+              <InputField type="text" id="etablissement" label="Établissement fréquenté" required />
+              <div
+                class="absolute left-0 top-full z-50 mt-0.5 hidden w-full overflow-y-auto rounded border border-neutral-100 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
+                style="max-height:12rem"
+                data-etablissement-suggestions
+              ></div>
+            </div>
+          </FormField>
+
+          <FormField>
+            <SelectField id="specialite" label="Spécialité / filière" options={specialitesGrouped} required />
+          </FormField>
+
+          <div id="specialiteAutreWrapper" class="hidden">
+            <FormField>
+              <InputField type="text" id="specialiteAutre" label="Précisez votre spécialité" />
+            </FormField>
+          </div>
+
+          <FormField>
+            <div class="relative w-full">
+              <input
+                type="number" id="moyenne" name="moyenne"
+                required min="0" max="20" step="0.01"
+                placeholder="Moyenne générale"
+                class={inputClass}
+              />
+              <label for="moyenne" class={labelClass}>
+                Moyenne générale
+                <span class="font-normal text-neutral-300">&nbsp;/ 20</span>
+              </label>
+              <small class="absolute flex w-full px-4 py-1 text-xs text-neutral-400"><span>Entre 0 et 20</span></small>
+            </div>
+          </FormField>
+        </div><!-- /panel 2 -->
+
+
+        <!-- ════════════════════════════════════════
+             PANEL 3 — Destination & Programme
+             ════════════════════════════════════════ -->
+        <div data-step-panel="3" class="hidden">
+          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Destination &amp; Programme</h2>
+          <p class="mb-8 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+
+          <!-- Destination picker -->
+          <div class="mb-6">
+            <p class="mb-3 text-sm font-medium text-neutral-600 dark:text-neutral-300">Destination souhaitée <span class="text-neutral-400" aria-hidden="true">*</span></p>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4" id="destinationPicker">
+              {DESTINATIONS.map((dest) => {
+                const cardClass = dest.available
+                  ? 'relative flex flex-col items-center gap-2 rounded border border-neutral-200 p-4 text-center transition-all cursor-pointer hover:border-amber-300 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:border-neutral-700 dark:hover:border-amber-700 dark:has-[:checked]:border-primary-500 dark:has-[:checked]:bg-primary-950/20'
+                  : 'relative flex flex-col items-center gap-2 rounded border border-neutral-100 p-4 text-center cursor-not-allowed select-none opacity-50 dark:border-neutral-800'
+                return (
+                  <label class={cardClass}>
+                    <input
+                      type="radio"
+                      name="destination"
+                      value={dest.value}
+                      class="sr-only"
+                      disabled={!dest.available}
+                      data-destination-radio
+                    />
+                    <span class="text-2xl leading-none">{dest.flag}</span>
+                    <span class={dest.available ? 'text-sm font-medium text-neutral-700 dark:text-neutral-200' : 'text-sm font-medium text-neutral-400'}>
+                      {dest.label}
+                    </span>
+                    {!dest.available && (
+                      <span class="text-xs text-neutral-300 dark:text-neutral-600">Prochainement</span>
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+            <p id="destinationErrorMsg" class="hidden mt-2 text-xs text-red-400">Veuillez sélectionner une destination.</p>
+          </div>
+
+          <FormField>
+            <SelectField id="niveauVise" label="Niveau visé" options={niveauxViseOptions} required />
+          </FormField>
+
+          <FormField>
+            <SelectField id="programme" label="Programme souhaité" options={programmesGrouped} required />
+          </FormField>
+
+          <FormField>
+            <div class="relative w-full">
+              <select id="faculte" name="faculte" required disabled class={selectFieldClass} data-faculte-select>
+                <option value="">Choisissez d'abord un programme…</option>
+              </select>
+              <label for="faculte" class={selectLabelClass}>Faculté <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span></label>
+              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
+            </div>
+          </FormField>
+        </div><!-- /panel 3 -->
+
+
+        <!-- ════════════════════════════════════════
+             PANEL 4 — Infos complémentaires (Chine)
+             ════════════════════════════════════════ -->
+        <div data-step-panel="4" class="hidden">
+          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations complémentaires</h2>
+          <p class="mb-8 text-sm text-neutral-400">Ces informations sont spécifiques à votre candidature en Chine.</p>
+
+          <!-- Contact d'urgence -->
+          <div class="mb-6">
+            <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Contact d'urgence</h3>
+
+            <FormField>
+              <InputField type="text" id="contactNom" label="Nom et prénom du contact" required />
+              <SelectField id="contactLienParente" label="Lien de parenté" options={liensOptions} required />
+            </FormField>
+
+            <FormField>
+              <div class="relative w-full">
+                <input
+                  type="tel" id="contactTel" name="contactTel" required
+                  placeholder="Téléphone du contact"
+                  class={inputClass}
+                />
+                <label for="contactTel" class={labelClass}>Téléphone du contact</label>
+                <small class="absolute flex w-full px-4 py-1 text-xs text-neutral-400"><span>Avec indicatif — ex: +241 07 12 34 56</span></small>
+              </div>
+              <InputField type="email" id="contactEmail" label="Email du contact" required />
+            </FormField>
+
+            <FormField>
+              <InputField type="text" id="contactAdresse" label="Adresse du contact" />
+            </FormField>
+          </div>
+
+          <!-- Expérience en Chine -->
+          <div class="mb-6">
+            <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Expérience en Chine</h3>
+
+            <FormField>
+              <div class="relative w-full">
+                <fieldset class="rounded border border-neutral-200 px-4 pb-3.5 pt-2 transition-colors dark:border-neutral-800" data-radio-group="dejaChine">
+                  <legend class="px-1 text-xs text-neutral-400">Avez-vous déjà étudié en Chine ? <span aria-hidden="true">*</span></legend>
+                  <div class="mt-1.5 flex gap-6">
+                    <label class="flex cursor-pointer items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                      <input type="radio" name="dejaChine" value="non" class="h-4 w-4 accent-[#E2187D]" data-deja-chine />
+                      Non
+                    </label>
+                    <label class="flex cursor-pointer items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                      <input type="radio" name="dejaChine" value="oui" class="h-4 w-4 accent-[#E2187D]" data-deja-chine />
+                      Oui
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+            </FormField>
+
+            <div id="dejaChineDetails" class="hidden">
+              <FormField>
+                <InputField type="text" id="dejaChineEtablissement" label="Établissement en Chine" />
+                <InputField type="text" id="dejaChineAnnees" label="Période d'études (ex : 2019–2021)" />
+              </FormField>
+            </div>
+          </div>
+
+          <!-- Source de financement -->
+          <div class="mb-6">
+            <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Financement</h3>
+            <FormField>
+              <SelectField id="sourceFinancement" label="Source de financement" options={sourcesOptions} required />
+            </FormField>
+            <div id="sourceFinancementAutreWrapper" class="hidden">
+              <FormField>
+                <InputField type="text" id="sourceFinancementAutre" label="Précisez la source de financement" />
+              </FormField>
+            </div>
+          </div>
+        </div><!-- /panel 4 -->
+
+
+        <!-- ════════════════════════════════════════
+             PANEL 5 — Documents
+             ════════════════════════════════════════ -->
+        <div data-step-panel="5" class="hidden">
+          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Documents à joindre</h2>
+          <p class="mb-8 text-sm text-neutral-400">
+            Les documents <span class="font-medium text-neutral-500">*</span> sont obligatoires. Formats acceptés : PDF, JPG, PNG (5 Mo max).
+          </p>
+
+          <!-- Relevés de notes dynamiques (selon niveau visé) -->
+          <div class="mb-6">
+            <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Relevés de notes</h3>
+            <div id="relevesContainer" class="flex flex-col gap-3">
+              <p class="text-sm text-neutral-400 italic">Sélectionnez un niveau visé (étape 3) pour voir les relevés requis.</p>
+            </div>
+          </div>
+
+          <!-- Documents statiques -->
+          <div class="mb-6">
+            <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Documents d'identité &amp; diplôme</h3>
+            <div class="flex flex-col gap-4">
+              {staticDocs.map((doc) => (
+                <FileUpload
+                  id={doc.id}
+                  label={doc.label}
+                  description={doc.description}
+                  accept={doc.accept}
+                  maxMo={doc.maxMo}
+                  required={doc.required}
+                />
+              ))}
+            </div>
+          </div>
+
+          <!-- Formulaire de candidature Chine (conditionnel) -->
+          <div id="formulaireChineSection" class="hidden mb-6">
+            <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Formulaire de candidature universitaire</h3>
+            <div class="rounded border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+              <p class="mb-3 text-sm text-amber-800 dark:text-amber-300">
+                Téléchargez le formulaire de candidature universitaire, remplissez-le, puis joignez-le ci-dessous.
+              </p>
+              <a
+                href="#"
+                id="formulaireChineDownload"
+                class="inline-flex items-center gap-2 rounded border border-amber-400 bg-white px-4 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 dark:border-amber-700 dark:bg-neutral-900 dark:text-amber-400 dark:hover:bg-neutral-800"
+                download
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Télécharger le formulaire (Word)
+              </a>
+            </div>
+            <div class="mt-4">
+              <FileUpload
+                id="formulaire_chine"
+                label="Formulaire complété et signé"
+                description="Formulaire de candidature rempli"
+                accept=".pdf,.doc,.docx"
+                maxMo={10}
+                required={false}
+              />
+            </div>
+          </div>
+        </div><!-- /panel 5 -->
+
+
+        <!-- ════════════════════════════════════════
+             PANEL 6 — Récapitulatif
+             ════════════════════════════════════════ -->
+        <div data-step-panel="6" class="hidden">
+          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Récapitulatif</h2>
+          <p class="mb-8 text-sm text-neutral-400">Vérifiez vos informations avant d'envoyer votre candidature.</p>
+
+          <div id="reviewContent" class="flex flex-col gap-4"></div>
+
+          <!-- Confirmations -->
+          <div class="mt-6 flex flex-col gap-3 border-t border-neutral-100 pt-6 dark:border-neutral-800">
+            <label class="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" id="certifExact" name="certifExact" class="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#E2187D]" />
+              <span class="text-sm text-neutral-600 dark:text-neutral-400">
+                Je certifie que toutes les informations fournies dans ce formulaire sont exactes et complètes.
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" id="certifCGU" name="certifCGU" class="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#E2187D]" />
+              <span class="text-sm text-neutral-600 dark:text-neutral-400">
+                J'accepte les conditions générales de WorldWise Admission et autorise le traitement de mes données personnelles dans le cadre de ma candidature.
+              </span>
+            </label>
+          </div>
+        </div><!-- /panel 6 -->
+
+
+        <!-- Navigation -->
+        <div class="mt-10 flex items-center gap-4 border-t border-neutral-100 pt-6 dark:border-neutral-800">
+          <button type="button" id="btnPrev"
+            class="hidden inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded border border-neutral-300 px-5 text-sm font-bold tracking-wide text-neutral-600 outline-none transition-all hover:border-neutral-500 hover:text-neutral-800 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-neutral-500">
+            ← Précédent
+          </button>
+          <button type="button" id="btnReset"
+            class="text-xs text-neutral-300 transition-colors hover:text-red-400 dark:text-neutral-600 dark:hover:text-red-500">
+            Réinitialiser
+          </button>
+          <div class="flex flex-1 justify-end gap-3">
+            <button type="button" id="btnNext"
+              class="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-5 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700">
+              Suivant →
+            </button>
+            <button type="submit" id="btnSubmit"
+              class="hidden inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-5 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700">
+              Envoyer ma candidature
+            </button>
+          </div>
+        </div>
+
+        <!-- Erreurs de validation -->
+        <div id="stepErrors" class="mt-4 hidden rounded border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30" role="alert" aria-live="polite">
+          <p class="mb-1 text-sm font-semibold text-red-600 dark:text-red-400">Veuillez corriger :</p>
+          <ul id="stepErrorList" class="list-inside list-disc text-sm text-red-500 dark:text-red-400"></ul>
+        </div>
+
+      </form>
+      </div><!-- /#formContent -->
+    </CardBody>
+  </Card>
+</div>
+
+<div id="formStatus" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+<!-- Loading overlay -->
+<div id="appLoadingOverlay" class="fixed inset-0 z-50 hidden bg-white/70 backdrop-blur-sm dark:bg-neutral-900/70" role="status" aria-label="Envoi en cours">
+  <div class="flex h-full items-center justify-center">
+  <div class="flex flex-col items-center gap-4 rounded border border-neutral-100 bg-white p-8 shadow-xl shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900">
+    <svg class="h-10 w-10 animate-spin text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p class="mb-0 text-sm font-medium text-neutral-700 dark:text-neutral-200">Envoi en cours…</p>
+  </div>
+  </div>
+</div>
+
+<!-- Success modal -->
+<div id="appSuccessModal" class="fixed inset-0 z-50 hidden bg-white/50 backdrop-blur-sm dark:bg-neutral-900/50" role="dialog" aria-modal="true" aria-labelledby="appSuccessTitle">
+  <div class="flex h-full items-center justify-center">
+  <div class="m-6 flex w-96 max-w-full flex-col overflow-hidden rounded border border-neutral-100 bg-white shadow-xl shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900">
+    <div class="flex items-center justify-between gap-6 border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+      <h2 id="appSuccessTitle" class="mb-0 truncate text-lg font-semibold text-neutral-700 dark:text-neutral-50">Candidature envoyée !</h2>
+      <button id="appCloseSuccessBtn" type="button" class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-neutral-500 hover:text-neutral-900 dark:text-neutral-200 dark:hover:text-white" aria-label="Fermer">
+        <Icon name="x-mark" class="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
+    <div class="flex flex-col items-center gap-4 p-6 text-center">
+      <Icon name="check-circle" class="h-14 w-14 text-primary-500" aria-hidden="true" />
+      <div>
+        <h3 class="mb-2 text-base font-semibold text-neutral-700 dark:text-neutral-100">Votre candidature a été transmise !</h3>
+        <p class="mb-1 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">Notre équipe étudiera votre dossier et vous contactera dans les meilleurs délais.</p>
+        <p class="text-xs leading-relaxed text-amber-600 dark:text-amber-400">⚠️ Vos pièces jointes seront à envoyer par email à <strong>info@worldwise-admission.com</strong> en mentionnant votre nom et prénom.</p>
+      </div>
+      <a href="/" class="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-5 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700">
+        Retour à l'accueil
+      </a>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- Error modal -->
+<div id="appErrorModal" class="fixed inset-0 z-50 hidden bg-white/50 backdrop-blur-sm dark:bg-neutral-900/50" role="dialog" aria-modal="true" aria-labelledby="appErrorTitle">
+  <div class="flex h-full items-center justify-center">
+  <div class="m-6 flex w-96 max-w-full flex-col overflow-hidden rounded border border-neutral-100 bg-white shadow-xl shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900">
+    <div class="flex items-center justify-between gap-6 border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+      <h2 id="appErrorTitle" class="mb-0 truncate text-lg font-semibold text-neutral-700 dark:text-neutral-50">Une erreur est survenue</h2>
+      <button id="appCloseErrorBtn" type="button" class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-neutral-500 hover:text-neutral-900 dark:text-neutral-200 dark:hover:text-white" aria-label="Fermer">
+        <Icon name="x-mark" class="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
+    <div class="flex flex-col items-center gap-4 p-6 text-center">
+      <Icon name="bell-alert" class="h-12 w-12 text-red-500 dark:text-red-400" aria-hidden="true" />
+      <p class="mb-0 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">L'envoi a échoué. Vérifiez votre connexion et réessayez.</p>
+      <button id="appRetryBtn" type="button" class="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-5 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700">
+        Réessayer
+      </button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+  import { PROGRAMMES } from '../../../config/programs.config'
+  import { ETABLISSEMENTS_GABON, VALIDATION, RELEVÉS_PAR_NIVEAU } from '../../../config/candidature.config'
+
+  // ── EmailJS — confirmation candidat ──────────────────────
+  const EMAILJS_SERVICE_ID  = 'service_q8qwzak'
+  const EMAILJS_PUBLIC_KEY  = 'cjpR8h9jpq_o2xDhu'
+  const EMAILJS_TEMPLATE_CANDIDATURE = 'template_185swgh'
+
+  async function sendConfirmationEmail(params: Record<string, string>) {
+    try {
+      await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id:  EMAILJS_SERVICE_ID,
+          template_id: EMAILJS_TEMPLATE_CANDIDATURE,
+          user_id:     EMAILJS_PUBLIC_KEY,
+          template_params: params,
+        }),
+      })
+    } catch { /* fire-and-forget — l'échec de l'email ne bloque pas la soumission */ }
+  }
+
+  // ── Constantes ────────────────────────────────────────────
+  const PANEL_LABELS: Record<number, string> = {
+    1: 'Personnel',
+    2: 'Académique',
+    3: 'Programme',
+    4: 'Complémentaire',
+    5: 'Documents',
+    6: 'Récapitulatif',
+  }
+
+  const STORAGE_KEY           = 'wwa_candidature_v2'
+  const STORAGE_KEY_SUBMITTED = 'wwa_candidature_result'
+  const SUGGESTION_ITEM_CLASS = 'cursor-pointer px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800'
+
+  let currentPanel = 1
+  let saveDebounce: ReturnType<typeof setTimeout>
+
+  // ── Séquence d'étapes dynamique ────────────────────────────
+  function getStepSeq(): number[] {
+    const dest = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value
+    if (!dest || dest === 'chine') return [1, 2, 3, 4, 5, 6]
+    return [1, 2, 3, 5, 6]
+  }
+
+  // ── XSS guard ──────────────────────────────────────────────
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+  }
+
+  // ── Marquage d'erreur par champ ───────────────────────────
+  function markErr(id: string) {
+    const el = document.getElementById(id)
+    if (el) { el.parentElement?.setAttribute('data-field-error', 'true'); return }
+    document.querySelector(`[data-phone-input][data-id="${id}"]`)?.setAttribute('data-field-error', 'true')
+    document.querySelector(`[data-multiselect][data-id="${id}"]`)?.setAttribute('data-field-error', 'true')
+  }
+
+  function markRadioErr(groupName: string) {
+    document.querySelector(`fieldset[data-radio-group="${groupName}"]`)?.setAttribute('data-field-error', 'true')
+  }
+
+  // ── Initialisation ────────────────────────────────────────
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('applicationForm') as HTMLFormElement | null
+    if (!form) return
+
+    // Vérifier si une candidature a déjà été soumise avant d'initialiser le formulaire
+    if (checkSubmittedState()) return
+
+    restoreFromLocal()
+    renderStepIndicator()
+    initNavigation()
+    initAutoSave()
+    initAddressAutocomplete()
+    initEtablissementAutocomplete()
+    initProgrammeConditional()
+    initSpecialiteConditional()
+    initDestinationChange()
+    initDejaChineConditional()
+    initSourceFinancementConditional()
+    initEmailValidation()
+    initGeolocation()
+    initPassportExpiryCheck()
+    initCountryDropdown()
+    initReset()
+  })
+
+  // ── Navigation ────────────────────────────────────────────
+  function initNavigation() {
+    const btnNext   = document.getElementById('btnNext')!
+    const btnPrev   = document.getElementById('btnPrev')!
+    const form      = document.getElementById('applicationForm') as HTMLFormElement
+
+    btnNext.addEventListener('click', () => {
+      const errors = validateCurrentPanel()
+      if (errors.length) { showErrors(errors); return }
+      clearErrors()
+      saveToLocal()
+      const seq = getStepSeq()
+      const idx = seq.indexOf(currentPanel)
+      if (idx < seq.length - 1) goToPanel(seq[idx + 1])
+    })
+
+    btnPrev.addEventListener('click', () => {
+      clearErrors()
+      const seq = getStepSeq()
+      const idx = seq.indexOf(currentPanel)
+      if (idx > 0) goToPanel(seq[idx - 1])
+    })
+
+    form.addEventListener('submit', handleSubmit)
+
+    document.getElementById('appCloseSuccessBtn')?.addEventListener('click', () =>
+      document.getElementById('appSuccessModal')?.classList.add('hidden'))
+    document.getElementById('appCloseErrorBtn')?.addEventListener('click', () =>
+      document.getElementById('appErrorModal')?.classList.add('hidden'))
+    document.getElementById('appRetryBtn')?.addEventListener('click', () =>
+      document.getElementById('appErrorModal')?.classList.add('hidden'))
+
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      document.getElementById('appSuccessModal')?.classList.add('hidden')
+      document.getElementById('appErrorModal')?.classList.add('hidden')
+    })
+  }
+
+  function goToPanel(panelNum: number) {
+    document.querySelector(`[data-step-panel="${currentPanel}"]`)?.classList.add('hidden')
+    currentPanel = panelNum
+    document.querySelector(`[data-step-panel="${currentPanel}"]`)?.classList.remove('hidden')
+
+    const seq    = getStepSeq()
+    const idx    = seq.indexOf(currentPanel)
+    const isLast = idx === seq.length - 1
+
+    document.getElementById('btnPrev')!.classList.toggle('hidden', idx === 0)
+    document.getElementById('btnNext')!.classList.toggle('hidden', isLast)
+    document.getElementById('btnSubmit')!.classList.toggle('hidden', !isLast)
+
+    // Panel-specific side effects
+    if (currentPanel === 5) renderDynamicDocs()
+    if (isLast) renderReview()
+
+    renderStepIndicator()
+    updateDestinationDependentUI()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    const statusEl = document.getElementById('formStatus')
+    if (statusEl) statusEl.textContent = `Étape ${idx + 1} sur ${seq.length}`
+  }
+
+  // ── Indicateur d'étapes ───────────────────────────────────
+  function renderStepIndicator() {
+    const container = document.getElementById('stepIndicatorDynamic')
+    if (!container) return
+
+    const seq    = getStepSeq()
+    const panIdx = seq.indexOf(currentPanel)
+
+    container.innerHTML = `
+      <div class="flex items-start justify-between w-full" role="list" aria-label="Progression du formulaire">
+        ${seq.map((panelNum, i) => {
+          const label  = PANEL_LABELS[panelNum]
+          const done   = i < panIdx
+          const active = i === panIdx
+
+          const lineColor   = (done || active) ? 'bg-primary-500' : 'bg-neutral-200 dark:bg-neutral-700'
+          const circleColor = done
+            ? 'border-primary-500 bg-primary-500 text-white'
+            : active
+              ? 'border-primary-500 text-primary-500 bg-white dark:bg-neutral-900'
+              : 'border-neutral-200 text-neutral-400 bg-white dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500'
+          const labelColor  = active
+            ? 'text-primary-500 font-semibold'
+            : done
+              ? 'text-neutral-500 dark:text-neutral-400'
+              : 'text-neutral-300 dark:text-neutral-600'
+
+          return `
+            <div class="relative flex flex-1 flex-col items-center gap-2" role="listitem" ${active ? 'aria-current="step"' : ''}>
+              ${i > 0 ? `<div class="absolute top-4 right-1/2 h-px w-full -translate-y-1/2 ${lineColor}" aria-hidden="true"></div>` : ''}
+              <div class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all duration-300 ${circleColor}">
+                ${done
+                  ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+                  : i + 1}
+              </div>
+              <span class="hidden text-center text-xs sm:block ${labelColor}">${escapeHtml(label)}</span>
+            </div>
+          `
+        }).join('')}
+      </div>
+    `
+  }
+
+  // ── Validation par panneau ────────────────────────────────
+  function validateCurrentPanel(): string[] {
+    clearErrors()
+    const errors: string[] = []
+    const get = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? ''
+
+    if (currentPanel === 1) {
+      if (!get('nom'))            { errors.push('Le nom est requis.');                 markErr('nom') }
+      if (!get('prenom'))         { errors.push('Le prénom est requis.');              markErr('prenom') }
+      if (!get('dateNaissance'))  { errors.push('La date de naissance est requise.');  markErr('dateNaissance') }
+      if (!get('lieuNaissance'))  { errors.push('Le lieu de naissance est requis.');   markErr('lieuNaissance') }
+
+      const natInputs = document.querySelectorAll('input[name^="nationalites"]')
+      if (!natInputs.length)      { errors.push('Au moins une nationalité est requise.'); markErr('nationalites') }
+
+      const sexeVal = document.querySelector<HTMLInputElement>('input[name="sexe"]:checked')?.value
+      if (!sexeVal)               { errors.push('Le sexe est requis.'); markRadioErr('sexe') }
+
+      if (!get('situationMatrimoniale')) { errors.push('La situation matrimoniale est requise.'); markErr('situationMatrimoniale') }
+      if (!get('numPasseport'))   { errors.push('Le numéro de passeport est requis.'); markErr('numPasseport') }
+      if (!get('dateExpirationPasseport')) { errors.push("La date d'expiration du passeport est requise."); markErr('dateExpirationPasseport') }
+
+      const phoneVal = document.querySelector<HTMLInputElement>('[data-phone-number]')?.value.trim() ?? ''
+      if (!phoneVal) {
+        errors.push('Le numéro de téléphone est requis.')
+        document.querySelector('[data-phone-input]')?.setAttribute('data-field-error', 'true')
+      }
+
+      const email = get('email')
+      if (!email)                                                    { errors.push("L'adresse email est requise.");  markErr('email') }
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))       { errors.push("Format d'email invalide.");      markErr('email') }
+    }
+
+    if (currentPanel === 2) {
+      if (!get('niveauEtude'))    { errors.push("Le niveau d'étude est requis.");      markErr('niveauEtude') }
+      if (!get('etablissement'))  { errors.push("L'établissement est requis.");         markErr('etablissement') }
+      const spe = get('specialite')
+      if (!spe)                   { errors.push('La spécialité est requise.');          markErr('specialite') }
+      if (spe === 'autre' && !get('specialiteAutre')) {
+        errors.push('Précisez votre spécialité.')
+        markErr('specialiteAutre')
+      }
+      const moyRaw = get('moyenne')
+      const moy = parseFloat(moyRaw)
+      if (!moyRaw)                           { errors.push('La moyenne générale est requise.');           markErr('moyenne') }
+      else if (isNaN(moy) || moy < 0 || moy > 20) { errors.push('La moyenne doit être entre 0 et 20.'); markErr('moyenne') }
+    }
+
+    if (currentPanel === 3) {
+      const dest = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value
+      if (!dest) {
+        errors.push('Veuillez sélectionner une destination.')
+        document.getElementById('destinationErrorMsg')?.classList.remove('hidden')
+      } else {
+        document.getElementById('destinationErrorMsg')?.classList.add('hidden')
+      }
+      if (!get('niveauVise'))  { errors.push('Le niveau visé est requis.');         markErr('niveauVise') }
+      if (!get('programme'))   { errors.push('Le programme souhaité est requis.');  markErr('programme') }
+      if (!get('faculte'))     { errors.push('La faculté est requise.');            markErr('faculte') }
+    }
+
+    if (currentPanel === 4) {
+      if (!get('contactNom'))         { errors.push("Le nom du contact d'urgence est requis."); markErr('contactNom') }
+      if (!get('contactLienParente')) { errors.push('Le lien de parenté est requis.');          markErr('contactLienParente') }
+      if (!get('contactTel'))         { errors.push('Le téléphone du contact est requis.');     markErr('contactTel') }
+      if (!get('contactEmail'))       { errors.push("L'email du contact est requis.");          markErr('contactEmail') }
+
+      const dejaChine = document.querySelector<HTMLInputElement>('input[name="dejaChine"]:checked')?.value
+      if (!dejaChine) { errors.push("Indiquez si vous avez déjà étudié en Chine."); markRadioErr('dejaChine') }
+
+      if (!get('sourceFinancement')) { errors.push('La source de financement est requise.'); markErr('sourceFinancement') }
+    }
+
+    if (currentPanel === 5) {
+      const required = ['diplome', 'piece_identite', 'photo_identite']
+      const docLabels: Record<string, string> = {
+        diplome: 'la copie du diplôme',
+        piece_identite: "la pièce d'identité",
+        photo_identite: "la photo d'identité",
+      }
+      required.forEach((docId) => {
+        const input = document.getElementById(`file-${docId}`) as HTMLInputElement | null
+        if (!input?.files?.length) errors.push(`Veuillez joindre ${docLabels[docId]}.`)
+      })
+
+      // Validate dynamic relevés
+      const relevéInputs = document.querySelectorAll<HTMLInputElement>('input[name^="releve_dyn_"]')
+      relevéInputs.forEach((inp, i) => {
+        if (!inp.files?.length) errors.push(`Veuillez joindre le relevé de notes ${i + 1}.`)
+      })
+    }
+
+    return errors
+  }
+
+  function showErrors(errors: string[]) {
+    const container = document.getElementById('stepErrors')!
+    document.getElementById('stepErrorList')!.innerHTML = errors.map((e) => `<li>${escapeHtml(e)}</li>`).join('')
+    container.classList.remove('hidden')
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  function clearErrors() {
+    document.getElementById('stepErrors')?.classList.add('hidden')
+    document.getElementById('destinationErrorMsg')?.classList.add('hidden')
+    document.querySelectorAll<HTMLElement>('[data-field-error]').forEach((el) =>
+      el.removeAttribute('data-field-error')
+    )
+  }
+
+  // ── Auto-sauvegarde ───────────────────────────────────────
+  function initAutoSave() {
+    const form = document.getElementById('applicationForm')
+    form?.addEventListener('input',  scheduleAutoSave)
+    form?.addEventListener('change', scheduleAutoSave)
+  }
+
+  function scheduleAutoSave() {
+    clearTimeout(saveDebounce)
+    saveDebounce = setTimeout(() => {
+      saveToLocal()
+      showDraftSaved()
+    }, 500)
+  }
+
+  function showDraftSaved() {
+    const el = document.getElementById('draftIndicator')
+    if (!el) return
+    const now = new Date()
+    const hh  = now.getHours().toString().padStart(2, '0')
+    const mm  = now.getMinutes().toString().padStart(2, '0')
+    el.textContent = `Brouillon sauvegardé à ${hh}:${mm}`
+    el.classList.remove('hidden')
+  }
+
+  // ── localStorage ──────────────────────────────────────────
+  function saveToLocal() {
+    const fieldIds = [
+      'nom','prenom','dateNaissance','lieuNaissance',
+      'situationMatrimoniale','numPasseport','dateExpirationPasseport',
+      'adresse','ville','email',
+      'niveauEtude','etablissement','specialite','specialiteAutre','moyenne',
+      'niveauVise','programme',
+      'contactNom','contactLienParente','contactTel','contactEmail','contactAdresse',
+      'dejaChineEtablissement','dejaChineAnnees',
+      'sourceFinancement','sourceFinancementAutre',
+    ]
+    const data: Record<string, string> = { currentPanel: String(currentPanel) }
+
+    fieldIds.forEach((id) => {
+      const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null
+      if (el) data[id] = el.value
+    })
+
+    // Special fields
+    const faculteEl = document.querySelector<HTMLSelectElement>('[data-faculte-select]')
+    if (faculteEl) data['faculte'] = faculteEl.value
+    const paysEl = document.querySelector<HTMLSelectElement>('[data-pays-select]')
+    if (paysEl) data['pays'] = paysEl.value
+
+    const phoneEl    = document.querySelector<HTMLInputElement>('[data-phone-number]')
+    const indicatifEl = document.querySelector<HTMLInputElement>('[data-phone-hidden-code]')
+    if (phoneEl)     data['telephone'] = phoneEl.value
+    if (indicatifEl) data['indicatif'] = indicatifEl.value
+
+    // Radios
+    const sexeChecked = document.querySelector<HTMLInputElement>('input[name="sexe"]:checked')
+    if (sexeChecked) data['sexe'] = sexeChecked.value
+    const destChecked = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')
+    if (destChecked) data['destination'] = destChecked.value
+    const dejaChecked = document.querySelector<HTMLInputElement>('input[name="dejaChine"]:checked')
+    if (dejaChecked) data['dejaChine'] = dejaChecked.value
+
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch { /* quota */ }
+  }
+
+  function restoreFromLocal() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (!raw) return
+      const data = JSON.parse(raw) as Record<string, string>
+
+      const skipKeys = new Set(['currentPanel', 'pays', 'faculte', 'telephone', 'indicatif',
+                                'sexe', 'destination', 'dejaChine'])
+
+      Object.entries(data).forEach(([id, value]) => {
+        if (skipKeys.has(id)) return
+        const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null
+        if (el) el.value = value
+      })
+
+      // Phone
+      if (data['telephone']) {
+        const el = document.querySelector<HTMLInputElement>('[data-phone-number]')
+        if (el) el.value = data['telephone']
+      }
+      if (data['indicatif']) {
+        const el = document.querySelector<HTMLInputElement>('[data-phone-hidden-code]')
+        if (el) {
+          el.value = data['indicatif']
+          const codeText = document.querySelector<HTMLElement>('[data-phone-code]')
+          if (codeText) codeText.textContent = data['indicatif']
+        }
+      }
+
+      // Radios
+      if (data['sexe']) {
+        const el = document.querySelector<HTMLInputElement>(`input[name="sexe"][value="${data['sexe']}"]`)
+        if (el) el.checked = true
+      }
+      if (data['destination']) {
+        const el = document.querySelector<HTMLInputElement>(`input[name="destination"][value="${data['destination']}"]`)
+        if (el) el.checked = true
+      }
+      if (data['dejaChine']) {
+        const el = document.querySelector<HTMLInputElement>(`input[name="dejaChine"][value="${data['dejaChine']}"]`)
+        if (el) { el.checked = true }
+        if (data['dejaChine'] === 'oui') document.getElementById('dejaChineDetails')?.classList.remove('hidden')
+      }
+
+      // Conditionals
+      if (data['specialite'] === 'autre') {
+        document.getElementById('specialiteAutreWrapper')?.classList.remove('hidden')
+        const autreInput = document.getElementById('specialiteAutre') as HTMLInputElement | null
+        if (autreInput) autreInput.required = true
+      }
+      if (data['sourceFinancement'] === 'autre') {
+        document.getElementById('sourceFinancementAutreWrapper')?.classList.remove('hidden')
+      }
+
+      // Programme → trigger faculte population, then restore
+      const progEl = document.getElementById('programme') as HTMLSelectElement | null
+      if (progEl?.value) {
+        progEl.dispatchEvent(new Event('change'))
+        if (data['faculte']) {
+          setTimeout(() => {
+            const facEl = document.querySelector<HTMLSelectElement>('[data-faculte-select]')
+            if (facEl) facEl.value = data['faculte']
+          }, 50)
+        }
+      }
+
+      const panel = parseInt(data['currentPanel'] || '1', 10)
+      if (panel > 1) goToPanel(panel)
+    } catch { /* corrupt data */ }
+  }
+
+  // ── Destination change ────────────────────────────────────
+  function initDestinationChange() {
+    document.querySelectorAll<HTMLInputElement>('[data-destination-radio]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        renderStepIndicator()
+        updateDestinationDependentUI()
+        scheduleAutoSave()
+      })
+    })
+  }
+
+  function updateDestinationDependentUI() {
+    const dest = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value
+    const isChine = dest === 'chine'
+    document.getElementById('formulaireChineSection')?.classList.toggle('hidden', !isChine)
+  }
+
+  // ── Documents dynamiques (panel 5) ────────────────────────
+  function renderDynamicDocs() {
+    const container = document.getElementById('relevesContainer')
+    if (!container) return
+
+    const niveauVise = (document.getElementById('niveauVise') as HTMLSelectElement | null)?.value
+
+    if (!niveauVise || !RELEVÉS_PAR_NIVEAU[niveauVise]) {
+      container.innerHTML = '<p class="text-sm text-neutral-400 italic">Sélectionnez un niveau visé (étape 3) pour voir les relevés requis.</p>'
+      return
+    }
+
+    const releves = RELEVÉS_PAR_NIVEAU[niveauVise]
+    container.innerHTML = releves.map((label, i) => `
+      <div class="rounded border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
+        <label class="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-200">
+          ${escapeHtml(label)} <span class="text-neutral-400" aria-hidden="true">*</span>
+        </label>
+        <input
+          type="file"
+          name="releve_dyn_${i}"
+          accept=".pdf,.jpg,.jpeg,.png"
+          required
+          class="text-sm text-neutral-500 file:mr-3 file:cursor-pointer file:rounded file:border file:border-neutral-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-neutral-600 file:transition-colors hover:file:border-neutral-300 dark:file:border-neutral-700 dark:file:bg-neutral-800 dark:file:text-neutral-400"
+        />
+      </div>
+    `).join('')
+  }
+
+  // ── Déjà étudié en Chine ──────────────────────────────────
+  function initDejaChineConditional() {
+    document.querySelectorAll<HTMLInputElement>('[data-deja-chine]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        const show = radio.value === 'oui' && radio.checked
+        document.getElementById('dejaChineDetails')?.classList.toggle('hidden', !show)
+      })
+    })
+  }
+
+  // ── Source financement "autre" ────────────────────────────
+  function initSourceFinancementConditional() {
+    const select  = document.getElementById('sourceFinancement') as HTMLSelectElement | null
+    const wrapper = document.getElementById('sourceFinancementAutreWrapper')
+    if (!select || !wrapper) return
+    select.addEventListener('change', () => {
+      wrapper.classList.toggle('hidden', select.value !== 'autre')
+    })
+  }
+
+  // ── Spécialité "Autre" ────────────────────────────────────
+  function initSpecialiteConditional() {
+    const select  = document.getElementById('specialite') as HTMLSelectElement | null
+    const wrapper = document.getElementById('specialiteAutreWrapper')
+    const autreIn = document.getElementById('specialiteAutre') as HTMLInputElement | null
+    if (!select || !wrapper) return
+    select.addEventListener('change', () => {
+      const isAutre = select.value === 'autre'
+      wrapper.classList.toggle('hidden', !isAutre)
+      if (autreIn) autreIn.required = isAutre
+    })
+  }
+
+  // ── Faculté conditionnelle ────────────────────────────────
+  function initProgrammeConditional() {
+    const progSelect = document.getElementById('programme') as HTMLSelectElement | null
+    const facSelect  = document.querySelector<HTMLSelectElement>('[data-faculte-select]')
+    if (!progSelect || !facSelect) return
+
+    progSelect.addEventListener('change', () => {
+      const prog     = PROGRAMMES.find((p) => p.value === progSelect.value)
+      const faculties = prog?.faculties ?? []
+      facSelect.innerHTML = '<option value="">Sélectionner une faculté…</option>'
+      faculties.forEach((fac) => {
+        const opt = document.createElement('option')
+        opt.value = fac; opt.textContent = fac
+        facSelect.appendChild(opt)
+      })
+      facSelect.disabled = faculties.length === 0
+    })
+  }
+
+  // ── Autocomplete adresse (Nominatim) ──────────────────────
+  function initAddressAutocomplete() {
+    const input    = document.getElementById('adresse') as HTMLInputElement | null
+    const suggestEl = document.querySelector<HTMLElement>('[data-address-suggestions]')
+    if (!input || !suggestEl) return
+
+    let debounce: ReturnType<typeof setTimeout>
+    input.addEventListener('input', () => {
+      clearTimeout(debounce)
+      const q = input.value.trim()
+      if (q.length < 3) { suggestEl.classList.add('hidden'); return }
+      debounce = setTimeout(() => fetchAddressSuggestions(q, suggestEl, input), 350)
+    })
+    input.addEventListener('blur', () => setTimeout(() => suggestEl.classList.add('hidden'), 200))
+  }
+
+  async function fetchAddressSuggestions(q: string, container: HTMLElement, input: HTMLInputElement) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&accept-language=fr`
+      const res = await fetch(url)
+      const results = (await res.json()) as any[]
+      if (!results.length) { container.classList.add('hidden'); return }
+
+      container.innerHTML = results.map((r) => {
+        const city    = escapeHtml(r.address?.city || r.address?.town || r.address?.village || '')
+        const country = escapeHtml(r.address?.country || '')
+        const display = escapeHtml(r.display_name || '')
+        return `<div class="${SUGGESTION_ITEM_CLASS}" tabindex="0" role="option"
+              data-city="${city}" data-country="${country}" data-display="${display}">
+          ${display}
+        </div>`
+      }).join('')
+
+      container.querySelectorAll('[data-display]').forEach((item) => {
+        item.addEventListener('mousedown', (e) => {
+          e.preventDefault()
+          const el = item as HTMLElement
+          input.value = el.dataset.display || ''
+          fillCityCountry(el.dataset.city || '', el.dataset.country || '')
+          container.classList.add('hidden')
+        })
+      })
+      container.classList.remove('hidden')
+    } catch { container.classList.add('hidden') }
+  }
+
+  function fillCityCountry(city: string, country: string) {
+    const villeEl = document.getElementById('ville') as HTMLInputElement | null
+    if (villeEl && city) villeEl.value = city
+    if (country) {
+      const paysEl = document.querySelector<HTMLSelectElement>('[data-pays-select]')
+      if (paysEl) {
+        const opt = Array.from(paysEl.options).find((o) =>
+          o.text.toLowerCase().includes(country.toLowerCase())
+        )
+        if (opt) paysEl.value = opt.value
+      }
+    }
+  }
+
+  // ── Géolocalisation ────────────────────────────────────────
+  function initGeolocation() {
+    const btn     = document.getElementById('geolocBtn') as HTMLButtonElement | null
+    const btnText = document.getElementById('geolocBtnText')
+    if (!btn || !btnText) return
+
+    btn.addEventListener('click', () => {
+      if (!navigator.geolocation) { btnText.textContent = 'Non disponible'; return }
+      btnText.textContent = '…'
+      btn.disabled = true
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const { latitude: lat, longitude: lon } = pos.coords
+            const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr`)
+            const data = await res.json()
+            const adresseEl = document.getElementById('adresse') as HTMLInputElement | null
+            if (adresseEl) adresseEl.value = data.display_name || ''
+            fillCityCountry(
+              data.address?.city || data.address?.town || data.address?.village || '',
+              data.address?.country || ''
+            )
+            btnText.textContent = '✓ Position'
+          } catch { btnText.textContent = 'Erreur' }
+          finally   { btn.disabled = false }
+        },
+        () => {
+          btnText.textContent = 'Accès refusé'
+          btn.disabled = false
+          setTimeout(() => { btnText.textContent = 'Ma position' }, 3000)
+        },
+        { timeout: 10000 }
+      )
+    })
+  }
+
+  // ── Pays dropdown ─────────────────────────────────────────
+  async function initCountryDropdown() {
+    const select = document.querySelector<HTMLSelectElement>('[data-pays-select]')
+    if (!select) return
+
+    const savedPays = (() => {
+      try { return (JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Record<string, string>).pays } catch { return undefined }
+    })()
+    const targetValue = savedPays || 'GA'
+
+    const populate = (pairs: [string, string][]) => {
+      select.innerHTML = '<option value="">Sélectionner…</option>'
+      pairs.forEach(([code, name]) => {
+        const opt = document.createElement('option')
+        opt.value = code; opt.textContent = name
+        select.appendChild(opt)
+      })
+      select.value = targetValue
+    }
+
+    try {
+      const res  = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,translations')
+      const data = (await res.json()) as any[]
+      const pairs = data
+        .map((c): [string, string] => [c.cca2, c.translations?.fra?.common || c.name.common])
+        .sort(([, a], [, b]) => a.localeCompare(b, 'fr'))
+      populate(pairs)
+    } catch {
+      populate([
+        ['GA','Gabon'],['FR','France'],['CM','Cameroun'],['CG','Congo'],['CD','RD Congo'],
+        ['SN','Sénégal'],['CI',"Côte d'Ivoire"],['CN','Chine'],['NG','Nigéria'],['MA','Maroc'],
+      ])
+    }
+  }
+
+  // ── Autocomplete établissements ───────────────────────────
+  function initEtablissementAutocomplete() {
+    const input    = document.getElementById('etablissement') as HTMLInputElement | null
+    const suggestEl = document.querySelector<HTMLElement>('[data-etablissement-suggestions]')
+    if (!input || !suggestEl) return
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase()
+      if (q.length < 2) { suggestEl.classList.add('hidden'); return }
+      const matches = ETABLISSEMENTS_GABON.filter((e) => e.toLowerCase().includes(q)).slice(0, 8)
+      if (!matches.length) { suggestEl.classList.add('hidden'); return }
+
+      suggestEl.innerHTML = matches.map((e) =>
+        `<div class="${SUGGESTION_ITEM_CLASS}" tabindex="0" role="option">${escapeHtml(e)}</div>`
+      ).join('')
+      suggestEl.querySelectorAll('[role="option"]').forEach((item) => {
+        item.addEventListener('mousedown', (e) => {
+          e.preventDefault()
+          input.value = (item as HTMLElement).textContent || ''
+          suggestEl.classList.add('hidden')
+        })
+      })
+      suggestEl.classList.remove('hidden')
+    })
+    input.addEventListener('blur', () => setTimeout(() => suggestEl.classList.add('hidden'), 200))
+  }
+
+  // ── Expiration passeport ──────────────────────────────────
+  function initPassportExpiryCheck() {
+    const input   = document.getElementById('dateExpirationPasseport') as HTMLInputElement | null
+    const warning = document.getElementById('passportExpiryWarning')
+    if (!input || !warning) return
+
+    input.addEventListener('change', () => {
+      const val = input.value
+      if (!val) { warning.classList.add('hidden'); return }
+      const expiry          = new Date(val)
+      const today           = new Date()
+      const sixMonthsFromNow = new Date()
+      sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+
+      if (expiry < today) {
+        warning.textContent = '⚠️ Votre passeport est expiré. Vous devez le renouveler avant de candidater.'
+        warning.className   = 'mt-1 px-1 text-xs text-red-500 dark:text-red-400'
+        warning.classList.remove('hidden')
+      } else if (expiry < sixMonthsFromNow) {
+        warning.textContent = '⚠️ Attention : votre passeport expire dans moins de 6 mois. Vérifiez qu\'il sera valide pendant toute la durée des études.'
+        warning.className   = 'mt-1 px-1 text-xs text-amber-600 dark:text-amber-400'
+        warning.classList.remove('hidden')
+      } else {
+        warning.classList.add('hidden')
+      }
+    })
+  }
+
+  // ── Validation email ──────────────────────────────────────
+  function initEmailValidation() {
+    const input  = document.getElementById('email') as HTMLInputElement | null
+    const status = document.getElementById('emailStatus')
+    if (!input || !status) return
+
+    let debounce: ReturnType<typeof setTimeout>
+    const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+    input.addEventListener('input', () => {
+      clearTimeout(debounce)
+      const val = input.value.trim()
+      if (!val) { status.textContent = ''; return }
+      if (!emailReg.test(val)) { status.textContent = '❌'; return }
+      debounce = setTimeout(() => {
+        const domain     = val.split('@')[1] || ''
+        const suspicious = ['test','example','localhost','invalid'].some((t) => domain.includes(t))
+        status.textContent = suspicious ? '⚠️' : '✅'
+      }, 500)
+    })
+  }
+
+  // ── Réinitialisation ──────────────────────────────────────
+  function initReset() {
+    document.getElementById('btnReset')?.addEventListener('click', () => {
+      if (!confirm('Réinitialiser toutes vos données ? Cette action est irréversible.')) return
+      localStorage.removeItem(STORAGE_KEY)
+      ;(document.getElementById('applicationForm') as HTMLFormElement)?.reset()
+      document.querySelector('[data-multiselect-tags]')?.replaceChildren()
+      document.querySelector('[data-multiselect-hidden-inputs]')?.replaceChildren()
+      document.getElementById('draftIndicator')?.classList.add('hidden')
+      document.getElementById('dejaChineDetails')?.classList.add('hidden')
+      document.getElementById('specialiteAutreWrapper')?.classList.add('hidden')
+      document.getElementById('sourceFinancementAutreWrapper')?.classList.add('hidden')
+      currentPanel = 1
+      goToPanel(1)
+    })
+  }
+
+  // ── Récapitulatif ─────────────────────────────────────────
+  function renderReview() {
+    const container = document.getElementById('reviewContent')
+    if (!container) return
+
+    const get    = (id: string) => escapeHtml((document.getElementById(id) as HTMLInputElement | null)?.value || '—')
+    const getSel = (sel: string) => {
+      const el = document.querySelector<HTMLSelectElement>(sel)
+      return escapeHtml(el?.options[el.selectedIndex]?.text || '—')
+    }
+    const natInputs = escapeHtml(
+      Array.from(document.querySelectorAll<HTMLInputElement>('input[name^="nationalites"]'))
+        .map((i) => i.value).join(', ') || '—'
+    )
+    const phoneNum       = document.querySelector<HTMLInputElement>('[data-phone-number]')?.value || ''
+    const indicatif      = document.querySelector<HTMLInputElement>('[data-phone-hidden-code]')?.value || ''
+    const telephoneDisplay = escapeHtml(`${indicatif} ${phoneNum}`.trim() || '—')
+
+    const specialiteVal  = (document.getElementById('specialite') as HTMLSelectElement | null)?.value
+    const specialiteDisp = specialiteVal === 'autre' ? get('specialiteAutre') : getSel('#specialite')
+    const moyenneRaw     = (document.getElementById('moyenne') as HTMLInputElement | null)?.value
+    const moyenneDisp    = moyenneRaw ? escapeHtml(`${moyenneRaw} / 20`) : '—'
+
+    const destVal  = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value || ''
+    const sexeVal  = document.querySelector<HTMLInputElement>('input[name="sexe"]:checked')?.value || ''
+    const sexeLabels: Record<string,string> = { masculin: 'Masculin', feminin: 'Féminin' }
+    const destLabels: Record<string,string> = { chine: '🇨🇳 Chine', ghana: '🇬🇭 Ghana', russie: '🇷🇺 Russie', autre: '🌍 Autre' }
+
+    const staticDocIds    = ['diplome', 'piece_identite', 'photo_identite', 'photo_identite', 'lettre_motivation', 'formulaire_chine']
+    const staticDocLabels: Record<string,string> = {
+      diplome:          'Diplôme',
+      releve_notes:     'Relevé de notes',
+      piece_identite:   "Pièce d'identité",
+      photo_identite:   "Photo d'identité",
+      lettre_motivation:'Lettre de motivation',
+      formulaire_chine: 'Formulaire Chine',
+    }
+    const uniqueStaticDocIds = [...new Set(staticDocIds)]
+
+    const relevéInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name^="releve_dyn_"]'))
+
+    const dejaChineVal = document.querySelector<HTMLInputElement>('input[name="dejaChine"]:checked')?.value
+    const dejaChineDisp = dejaChineVal === 'oui'
+      ? `Oui — ${get('dejaChineEtablissement')} (${get('dejaChineAnnees')})`
+      : dejaChineVal === 'non' ? 'Non' : '—'
+
+    const sections = [
+      {
+        title: 'Informations personnelles',
+        rows: [
+          ['Nom', get('nom')],
+          ['Prénom', get('prenom')],
+          ['Date de naissance', get('dateNaissance')],
+          ['Lieu de naissance', get('lieuNaissance')],
+          ['Nationalité(s)', natInputs],
+          ['Sexe', escapeHtml(sexeLabels[sexeVal] || sexeVal || '—')],
+          ['Situation matrimoniale', getSel('#situationMatrimoniale')],
+          ['N° passeport', get('numPasseport')],
+          ['Expiration passeport', get('dateExpirationPasseport')],
+          ['Adresse', get('adresse')],
+          ['Ville', get('ville')],
+          ['Pays', getSel('[data-pays-select]')],
+          ['Téléphone', telephoneDisplay],
+          ['Email', get('email')],
+        ],
+      },
+      {
+        title: 'Informations académiques',
+        rows: [
+          ["Niveau d'étude", getSel('#niveauEtude')],
+          ['Établissement', get('etablissement')],
+          ['Spécialité', specialiteDisp],
+          ['Moyenne', moyenneDisp],
+        ],
+      },
+      {
+        title: 'Destination & Programme',
+        rows: [
+          ['Destination', escapeHtml(destLabels[destVal] || destVal || '—')],
+          ['Niveau visé', getSel('#niveauVise')],
+          ['Programme', getSel('#programme')],
+          ['Faculté', getSel('[data-faculte-select]')],
+        ],
+      },
+      ...(destVal === 'chine' ? [{
+        title: 'Informations complémentaires',
+        rows: [
+          ['Contact urgence', `${get('contactNom')} (${getSel('#contactLienParente')})`],
+          ['Tél. contact', get('contactTel')],
+          ['Email contact', get('contactEmail')],
+          ['Déjà étudié en Chine', escapeHtml(dejaChineDisp)],
+          ['Source de financement', getSel('#sourceFinancement')],
+        ],
+      }] : []),
+      {
+        title: 'Documents',
+        rows: [
+          ...relevéInputs.map((inp, i) => {
+            const fileName = inp.files?.[0] ? escapeHtml(inp.files[0].name) : '—'
+            return [`Relevé ${i + 1}`, inp.files?.[0] ? `✅ ${fileName}` : '—']
+          }),
+          ...uniqueStaticDocIds.map((docId) => {
+            const inp = document.getElementById(`file-${docId}`) as HTMLInputElement | null
+            const fileName = inp?.files?.[0] ? escapeHtml(inp.files[0].name) : '—'
+            return [staticDocLabels[docId] || docId, inp?.files?.[0] ? `✅ ${fileName}` : '—']
+          }),
+        ],
+      },
+    ]
+
+    container.innerHTML = sections.map((section) => `
+      <div class="overflow-hidden rounded border border-neutral-100 dark:border-neutral-800">
+        <div class="border-b border-neutral-100 bg-neutral-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
+          <h3 class="mb-0 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">${escapeHtml(section.title)}</h3>
+        </div>
+        <div class="divide-y divide-neutral-50 dark:divide-neutral-900">
+          ${section.rows.map(([label, value]) => `
+            <div class="flex items-baseline gap-4 px-4 py-2.5">
+              <span class="w-40 flex-shrink-0 text-xs text-neutral-400">${escapeHtml(label as string)}</span>
+              <span class="flex-1 text-sm text-neutral-700 dark:text-neutral-200">${value}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')
+  }
+
+  // ── État "candidature déjà soumise" ──────────────────────
+
+  function checkSubmittedState(): boolean {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_SUBMITTED)
+      if (!raw) return false
+      const data = JSON.parse(raw) as Record<string, string>
+      showSubmittedView(data)
+      return true
+    } catch { return false }
+  }
+
+  function showSubmittedView(data: Record<string, string>) {
+    document.getElementById('formContent')?.classList.add('hidden')
+    const view = document.getElementById('submittedView')
+    if (!view) return
+    view.classList.remove('hidden')
+
+    // Date d'envoi
+    if (data['submittedAt']) {
+      const d = new Date(data['submittedAt'])
+      const dateEl = document.getElementById('submittedDate')
+      if (dateEl) dateEl.textContent = `Envoyée le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    }
+
+    // Récapitulatif
+    renderSubmittedRecap(data)
+
+    // Bouton nouvelle candidature
+    document.getElementById('btnNewCandidature')?.addEventListener('click', () => {
+      if (!confirm('Attention : cela effacera votre candidature enregistrée. Continuer ?')) return
+      localStorage.removeItem(STORAGE_KEY_SUBMITTED)
+      localStorage.removeItem(STORAGE_KEY)
+      view.classList.add('hidden')
+      document.getElementById('formContent')?.classList.remove('hidden')
+
+      // Masquer tous les panneaux avant de réinitialiser pour éviter qu'un
+      // panneau précédemment actif reste visible après goToPanel(1).
+      document.querySelectorAll<HTMLElement>('[data-step-panel]').forEach((el) => el.classList.add('hidden'))
+      currentPanel = 0  // invalide → goToPanel(1) part d'un état propre
+
+      ;(document.getElementById('applicationForm') as HTMLFormElement)?.reset()
+
+      renderStepIndicator()
+      initNavigation()
+      initAutoSave()
+      initAddressAutocomplete()
+      initEtablissementAutocomplete()
+      initProgrammeConditional()
+      initSpecialiteConditional()
+      initDestinationChange()
+      initDejaChineConditional()
+      initSourceFinancementConditional()
+      initEmailValidation()
+      initGeolocation()
+      initPassportExpiryCheck()
+      initCountryDropdown()
+      initReset()
+      goToPanel(1)
+    })
+  }
+
+  function renderSubmittedRecap(data: Record<string, string>) {
+    const container = document.getElementById('submittedRecap')
+    if (!container) return
+
+    const destLabels: Record<string, string> = { chine: '🇨🇳 Chine', ghana: '🇬🇭 Ghana', russie: '🇷🇺 Russie', autre: '🌍 Autre' }
+    const sexeLabels: Record<string, string> = { masculin: 'Masculin', feminin: 'Féminin' }
+
+    const rows: [string, string][] = [
+      ['Nom & Prénom',   `${data['prenom'] || ''} ${data['nom'] || ''}`.trim() || '—'],
+      ['Email',          data['email'] || '—'],
+      ['Téléphone',      data['telephone'] || '—'],
+      ['Nationalité(s)', data['nationalites'] || '—'],
+      ['Sexe',           sexeLabels[data['sexe'] || ''] || data['sexe'] || '—'],
+      ['Niveau d\'étude', data['niveauEtude'] || '—'],
+      ['Établissement',  data['etablissement'] || '—'],
+      ['Spécialité',     data['specialite'] || '—'],
+      ['Moyenne',        data['moyenne'] ? `${data['moyenne']} / 20` : '—'],
+      ['Destination',    destLabels[data['destination'] || ''] || data['destination'] || '—'],
+      ['Programme',      data['programme'] || '—'],
+      ['Niveau visé',    data['niveauVise'] || '—'],
+    ]
+    if (data['sourceFinancement']) rows.push(['Financement', data['sourceFinancement']])
+
+    container.innerHTML = rows.map(([label, value], i) => `
+      <div class="flex items-baseline gap-3 px-4 py-2.5 ${i % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-neutral-50 dark:bg-neutral-900/50'}">
+        <span class="w-32 flex-shrink-0 text-xs text-neutral-400">${escapeHtml(label)}</span>
+        <span class="flex-1 text-sm text-neutral-700 dark:text-neutral-200">${escapeHtml(value)}</span>
+      </div>
+    `).join('')
+  }
+
+  function saveSubmittedState() {
+    const getSel = (idOrSel: string) => {
+      const el = (idOrSel.startsWith('[') || idOrSel.startsWith('.'))
+        ? document.querySelector<HTMLSelectElement>(idOrSel)
+        : document.getElementById(idOrSel) as HTMLSelectElement | null
+      return el?.options[el?.selectedIndex ?? -1]?.text || el?.value || ''
+    }
+    const get = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value || ''
+
+    const phoneNum  = document.querySelector<HTMLInputElement>('[data-phone-number]')?.value || ''
+    const indicatif = document.querySelector<HTMLInputElement>('[data-phone-hidden-code]')?.value || ''
+    const natInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name^="nationalites"]'))
+      .map((i) => i.value).join(', ')
+
+    const data: Record<string, string> = {
+      submittedAt:       new Date().toISOString(),
+      nom:               get('nom'),
+      prenom:            get('prenom'),
+      email:             get('email'),
+      telephone:         `${indicatif} ${phoneNum}`.trim(),
+      nationalites:      natInputs,
+      sexe:              document.querySelector<HTMLInputElement>('input[name="sexe"]:checked')?.value || '',
+      situationMatrimoniale: getSel('situationMatrimoniale'),
+      niveauEtude:       getSel('niveauEtude'),
+      etablissement:     get('etablissement'),
+      specialite:        get('specialite') === 'autre' ? get('specialiteAutre') : getSel('specialite'),
+      moyenne:           get('moyenne'),
+      destination:       document.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value || '',
+      niveauVise:        getSel('niveauVise'),
+      programme:         getSel('programme'),
+      faculte:           getSel('[data-faculte-select]') || '',
+      sourceFinancement: getSel('sourceFinancement'),
+    }
+    try { localStorage.setItem(STORAGE_KEY_SUBMITTED, JSON.stringify(data)) } catch { /* quota */ }
+  }
+
+  // ── Soumission FormBold ───────────────────────────────────
+  async function handleSubmit(e: Event) {
+    e.preventDefault()
+
+    // Check confirmation checkboxes
+    const certif = (document.getElementById('certifExact') as HTMLInputElement | null)?.checked
+    const cgu    = (document.getElementById('certifCGU')   as HTMLInputElement | null)?.checked
+    if (!certif || !cgu) {
+      showErrors(['Veuillez cocher les cases de confirmation avant de soumettre.'])
+      return
+    }
+
+    const form          = e.target as HTMLFormElement
+    const submitBtn     = document.getElementById('btnSubmit') as HTMLButtonElement
+    const loadingOverlay = document.getElementById('appLoadingOverlay')!
+    const successModal  = document.getElementById('appSuccessModal')!
+    const errorModal    = document.getElementById('appErrorModal')!
+    const statusEl      = document.getElementById('formStatus')
+
+    submitBtn.disabled = true
+    loadingOverlay.classList.remove('hidden')
+    if (statusEl) statusEl.textContent = 'Envoi en cours…'
+
+    try {
+      // Build a text-only FormData — FormBold free tier ne supporte pas les fichiers.
+      // Les pièces jointes seront transmises via le backend Laravel (à venir).
+      const textData = new FormData()
+
+      // Parcourt tous les champs du formulaire, ignore les fichiers
+      new FormData(form).forEach((value, key) => {
+        if (typeof value === 'string') textData.append(key, value)
+      })
+
+      // Champs radio (sélection unique — pas toujours inclus via FormData)
+      const sexeChecked = document.querySelector<HTMLInputElement>('input[name="sexe"]:checked')
+      if (sexeChecked) textData.set('sexe', sexeChecked.value)
+      const destChecked = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')
+      if (destChecked) textData.set('destination', destChecked.value)
+      const dejaChecked = document.querySelector<HTMLInputElement>('input[name="dejaChine"]:checked')
+      if (dejaChecked) textData.set('deja_etudie_chine', dejaChecked.value)
+
+      // Téléphone combiné (indicatif + numéro)
+      const phoneNum  = document.querySelector<HTMLInputElement>('[data-phone-number]')?.value || ''
+      const indicatif = document.querySelector<HTMLInputElement>('[data-phone-hidden-code]')?.value || ''
+      textData.set('telephone_complet', `${indicatif} ${phoneNum}`.trim())
+
+      // Noms des fichiers joints (pour info dans FormBold, sans le contenu)
+      const fileInputs = form.querySelectorAll<HTMLInputElement>('input[type="file"]')
+      const filesSummary = Array.from(fileInputs)
+        .filter((inp) => inp.files?.length)
+        .map((inp) => `${inp.name}: ${inp.files![0].name}`)
+        .join(' | ')
+      if (filesSummary) textData.set('fichiers_joints', filesSummary)
+
+      const res = await fetch(VALIDATION.formboldEndpoint, { method: 'POST', body: textData })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      saveSubmittedState()
+      localStorage.removeItem(STORAGE_KEY)
+
+      loadingOverlay.classList.add('hidden')
+      successModal.classList.remove('hidden')
+      if (statusEl) statusEl.textContent = 'Candidature envoyée avec succès !'
+      successModal.querySelector<HTMLElement>('a')?.focus()
+
+      // Quand l'utilisateur ferme le modal, afficher la vue "déjà soumis"
+      const switchToSubmittedView = () => {
+        successModal.classList.add('hidden')
+        const submitted = localStorage.getItem(STORAGE_KEY_SUBMITTED)
+        if (submitted) {
+          try { showSubmittedView(JSON.parse(submitted)) } catch {}
+        }
+      }
+      document.getElementById('appCloseSuccessBtn')?.addEventListener('click', switchToSubmittedView, { once: true })
+      successModal.addEventListener('click', (e) => {
+        if (e.target === successModal) switchToSubmittedView()
+      }, { once: true })
+
+      // Email de confirmation au candidat (fire-and-forget)
+      const nomVal    = (document.getElementById('nom')    as HTMLInputElement | null)?.value || ''
+      const prenomVal = (document.getElementById('prenom') as HTMLInputElement | null)?.value || ''
+      const emailVal  = (document.getElementById('email')  as HTMLInputElement | null)?.value || ''
+      const progEl    = document.getElementById('programme')  as HTMLSelectElement | null
+      const niveauEl  = document.getElementById('niveauVise') as HTMLSelectElement | null
+      const destVal   = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value || ''
+      const destLabels: Record<string, string> = { chine: 'Chine', ghana: 'Ghana', russie: 'Russie', autre: 'Autre destination' }
+      sendConfirmationEmail({
+        to_name:     `${prenomVal} ${nomVal}`.trim(),
+        to_email:    emailVal,
+        destination: destLabels[destVal] || destVal,
+        programme:   progEl?.options[progEl.selectedIndex]?.text || '',
+        niveau_vise: niveauEl?.options[niveauEl.selectedIndex]?.text || '',
+      })
+    } catch {
+      loadingOverlay.classList.add('hidden')
+      errorModal.classList.remove('hidden')
+      if (statusEl) statusEl.textContent = 'Une erreur est survenue.'
+    } finally {
+      submitBtn.disabled = false
+    }
+  }
+</script>
+
+<style is:global>
+  /*
+   * Erreur par champ — appliquée par JS uniquement après une tentative de navigation.
+   * Jamais affichée au chargement initial.
+   */
+  [data-field-error] > input:not([type="hidden"]):not([type="file"]),
+  [data-field-error] > select {
+    border-color: rgb(248 113 113) !important;
+  }
+  [data-field-error] > input:focus:not([type="hidden"]):not([type="file"]),
+  [data-field-error] > select:focus {
+    border-color: rgb(248 113 113) !important;
+  }
+  [data-field-error] > div:has([data-phone-number]) {
+    border-color: rgb(248 113 113) !important;
+  }
+  [data-field-error] > [data-multiselect-field] {
+    border-color: rgb(248 113 113) !important;
+  }
+  fieldset[data-field-error] {
+    border-color: rgb(248 113 113) !important;
+  }
+</style>

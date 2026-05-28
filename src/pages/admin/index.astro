@@ -1,0 +1,121 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro'
+import {
+  MOCK_CANDIDATURES,
+  MOCK_CONVERSATIONS,
+  STATUS_LABELS,
+  STATUS_COLORS,
+  formatDateTime,
+  type CandidatureStatus,
+} from '../../lib/mock-data'
+
+
+
+const total = MOCK_CANDIDATURES.length
+const pending = MOCK_CANDIDATURES.filter(c => c.status === 'pending').length
+const reviewing = MOCK_CANDIDATURES.filter(c => c.status === 'reviewing').length
+const accepted = MOCK_CANDIDATURES.filter(c => c.status === 'accepted').length
+const unreadMessages = MOCK_CONVERSATIONS.reduce((n, c) => n + c.unreadCount, 0)
+const recent = MOCK_CANDIDATURES.slice().sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)).slice(0, 5)
+---
+
+<DashboardLayout title="Tableau de bord" activeNav="overview">
+  <div class="p-6 max-w-7xl mx-auto space-y-6">
+
+    <!-- En-tête -->
+    <div>
+      <h1 class="text-2xl font-headings font-semibold text-neutral-700">Tableau de bord</h1>
+      <p class="text-sm text-neutral-400 mt-1">Bonjour, {session.name} 👋</p>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl border border-neutral-100 p-5">
+        <p class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Total candidatures</p>
+        <p class="text-3xl font-bold text-neutral-700 mt-2">{total}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-neutral-100 p-5">
+        <p class="text-xs font-medium text-amber-500 uppercase tracking-wide">En attente</p>
+        <p class="text-3xl font-bold text-amber-600 mt-2">{pending}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-neutral-100 p-5">
+        <p class="text-xs font-medium text-blue-500 uppercase tracking-wide">En examen</p>
+        <p class="text-3xl font-bold text-blue-600 mt-2">{reviewing}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-neutral-100 p-5">
+        <p class="text-xs font-medium text-green-500 uppercase tracking-wide">Acceptées</p>
+        <p class="text-3xl font-bold text-green-600 mt-2">{accepted}</p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+      <!-- Candidatures récentes -->
+      <div class="lg:col-span-2 bg-white rounded-xl border border-neutral-100">
+        <div class="flex items-center justify-between p-5 border-b border-neutral-50">
+          <h2 class="text-sm font-semibold text-neutral-700">Candidatures récentes</h2>
+          <a href="/admin/candidatures" class="text-xs text-primary-500 hover:text-primary-600 font-medium transition">Voir tout →</a>
+        </div>
+        <div class="divide-y divide-neutral-50">
+          {recent.map(c => (
+            <a href={`/admin/candidatures/${c.id}`} class="flex items-center gap-4 p-4 hover:bg-neutral-50/60 transition group">
+              <div class="h-9 w-9 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 text-sm font-semibold text-neutral-600">
+                {c.candidateName.charAt(0)}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-neutral-700 truncate group-hover:text-primary-600 transition">{c.candidateName}</p>
+                <p class="text-xs text-neutral-400 truncate">{c.destination} · {c.programme}</p>
+              </div>
+              <div class="shrink-0 text-right">
+                <span class={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status as CandidatureStatus]}`}>
+                  {STATUS_LABELS[c.status as CandidatureStatus]}
+                </span>
+                <p class="text-xs text-neutral-400 mt-1">{formatDateTime(c.submittedAt)}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <!-- Raccourcis -->
+      <div class="space-y-4">
+        <div class="bg-white rounded-xl border border-neutral-100 p-5">
+          <h2 class="text-sm font-semibold text-neutral-700 mb-3">Actions rapides</h2>
+          <div class="space-y-2">
+            <a href="/admin/candidatures" class="flex items-center gap-2 text-sm text-neutral-600 hover:text-primary-600 transition py-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Gérer les candidatures
+            </a>
+            <a href="/admin/messages" class="flex items-center gap-2 text-sm text-neutral-600 hover:text-primary-600 transition py-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              Messages
+              {unreadMessages > 0 && (
+                <span class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-xs font-bold text-white">
+                  {unreadMessages}
+                </span>
+              )}
+            </a>
+            <a href="/admin/logs" class="flex items-center gap-2 text-sm text-neutral-600 hover:text-primary-600 transition py-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              Voir les logs
+            </a>
+          </div>
+        </div>
+
+        {unreadMessages > 0 && (
+          <div class="bg-primary-50 rounded-xl border border-primary-100 p-4">
+            <p class="text-sm font-semibold text-primary-700">
+              {unreadMessages} message{unreadMessages > 1 ? 's' : ''} non lu{unreadMessages > 1 ? 's' : ''}
+            </p>
+            <a href="/admin/messages" class="text-xs text-primary-600 hover:underline mt-1 inline-block">Consulter →</a>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</DashboardLayout>

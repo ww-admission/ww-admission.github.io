@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Candidature reçue — WorldWise Admission</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@800&family=Inter:wght@400;500;600&display=swap');
+    body { margin: 0; padding: 0; background-color: #f8fafc; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    table { border-collapse: collapse; }
+    img { border: 0; display: block; }
+    a { color: #E2187D; text-decoration: none; }
+    @media only screen and (max-width: 600px) {
+      .wrapper     { width: 100% !important; }
+      .inner-card  { padding: 28px 20px !important; }
+      .hero-band   { padding: 36px 20px !important; }
+      .recap-label { width: 100px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:32px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- ── Card wrapper ───────────────────────────────────── -->
+        <table role="presentation" class="wrapper" width="600" cellpadding="0" cellspacing="0"
+          style="background-color:#ffffff;border:1px solid #f1f5f9;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px 0 rgba(15,23,42,0.06);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#0f172a;padding:20px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <span style="font-family:'Sora',Georgia,serif;font-size:22px;font-weight:800;letter-spacing:0.12em;color:#ffffff;">WWA</span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:#E2187D;border-radius:20px;padding:3px 12px;font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#ffffff;letter-spacing:0.04em;text-transform:uppercase;">
+                      Candidature
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Hero band -->
+          <tr>
+            <td class="hero-band" align="center" style="background-color:#fce7f3;padding:44px 32px 36px;border-bottom:1px solid #f1f5f9;">
+              <!-- Check circle -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 20px;">
+                <tr>
+                  <td style="background-color:#E2187D;border-radius:50%;width:56px;height:56px;text-align:center;vertical-align:middle;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:14px auto 0;">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="font-family:'Sora',Georgia,serif;font-size:22px;font-weight:800;color:#0f172a;margin:0 0 10px;letter-spacing:-0.01em;line-height:1.3;">
+                Candidature bien reçue&nbsp;!
+              </h1>
+              <p style="font-family:Inter,-apple-system,sans-serif;font-size:15px;color:#64748b;margin:0;line-height:1.6;">
+                Merci, <strong style="color:#334155;">{{to_name}}</strong>. Votre dossier est entre de bonnes mains.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td class="inner-card" style="padding:36px 32px;">
+
+              <p style="font-family:Inter,-apple-system,sans-serif;font-size:15px;color:#334155;margin:0 0 24px;line-height:1.7;">
+                Nous avons bien enregistré votre candidature. Notre équipe l'examinera dans les meilleurs délais et vous recontactera à cette adresse email.
+              </p>
+
+              <!-- Récapitulatif de la candidature -->
+              <p style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">
+                Récapitulatif de votre candidature
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #f1f5f9;border-radius:6px;overflow:hidden;margin-bottom:28px;">
+
+                <!-- Destination -->
+                <tr>
+                  <td class="recap-label" style="padding:13px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:130px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Destination</span>
+                  </td>
+                  <td style="padding:13px 16px;background-color:#ffffff;border-bottom:1px solid #f1f5f9;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:14px;font-weight:600;color:#0f172a;">{{destination}}</span>
+                  </td>
+                </tr>
+
+                <!-- Programme -->
+                <tr>
+                  <td style="padding:13px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:130px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Programme</span>
+                  </td>
+                  <td style="padding:13px 16px;background-color:#ffffff;border-bottom:1px solid #f1f5f9;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#334155;">{{programme}}</span>
+                  </td>
+                </tr>
+
+                <!-- Niveau visé -->
+                <tr>
+                  <td style="padding:13px 16px;background-color:#f8fafc;width:130px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Niveau visé</span>
+                  </td>
+                  <td style="padding:13px 16px;background-color:#ffffff;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#334155;">{{niveau_vise}}</span>
+                  </td>
+                </tr>
+
+              </table>
+
+              <!-- Alerte pièces jointes -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #fcd34d;border-radius:6px;background-color:#fffbeb;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="font-family:Inter,-apple-system,sans-serif;font-size:13px;font-weight:700;color:#92400e;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">
+                      ⚠️&nbsp; Vos pièces jointes
+                    </p>
+                    <p style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#78350f;margin:0;line-height:1.65;">
+                      Merci d'envoyer vos documents par email à
+                      <a href="mailto:info@worldwise-admission.com" style="color:#E2187D;font-weight:600;">info@worldwise-admission.com</a>
+                      en indiquant <strong>votre nom et prénom</strong> dans l'objet :<br />
+                      diplôme, relevé(s) de notes, pièce d'identité, photo d'identité.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                <tr>
+                  <td style="border-radius:6px;background-color:#E2187D;">
+                    <a href="https://worldwise-admission.com"
+                      style="display:inline-block;font-family:Inter,-apple-system,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;padding:12px 28px;letter-spacing:0.03em;border-radius:6px;">
+                      Visiter notre site
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 32px;">
+              <hr style="border:none;border-top:1px solid #f1f5f9;margin:0;" />
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 32px;background-color:#f8fafc;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <p style="font-family:Inter,-apple-system,sans-serif;font-size:12px;color:#94a3b8;margin:0 0 4px;line-height:1.6;">
+                      <strong style="font-family:'Sora',Georgia,serif;font-weight:800;color:#64748b;letter-spacing:0.06em;">WWA</strong>
+                      &nbsp;&mdash;&nbsp;WorldWise Admission
+                    </p>
+                    <p style="font-family:Inter,-apple-system,sans-serif;font-size:12px;color:#94a3b8;margin:0;line-height:1.6;">
+                      Vous recevez cet email car vous avez soumis un formulaire de candidature sur notre site.
+                    </p>
+                  </td>
+                  <td align="right" style="vertical-align:top;white-space:nowrap;">
+                    <a href="https://worldwise-admission.com/candidature"
+                      style="font-family:Inter,-apple-system,sans-serif;font-size:12px;color:#E2187D;text-decoration:none;">
+                      Ma candidature
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Card wrapper -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

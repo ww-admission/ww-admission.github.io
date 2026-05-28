@@ -1,24 +1,35 @@
-# build output
+# ── Build output ──────────────────────────────────────────────
 dist/
-
-# generated types
-.astro/
 .vercel/
-# dependencies
+
+# ── Astro ─────────────────────────────────────────────────────
+.astro/
+
+# ── Dépendances ───────────────────────────────────────────────
 node_modules/
 
-# logs
+# ── Variables d'environnement (SENSIBLE — ne jamais committer) ─
+.env
+.env.*
+!.env.example
+
+# ── Logs ──────────────────────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
 
-# environment variables
-.env
-.env.production
-
-# macOS-specific files
+# ── OS ────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
 
-# jetbrains setting folder
+# ── Éditeurs ──────────────────────────────────────────────────
 .idea/
+.vscode/
+*.swp
+
+# ── Fichiers sensibles / contexte interne ─────────────────────
+CLAUDE.md
+.claude/
+context-demande-claude-ia.txt

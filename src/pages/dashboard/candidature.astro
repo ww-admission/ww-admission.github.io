@@ -1,0 +1,129 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro'
+import { STATUS_LABELS, STATUS_COLORS, formatDate, formatDateTime, type CandidatureStatus } from '../../lib/mock-data'
+
+
+
+// En prod: récupérer via API backend avec session.sub
+const hasCandidature = true  // Mettre à false si pas encore de candidature
+// eslint-disable-next-line prefer-const
+let MOCK_STATUS: CandidatureStatus = 'reviewing'
+const MOCK_CANDIDATURE = {
+  destination: 'Chine',
+  programme: 'Médecine générale',
+  niveauVise: 'BAC+5 / Master',
+  submittedAt: '2026-05-20T10:30:00Z',
+  documents: [
+    { originalName: 'Passeport', name: 'passeport.pdf' },
+    { originalName: 'Relevés de notes', name: 'releves.pdf' },
+    { originalName: 'Diplôme BAC', name: 'bac.pdf' },
+  ],
+}
+---
+
+<DashboardLayout title="Ma candidature" activeNav="candidature">
+  <div class="p-6 max-w-4xl mx-auto space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-headings font-semibold text-neutral-700">Ma candidature</h1>
+        <p class="text-sm text-neutral-400 mt-0.5">Gérez et suivez votre dossier de candidature</p>
+      </div>
+      {hasCandidature && (
+        <a
+          href="/candidature"
+          class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition whitespace-nowrap"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          Nouvelle candidature
+        </a>
+      )}
+    </div>
+
+    {!hasCandidature ? (
+      <!-- Aucune candidature -->
+      <div class="bg-white rounded-xl border border-neutral-100 p-12 flex flex-col items-center text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-neutral-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <h2 class="text-lg font-semibold text-neutral-700 mb-2">Aucune candidature</h2>
+        <p class="text-sm text-neutral-400 mb-6 max-w-sm">
+          Vous n'avez pas encore soumis de candidature. Remplissez le formulaire pour commencer votre parcours.
+        </p>
+        <a
+          href="/candidature"
+          class="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 transition"
+        >
+          Déposer ma candidature
+        </a>
+      </div>
+    ) : (
+      <!-- Récapitulatif candidature -->
+      <div class="space-y-4">
+        <!-- Statut -->
+        <div class="bg-white rounded-xl border border-neutral-100 p-5">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium mb-1">Destination · Programme</p>
+              <p class="text-lg font-semibold text-neutral-700">
+                {MOCK_CANDIDATURE.destination} — {MOCK_CANDIDATURE.programme}
+              </p>
+              <p class="text-sm text-neutral-500 mt-0.5">Niveau visé : {MOCK_CANDIDATURE.niveauVise}</p>
+            </div>
+            <div class="text-right">
+              <span class={`inline-block rounded-full px-3 py-1.5 text-sm font-semibold ${STATUS_COLORS[MOCK_STATUS]}`}>
+                {STATUS_LABELS[MOCK_STATUS]}
+              </span>
+              <p class="text-xs text-neutral-400 mt-1">
+                Soumise le {formatDateTime(MOCK_CANDIDATURE.submittedAt)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Documents -->
+        <div class="bg-white rounded-xl border border-neutral-100 p-5">
+          <h2 class="text-sm font-semibold text-neutral-700 mb-4">Documents soumis</h2>
+          <ul class="space-y-2">
+            {MOCK_CANDIDATURE.documents.map(doc => (
+              <li class="flex items-center gap-3">
+                <div class="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-neutral-700">{doc.originalName}</p>
+                  <p class="text-xs text-neutral-400">{doc.name}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p class="text-xs text-neutral-400 mt-4 italic">
+            La visualisation des fichiers sera disponible après l'intégration du backend.
+          </p>
+        </div>
+
+        <!-- Message d'information selon le statut -->
+        {MOCK_STATUS === 'reviewing' && (
+          <div class="bg-blue-50 rounded-xl border border-blue-100 p-4">
+            <p class="text-sm font-semibold text-blue-800">📋 Dossier en cours d'examen</p>
+            <p class="text-xs text-blue-700 mt-1 leading-relaxed">
+              Votre dossier est actuellement analysé par l'équipe WWA. Vous recevrez une notification dès qu'une décision est prise.
+            </p>
+          </div>
+        )}
+        {MOCK_STATUS === 'accepted' && (
+          <div class="bg-green-50 rounded-xl border border-green-100 p-4">
+            <p class="text-sm font-semibold text-green-800">🎉 Candidature acceptée !</p>
+            <p class="text-xs text-green-700 mt-1 leading-relaxed">
+              Félicitations ! Votre candidature a été acceptée. L'équipe WWA vous contactera prochainement pour la suite.
+            </p>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</DashboardLayout>

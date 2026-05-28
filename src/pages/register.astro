@@ -1,0 +1,185 @@
+---
+import Header from '../components/blocks/head/Header.astro'
+import '../styles/global.css'
+import '@fontsource-variable/inter'
+import '@fontsource-variable/outfit'
+---
+
+<!doctype html>
+<html lang="fr" class="scroll-smooth antialiased">
+  <Header title="Créer un compte — WWA" description="Rejoignez WorldWise Admission" />
+  <body class="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+      <!-- Logo -->
+      <div class="text-center mb-8">
+        <a href="/" class="inline-flex items-center gap-2">
+          <img src="/logo.svg" alt="WWA" width="40" height="40" />
+          <span class="font-headings text-xl font-black tracking-wider text-neutral-700">WorldWise Admission</span>
+        </a>
+        <h1 class="mt-6 text-2xl font-headings font-semibold text-neutral-700">Créer un compte</h1>
+        <p class="mt-2 text-sm text-neutral-500">Rejoignez des centaines d'étudiants accompagnés</p>
+      </div>
+
+      <!-- Carte formulaire -->
+      <div class="bg-white rounded-2xl shadow-sm border border-neutral-100 p-8">
+        <div id="register-error" class="hidden mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+
+        <form id="register-form" novalidate class="space-y-4">
+          <div>
+            <label for="name" class="block text-sm font-medium text-neutral-700 mb-1.5">Nom complet</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              autocomplete="name"
+              required
+              placeholder="Prénom Nom"
+              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
+            />
+          </div>
+
+          <div>
+            <label for="email" class="block text-sm font-medium text-neutral-700 mb-1.5">Adresse email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              placeholder="vous@exemple.com"
+              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
+            />
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-medium text-neutral-700 mb-1.5">Mot de passe</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              placeholder="8 caractères minimum"
+              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
+            />
+          </div>
+
+          <div>
+            <label for="passwordConfirm" class="block text-sm font-medium text-neutral-700 mb-1.5">Confirmer le mot de passe</label>
+            <input
+              id="passwordConfirm"
+              name="passwordConfirm"
+              type="password"
+              autocomplete="new-password"
+              required
+              placeholder="••••••••"
+              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
+            />
+          </div>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="w-full rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+          >
+            Créer mon compte
+          </button>
+        </form>
+
+        <!-- Séparateur -->
+        <div class="flex items-center gap-3 my-5">
+          <div class="flex-1 h-px bg-neutral-100"></div>
+          <span class="text-xs text-neutral-400">ou</span>
+          <div class="flex-1 h-px bg-neutral-100"></div>
+        </div>
+
+        <button
+          disabled
+          title="Google OAuth — configuration en cours"
+          class="w-full flex items-center justify-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 opacity-50 cursor-not-allowed"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          S'inscrire avec Google (bientôt disponible)
+        </button>
+
+        <p class="mt-5 text-center text-sm text-neutral-500">
+          Déjà un compte ?
+          <a href="/login" class="font-medium text-primary-500 hover:text-primary-600 transition">
+            Se connecter
+          </a>
+        </p>
+      </div>
+
+      <p class="mt-6 text-center text-xs text-neutral-400">
+        <a href="/" class="hover:text-neutral-600 transition">← Retour au site</a>
+      </p>
+    </div>
+
+    <script>
+      const form = document.getElementById('register-form') as HTMLFormElement
+      const errorBox = document.getElementById('register-error') as HTMLDivElement
+      const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        errorBox.classList.add('hidden')
+        submitBtn.disabled = true
+        submitBtn.textContent = 'Création en cours…'
+
+        const data = new FormData(form)
+        const password = data.get('password') as string
+        const passwordConfirm = data.get('passwordConfirm') as string
+        const backendUrl = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000'
+
+        if (password !== passwordConfirm) {
+          errorBox.textContent = 'Les mots de passe ne correspondent pas'
+          errorBox.classList.remove('hidden')
+          submitBtn.disabled = false
+          submitBtn.textContent = 'Créer mon compte'
+          return
+        }
+
+        try {
+          const resp = await fetch(`${backendUrl}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              name: data.get('name'),
+              email: data.get('email'),
+              password,
+              password_confirmation: passwordConfirm,
+            }),
+          })
+          const json = await resp.json()
+
+          if (!resp.ok) {
+            errorBox.textContent = json.message ?? json.error ?? 'Une erreur est survenue'
+            errorBox.classList.remove('hidden')
+            submitBtn.disabled = false
+            submitBtn.textContent = 'Créer mon compte'
+            return
+          }
+
+          localStorage.setItem('wwa_session', JSON.stringify({
+            name:  json.user.name,
+            email: json.user.email,
+            role:  json.user.role,
+            token: json.token,
+          }))
+
+          window.location.href = '/dashboard'
+        } catch {
+          errorBox.textContent = 'Impossible de contacter le serveur. Vérifiez votre connexion.'
+          errorBox.classList.remove('hidden')
+          submitBtn.disabled = false
+          submitBtn.textContent = 'Créer mon compte'
+        }
+      })
+    </script>
+  </body>
+</html>

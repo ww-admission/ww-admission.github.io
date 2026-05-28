@@ -1,0 +1,213 @@
+---
+// Phone Input
+// ------------
+// Description: Champ téléphone combiné indicatif + numéro.
+// Gabon (+241) présélectionné. Cohérent visuellement avec InputField.astro.
+
+type Props = {
+  id: string
+  label: string
+  required?: boolean
+  disabled?: boolean
+  helperText?: string
+  classes?: string
+}
+
+const { id, label, required, disabled, helperText, classes } = Astro.props
+---
+
+<div class:list={['relative w-full', { [`${classes}`]: classes }]} data-phone-input data-id={id}>
+
+  <!-- Label flottant — toujours en position haute (le code pays occupe le champ) -->
+  <label
+    for={`${id}-number`}
+    class="pointer-events-none absolute -top-2 left-2 z-[1] px-2 text-xs text-neutral-400 before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all dark:before:bg-neutral-900"
+  >
+    {label}{required && <span class="text-neutral-400" aria-hidden="true"> *</span>}
+  </label>
+
+  <!-- Champ combiné — même hauteur et bordure qu'InputField -->
+  <div class="flex h-12 overflow-visible rounded border border-neutral-200 transition-all focus-within:border-amber-400 dark:border-neutral-800 dark:bg-neutral-900">
+
+    <!-- Bouton indicatif -->
+    <button
+      type="button"
+      class="relative flex h-full flex-shrink-0 cursor-pointer items-center gap-2 rounded-l border-r border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
+      aria-haspopup="listbox"
+      aria-expanded="false"
+      data-phone-code-btn
+      {disabled}
+    >
+      <img src="" alt="" class="h-3.5 w-5 rounded-sm object-cover" data-phone-flag aria-hidden="true" />
+      <span class="text-sm font-medium tabular-nums" data-phone-code>+241</span>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+
+      <!-- Dropdown indicatifs (positionné dans le bouton) -->
+      <div
+        class="absolute left-0 top-full z-50 mt-1 hidden w-72 flex-col overflow-hidden rounded border border-neutral-100 bg-white shadow-lg shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900"
+        role="listbox"
+        data-phone-dropdown
+        style="display:none"
+      >
+        <div class="border-b border-neutral-100 px-3 py-2 dark:border-neutral-800">
+          <input
+            type="text"
+            placeholder="Rechercher un pays…"
+            class="w-full bg-transparent text-sm text-neutral-700 outline-none placeholder:text-neutral-400 dark:text-neutral-200"
+            data-phone-dropdown-search
+            autocomplete="off"
+          />
+        </div>
+        <ul class="overflow-y-auto" style="max-height: 12rem;" data-phone-dropdown-list></ul>
+      </div>
+    </button>
+
+    <!-- Champ numéro -->
+    <input
+      type="tel"
+      id={`${id}-number`}
+      name={id}
+      required={required}
+      disabled={disabled}
+      placeholder={label}
+      class="flex-1 bg-transparent px-4 text-sm text-neutral-500 placeholder-transparent outline-none disabled:cursor-not-allowed dark:text-neutral-400"
+      autocomplete="tel-national"
+      data-phone-number
+    />
+  </div>
+
+  <!-- Input caché pour l'indicatif -->
+  <input type="hidden" name="indicatif" value="+241" data-phone-hidden-code />
+
+  {helperText && (
+    <small class="mt-1 block px-1 text-xs text-neutral-400">{helperText}</small>
+  )}
+</div>
+
+<script>
+  interface DialCountry { code: string; name: string; dialCode: string; flag: string }
+
+  const DIAL_FALLBACK: DialCountry[] = [
+    { code: 'GA', name: 'Gabon',         dialCode: '+241', flag: 'https://flagcdn.com/ga.svg' },
+    { code: 'CM', name: 'Cameroun',      dialCode: '+237', flag: 'https://flagcdn.com/cm.svg' },
+    { code: 'CG', name: 'Congo',         dialCode: '+242', flag: 'https://flagcdn.com/cg.svg' },
+    { code: 'CD', name: 'RD Congo',      dialCode: '+243', flag: 'https://flagcdn.com/cd.svg' },
+    { code: 'SN', name: 'Sénégal',       dialCode: '+221', flag: 'https://flagcdn.com/sn.svg' },
+    { code: 'CI', name: 'Côte d\'Ivoire',dialCode: '+225', flag: 'https://flagcdn.com/ci.svg' },
+    { code: 'GH', name: 'Ghana',         dialCode: '+233', flag: 'https://flagcdn.com/gh.svg' },
+    { code: 'NG', name: 'Nigéria',       dialCode: '+234', flag: 'https://flagcdn.com/ng.svg' },
+    { code: 'MA', name: 'Maroc',         dialCode: '+212', flag: 'https://flagcdn.com/ma.svg' },
+    { code: 'FR', name: 'France',        dialCode: '+33',  flag: 'https://flagcdn.com/fr.svg' },
+    { code: 'CN', name: 'Chine',         dialCode: '+86',  flag: 'https://flagcdn.com/cn.svg' },
+    { code: 'US', name: 'États-Unis',    dialCode: '+1',   flag: 'https://flagcdn.com/us.svg' },
+    { code: 'GB', name: 'Royaume-Uni',   dialCode: '+44',  flag: 'https://flagcdn.com/gb.svg' },
+    { code: 'DE', name: 'Allemagne',     dialCode: '+49',  flag: 'https://flagcdn.com/de.svg' },
+    { code: 'BE', name: 'Belgique',      dialCode: '+32',  flag: 'https://flagcdn.com/be.svg' },
+    { code: 'RU', name: 'Russie',        dialCode: '+7',   flag: 'https://flagcdn.com/ru.svg' },
+  ]
+
+  document.addEventListener('astro:page-load', () => {
+    document.querySelectorAll<HTMLElement>('[data-phone-input]').forEach(initPhoneInput)
+  })
+
+  function initPhoneInput(container: HTMLElement) {
+    const codeBtn = container.querySelector<HTMLButtonElement>('[data-phone-code-btn]')!
+    const flagImg = container.querySelector<HTMLImageElement>('[data-phone-flag]')!
+    const codeText = container.querySelector<HTMLElement>('[data-phone-code]')!
+    const hiddenCode = container.querySelector<HTMLInputElement>('[data-phone-hidden-code]')!
+    const dropdown = container.querySelector<HTMLElement>('[data-phone-dropdown]')!
+    const searchInput = container.querySelector<HTMLInputElement>('[data-phone-dropdown-search]')!
+    const list = container.querySelector<HTMLElement>('[data-phone-dropdown-list]')!
+
+    let allCountries: DialCountry[] = []
+    let isOpen = false
+
+    setCountry({ code: 'GA', name: 'Gabon', dialCode: '+241', flag: 'https://flagcdn.com/ga.svg' })
+
+    async function loadCountries() {
+      if (allCountries.length) { renderList(allCountries); return }
+      try {
+        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,idd,flags')
+        const data = await res.json()
+        allCountries = (data as any[])
+          .filter((c) => c.idd?.root)
+          .map((c) => ({
+            code: c.cca2,
+            name: c.name.common,
+            dialCode: c.idd.root + (c.idd.suffixes?.[0] || ''),
+            flag: c.flags?.svg || `https://flagcdn.com/${(c.cca2 as string).toLowerCase()}.svg`,
+          }))
+          .sort((a: DialCountry, b: DialCountry) => a.name.localeCompare(b.name, 'fr'))
+
+        const gaIdx = allCountries.findIndex((c) => c.code === 'GA')
+        if (gaIdx > 0) allCountries.unshift(...allCountries.splice(gaIdx, 1))
+        renderList(allCountries)
+      } catch {
+        allCountries = DIAL_FALLBACK
+        renderList(allCountries)
+      }
+    }
+
+    function renderList(countries: DialCountry[]) {
+      list.innerHTML = ''
+      countries.forEach((country) => {
+        const li = document.createElement('li')
+        li.className = 'flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800'
+        li.setAttribute('role', 'option')
+        li.innerHTML = `
+          <img src="${country.flag}" alt="" class="h-3.5 w-5 flex-shrink-0 rounded-sm object-cover" aria-hidden="true" />
+          <span class="flex-1">${country.name}</span>
+          <span class="text-xs text-neutral-400 tabular-nums">${country.dialCode}</span>
+        `
+        li.addEventListener('mousedown', (e) => { e.preventDefault(); setCountry(country); closeDropdown() })
+        list.appendChild(li)
+      })
+    }
+
+    function setCountry(country: DialCountry) {
+      flagImg.src = country.flag
+      flagImg.alt = country.name
+      codeText.textContent = country.dialCode
+      hiddenCode.value = country.dialCode
+    }
+
+    function openDropdown() {
+      isOpen = true
+      dropdown.style.display = 'flex'
+      dropdown.style.flexDirection = 'column'
+      codeBtn.setAttribute('aria-expanded', 'true')
+      searchInput.value = ''
+      loadCountries()
+      setTimeout(() => searchInput.focus(), 50)
+    }
+
+    function closeDropdown() {
+      isOpen = false
+      dropdown.style.display = 'none'
+      codeBtn.setAttribute('aria-expanded', 'false')
+    }
+
+    codeBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      isOpen ? closeDropdown() : openDropdown()
+    })
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase()
+      const filtered = allCountries.filter((c) =>
+        c.name.toLowerCase().includes(q) || c.dialCode.includes(q)
+      )
+      renderList(filtered)
+    })
+
+    searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeDropdown(); codeBtn.focus() }
+    })
+
+    document.addEventListener('click', (e) => {
+      if (!codeBtn.contains(e.target as Node)) closeDropdown()
+    })
+  }
+</script>

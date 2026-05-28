@@ -1,0 +1,225 @@
+---
+// Multi-Select — Nationalités
+// ------------
+// Description: Sélection multiple avec tags supprimables.
+// Charge les pays via RestCountries API.
+// Visuellement cohérent avec InputField.astro (mêmes classes Tailwind directes).
+
+type Props = {
+  id: string
+  label: string
+  placeholder?: string
+  required?: boolean
+  helperText?: string
+  classes?: string
+}
+
+const { id, label, placeholder = 'Rechercher un pays…', required, helperText, classes } = Astro.props
+---
+
+<div
+  class:list={['group relative w-full', { [`${classes}`]: classes }]}
+  data-multiselect
+  data-id={id}
+  data-required={required ? 'true' : undefined}
+>
+  <!-- Champ principal — input à gauche (flex-1), tags collés à droite -->
+  <div
+    class="relative flex min-h-12 w-full items-center gap-2 rounded border border-neutral-200 bg-white px-4 py-2 transition-all focus-within:border-amber-400 dark:border-neutral-800 dark:bg-neutral-900"
+    data-multiselect-field
+  >
+    <!-- Input de recherche — prend tout l'espace disponible -->
+    <input
+      type="text"
+      class="min-w-0 flex-1 bg-transparent text-sm text-neutral-500 outline-none placeholder:text-neutral-400 dark:text-neutral-400"
+      placeholder={placeholder}
+      autocomplete="off"
+      aria-label={label}
+      aria-expanded="false"
+      aria-haspopup="listbox"
+      data-multiselect-search
+    />
+
+    <!-- Tags au fond à droite -->
+    <div class="flex flex-wrap items-center justify-end gap-1.5" data-multiselect-tags></div>
+  </div>
+
+  <!-- Label toujours floatté — neutre par défaut, amber quand le champ a le focus -->
+  <label
+    class="pointer-events-none absolute -top-2 left-2 z-[1] px-2 text-xs text-neutral-400 transition-colors group-focus-within:text-amber-500 before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all dark:before:bg-neutral-900"
+  >
+    {label}{required && <span class="text-neutral-400" aria-hidden="true"> *</span>}
+  </label>
+
+  <!-- Dropdown de résultats -->
+  <div
+    class="absolute left-0 top-full z-50 mt-1 hidden w-full overflow-hidden rounded border border-neutral-100 bg-white shadow-lg shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-neutral-950/50"
+    role="listbox"
+    aria-multiselectable="true"
+    data-multiselect-dropdown
+    style="max-height: 14rem; overflow-y: auto;"
+  >
+    <div class="px-4 py-3 text-sm text-neutral-400" data-multiselect-loading>Chargement…</div>
+    <ul data-multiselect-list></ul>
+    <div class="hidden px-4 py-3 text-sm text-neutral-400" data-multiselect-empty>Aucun résultat</div>
+    <div class="hidden px-4 py-3 text-sm text-amber-500" data-multiselect-max>Waw ça fait beaucoup de nationalités.</div>
+  </div>
+
+  <!-- Inputs cachés pour soumission -->
+  <div data-multiselect-hidden-inputs></div>
+
+  {helperText && (
+    <small class="mt-1 block px-1 text-xs text-neutral-400">{helperText}</small>
+  )}
+</div>
+
+<script>
+  interface Country { code: string; name: string; flag: string }
+
+  document.addEventListener('astro:page-load', () => {
+    document.querySelectorAll<HTMLElement>('[data-multiselect]').forEach(initMultiSelect)
+  })
+
+  function initMultiSelect(container: HTMLElement) {
+    const id = container.dataset.id!
+    const searchInput = container.querySelector<HTMLInputElement>('[data-multiselect-search]')!
+    const dropdown = container.querySelector<HTMLElement>('[data-multiselect-dropdown]')!
+    const list = container.querySelector<HTMLElement>('[data-multiselect-list]')!
+    const tagsContainer = container.querySelector<HTMLElement>('[data-multiselect-tags]')!
+    const loadingEl = container.querySelector<HTMLElement>('[data-multiselect-loading]')!
+    const emptyEl = container.querySelector<HTMLElement>('[data-multiselect-empty]')!
+    const maxEl = container.querySelector<HTMLElement>('[data-multiselect-max]')!
+    const hiddenInputs = container.querySelector<HTMLElement>('[data-multiselect-hidden-inputs]')!
+
+    const MAX = 4
+    let allCountries: Country[] = []
+    let selected: Country[] = []
+    let isOpen = false
+
+    async function loadCountries() {
+      try {
+        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,flags')
+        const data = await res.json()
+        allCountries = (data as any[])
+          .map((c) => ({
+            code: c.cca2 as string,
+            name: c.name.common as string,
+            flag: c.flags?.svg || c.flags?.png || '',
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+        loadingEl.classList.add('hidden')
+        renderList(allCountries)
+      } catch {
+        loadingEl.textContent = 'Erreur de chargement.'
+      }
+    }
+
+    function renderList(countries: Country[]) {
+      list.innerHTML = ''
+      if (selected.length >= MAX) {
+        emptyEl.classList.add('hidden')
+        maxEl.classList.remove('hidden')
+        searchInput.disabled = true
+        return
+      }
+      maxEl.classList.add('hidden')
+      searchInput.disabled = false
+      if (!countries.length) { emptyEl.classList.remove('hidden'); return }
+      emptyEl.classList.add('hidden')
+      countries.forEach((country) => {
+        if (selected.find((s) => s.code === country.code)) return
+        const li = document.createElement('li')
+        li.className = 'flex cursor-pointer items-center gap-2.5 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800'
+        li.setAttribute('role', 'option')
+        li.innerHTML = `
+          <img src="${country.flag}" alt="" class="h-3.5 w-5 rounded-sm object-cover flex-shrink-0" aria-hidden="true" />
+          <span>${country.name}</span>
+        `
+        li.addEventListener('mousedown', (e) => { e.preventDefault(); selectCountry(country) })
+        list.appendChild(li)
+      })
+    }
+
+    function selectCountry(country: Country) {
+      if (selected.find((s) => s.code === country.code)) return
+      if (selected.length >= MAX) return
+      selected.push(country)
+      searchInput.value = ''
+      updateTags()
+      updateHiddenInputs()
+      filter('')
+      searchInput.focus()
+    }
+
+    function removeCountry(code: string) {
+      selected = selected.filter((s) => s.code !== code)
+      updateTags()
+      updateHiddenInputs()
+      filter(searchInput.value)
+    }
+
+    function updateTags() {
+      tagsContainer.innerHTML = ''
+      selected.forEach((country) => {
+        const tag = document.createElement('span')
+        tag.className = 'flex items-center gap-1 rounded bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-950 dark:text-primary-300'
+        tag.innerHTML = `
+          <img src="${country.flag}" alt="" class="h-3 w-4 rounded-sm object-cover flex-shrink-0" aria-hidden="true" />
+          <span>${country.name}</span>
+          <button type="button" class="flex items-center text-primary-500 hover:text-primary-700 transition-colors" aria-label="Retirer ${country.name}" data-remove="${country.code}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        `
+        tag.querySelector('button')!.addEventListener('click', () => removeCountry(country.code))
+        tagsContainer.appendChild(tag)
+      })
+    }
+
+    function updateHiddenInputs() {
+      hiddenInputs.innerHTML = ''
+      selected.forEach((country, i) => {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = `nationalites[${i}]`
+        input.value = country.name
+        hiddenInputs.appendChild(input)
+      })
+    }
+
+    function filter(query: string) {
+      const q = query.toLowerCase().trim()
+      const filtered = allCountries.filter(
+        (c) => c.name.toLowerCase().includes(q) && !selected.find((s) => s.code === c.code)
+      )
+      renderList(filtered.slice(0, 50))
+    }
+
+    function openDropdown() {
+      if (isOpen) return
+      isOpen = true
+      dropdown.classList.remove('hidden')
+      searchInput.setAttribute('aria-expanded', 'true')
+      if (!allCountries.length) loadCountries()
+      else filter(searchInput.value)
+    }
+
+    function closeDropdown() {
+      isOpen = false
+      dropdown.classList.add('hidden')
+      searchInput.setAttribute('aria-expanded', 'false')
+    }
+
+    searchInput.addEventListener('focus', openDropdown)
+    searchInput.addEventListener('blur', () => setTimeout(closeDropdown, 150))
+    searchInput.addEventListener('input', () => filter(searchInput.value))
+    searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { closeDropdown(); searchInput.blur() }
+      if (e.key === 'Backspace' && !searchInput.value && selected.length) {
+        removeCountry(selected[selected.length - 1].code)
+      }
+    })
+    document.addEventListener('click', (e) => {
+      if (!container.contains(e.target as Node)) closeDropdown()
+    })
+  }
+</script>

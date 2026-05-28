@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Nouveau contact — WWA</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@800&family=Inter:wght@400;500;600&display=swap');
+    body { margin: 0; padding: 0; background-color: #f8fafc; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    table { border-collapse: collapse; }
+    img { border: 0; display: block; }
+    a { color: #E2187D; text-decoration: none; }
+    @media only screen and (max-width: 600px) {
+      .wrapper { width: 100% !important; }
+      .inner-card { padding: 24px 20px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:32px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Card wrapper -->
+        <table role="presentation" class="wrapper" width="600" cellpadding="0" cellspacing="0"
+          style="background-color:#ffffff;border:1px solid #f1f5f9;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px 0 rgba(15,23,42,0.06);">
+
+          <!-- Dark header -->
+          <tr>
+            <td style="background-color:#0f172a;padding:20px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <span style="font-family:'Sora',Georgia,serif;font-size:22px;font-weight:800;letter-spacing:0.12em;color:#ffffff;">WWA</span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <!-- "Nouveau contact" badge -->
+                    <span style="display:inline-block;background-color:#E2187D;border-radius:20px;padding:3px 12px;font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#ffffff;letter-spacing:0.04em;text-transform:uppercase;">
+                      Nouveau contact
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Title row -->
+          <tr>
+            <td style="padding:28px 32px 4px;">
+              <h1 style="font-family:'Sora',Georgia,serif;font-size:20px;font-weight:800;color:#0f172a;margin:0 0 6px;letter-spacing:-0.01em;line-height:1.3;">
+                Nouvelle demande de contact
+              </h1>
+              <p style="font-family:Inter,-apple-system,sans-serif;font-size:13px;color:#94a3b8;margin:0;">
+                Reçu le {{date}}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Fields card -->
+          <tr>
+            <td class="inner-card" style="padding:20px 32px 32px;">
+
+              <!-- Field: Nom complet -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #f1f5f9;border-radius:6px;margin-bottom:12px;overflow:hidden;">
+                <tr>
+                  <td style="padding:14px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:120px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Nom complet</span>
+                  </td>
+                  <td style="padding:14px 16px;background-color:#ffffff;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:14px;font-weight:600;color:#0f172a;">{{from_name}}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Field: Email -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #f1f5f9;border-radius:6px;margin-bottom:12px;overflow:hidden;">
+                <tr>
+                  <td style="padding:14px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:120px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Email</span>
+                  </td>
+                  <td style="padding:14px 16px;background-color:#ffffff;vertical-align:top;">
+                    <a href="mailto:{{from_email}}"
+                      style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#E2187D;text-decoration:none;">
+                      {{from_email}}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Field: Téléphone -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #f1f5f9;border-radius:6px;margin-bottom:12px;overflow:hidden;">
+                <tr>
+                  <td style="padding:14px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:120px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Téléphone</span>
+                  </td>
+                  <td style="padding:14px 16px;background-color:#ffffff;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#334155;">{{phone}}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Field: Message -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #f1f5f9;border-radius:6px;margin-bottom:12px;overflow:hidden;">
+                <tr>
+                  <td style="padding:14px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:120px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Message</span>
+                  </td>
+                  <td style="padding:14px 16px;background-color:#ffffff;vertical-align:top;">
+                    <p style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#334155;margin:0;line-height:1.7;white-space:pre-wrap;">{{message}}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Field: Pièce jointe -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                style="border:1px solid #f1f5f9;border-radius:6px;margin-bottom:28px;overflow:hidden;">
+                <tr>
+                  <td style="padding:14px 16px;background-color:#f8fafc;border-bottom:1px solid #f1f5f9;width:120px;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Pièce jointe</span>
+                  </td>
+                  <td style="padding:14px 16px;background-color:#ffffff;vertical-align:top;">
+                    <span style="font-family:Inter,-apple-system,sans-serif;font-size:14px;color:#334155;">{{attachment_name}}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Reply CTA -->
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-radius:6px;background-color:#E2187D;">
+                    <a href="mailto:{{from_email}}?subject=Re: Votre demande World Wise Admission"
+                      style="display:inline-block;font-family:Inter,-apple-system,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;padding:12px 28px;letter-spacing:0.03em;border-radius:6px;">
+                      Répondre à {{from_name}}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 32px;">
+              <hr style="border:none;border-top:1px solid #f1f5f9;margin:0;" />
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px;background-color:#f8fafc;">
+              <p style="font-family:Inter,-apple-system,sans-serif;font-size:12px;color:#94a3b8;margin:0;line-height:1.6;">
+                Notification interne &mdash;
+                <strong style="font-family:'Sora',Georgia,serif;font-weight:800;color:#64748b;letter-spacing:0.06em;">WWA</strong>
+                &nbsp;World Wise Admission &mdash; ne pas répondre directement à cet email.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Card wrapper -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

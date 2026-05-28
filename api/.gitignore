@@ -1,0 +1,33 @@
+*.log
+.DS_Store
+
+# Variables d'environnement (SENSIBLE — ne jamais committer)
+.env
+.env.*
+!.env.example
+
+# Base de données SQLite locale
+/database/database.sqlite
+/database/*.sqlite
+.phpactor.json
+.phpunit.result.cache
+/.codex
+/.cursor/
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+Thumbs.db

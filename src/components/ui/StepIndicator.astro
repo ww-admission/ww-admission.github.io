@@ -1,0 +1,91 @@
+---
+// Step Indicator
+// ------------
+// Description: Indicateur de progression pour formulaire multi-étapes.
+// Properties:
+// - steps: tableau de labels d'étapes
+// - currentStep: étape courante (1-based)
+
+type Props = {
+  steps: string[]
+  currentStep?: number
+}
+const { steps, currentStep = 1 } = Astro.props
+---
+
+<div class="step-indicator" role="list" aria-label="Progression du formulaire">
+  {steps.map((label, index) => {
+    const stepNum = index + 1
+    const isCompleted = stepNum < currentStep
+    const isActive = stepNum === currentStep
+
+    return (
+      <div
+        class:list={[
+          'step-indicator__item',
+          { 'step-indicator__item--completed': isCompleted },
+          { 'step-indicator__item--active': isActive },
+        ]}
+        role="listitem"
+        aria-current={isActive ? 'step' : undefined}
+        data-step={stepNum}
+      >
+        {index > 0 && <div class="step-indicator__line" aria-hidden="true" />}
+        <div class="step-indicator__circle" aria-hidden="true">
+          {isCompleted ? (
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          ) : (
+            <span>{stepNum}</span>
+          )}
+        </div>
+        <span class="step-indicator__label">{label}</span>
+      </div>
+    )
+  })}
+</div>
+
+<style>
+  .step-indicator {
+    @apply flex items-start justify-between w-full mb-10;
+  }
+
+  .step-indicator__item {
+    @apply relative flex flex-1 flex-col items-center gap-2;
+  }
+
+  .step-indicator__line {
+    @apply absolute top-4 right-1/2 h-px w-full -translate-y-1/2 bg-neutral-200 dark:bg-neutral-700;
+    z-index: 0;
+  }
+
+  .step-indicator__item--completed .step-indicator__line,
+  .step-indicator__item--active .step-indicator__line {
+    @apply bg-primary-500;
+  }
+
+  .step-indicator__circle {
+    @apply relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-neutral-200 bg-white text-sm font-semibold text-neutral-400 transition-all duration-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500;
+  }
+
+  .step-indicator__item--completed .step-indicator__circle {
+    @apply border-primary-500 bg-primary-500 text-white;
+  }
+
+  .step-indicator__item--active .step-indicator__circle {
+    @apply border-primary-500 text-primary-500;
+  }
+
+  .step-indicator__label {
+    @apply hidden text-center text-xs text-neutral-400 transition-colors duration-300 dark:text-neutral-500 sm:block;
+  }
+
+  .step-indicator__item--active .step-indicator__label {
+    @apply font-semibold text-primary-500;
+  }
+
+  .step-indicator__item--completed .step-indicator__label {
+    @apply text-neutral-500 dark:text-neutral-400;
+  }
+</style>
