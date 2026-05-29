@@ -110,6 +110,19 @@ import '@fontsource-variable/outfit'
     </div>
 
     <script>
+      // Redirige immédiatement si déjà connecté
+      ;(function () {
+        try {
+          const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+          if (s?.token && s?.role && (!s.exp || Date.now() < s.exp)) {
+            const params = new URLSearchParams(window.location.search)
+            const r = params.get('redirect') ?? ''
+            const allowed = ['/admin', '/dashboard']
+            window.location.replace(allowed.some(p => r.startsWith(p)) ? r : (s.role === 'admin' ? '/admin' : '/dashboard'))
+          }
+        } catch {}
+      })()
+
       const form = document.getElementById('login-form') as HTMLFormElement
       const errorBox = document.getElementById('login-error') as HTMLDivElement
       const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement
@@ -130,18 +143,6 @@ import '@fontsource-variable/outfit'
 
         const data = new FormData(form)
         const backendUrl = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000'
-
-        // Redirige si déjà connecté (check client-side)
-        try {
-          const existing = JSON.parse(localStorage.getItem('wwa_session') || 'null')
-          if (existing?.token && existing?.role) {
-            const params = new URLSearchParams(window.location.search)
-            const r = params.get('redirect') ?? ''
-            const allowed = ['/admin', '/dashboard']
-            window.location.href = allowed.some(p => r.startsWith(p)) ? r : (existing.role === 'admin' ? '/admin' : '/dashboard')
-            return
-          }
-        } catch {}
 
         try {
           const resp = await fetch(`${backendUrl}/api/auth/login`, {
@@ -167,6 +168,7 @@ import '@fontsource-variable/outfit'
             email: json.user.email,
             role:  json.user.role,
             token: json.token,
+            exp:   Date.now() + 24 * 60 * 60 * 1000,
           }))
 
           const params = new URLSearchParams(window.location.search)

@@ -121,6 +121,16 @@ import '@fontsource-variable/outfit'
     </div>
 
     <script>
+      // Redirige immédiatement si déjà connecté
+      ;(function () {
+        try {
+          const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+          if (s?.token && s?.role && (!s.exp || Date.now() < s.exp)) {
+            window.location.replace(s.role === 'admin' ? '/admin' : '/dashboard')
+          }
+        } catch {}
+      })()
+
       const form = document.getElementById('register-form') as HTMLFormElement
       const errorBox = document.getElementById('register-error') as HTMLDivElement
       const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement
@@ -170,6 +180,7 @@ import '@fontsource-variable/outfit'
             email: json.user.email,
             role:  json.user.role,
             token: json.token,
+            exp:   Date.now() + 24 * 60 * 60 * 1000,
           }))
 
           window.location.href = '/dashboard'

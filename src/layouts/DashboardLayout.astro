@@ -134,6 +134,12 @@ const { title, activeNav = '' } = Astro.props
           return
         }
 
+        if (session.exp && Date.now() > session.exp) {
+          localStorage.removeItem('wwa_session')
+          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname)
+          return
+        }
+
         const isAdmin = session.role === 'admin'
 
         renderNav(isAdmin ? ADMIN_NAV : CANDIDATE_NAV)
