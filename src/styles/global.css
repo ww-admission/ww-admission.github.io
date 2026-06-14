@@ -90,6 +90,89 @@ main a {
 	@apply text-lg leading-relaxed [&_blockquote]:text-xl [&_blockquote]:leading-loose;
 }
 
+/* ── Scrollbar ──────────────────────────────────────────────────────────────
+   Track toujours visible (overflow-y: scroll sur les conteneurs).
+   Thumb apparaît uniquement quand il y a du contenu à défiler.
+   Les zones concernées du dashboard utilisent overflow-y: scroll.
+   ──────────────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+	width: 5px;
+	height: 5px;
+}
+
+::-webkit-scrollbar-track {
+	background: #f1f5f9; /* neutral-100 */
+	border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #cbd5e1; /* neutral-300 */
+	border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #94a3b8; /* neutral-400 */
+}
+
+/* Dark mode */
+.dark ::-webkit-scrollbar-track {
+	background: #1e293b; /* neutral-800 */
+}
+
+.dark ::-webkit-scrollbar-thumb {
+	background: #475569; /* neutral-600 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: #64748b; /* neutral-500 */
+}
+
+/* Firefox */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: #cbd5e1 #f1f5f9; /* thumb track */
+}
+
+.dark * {
+	scrollbar-color: #475569 #1e293b;
+}
+
+/* ── Dashboard dot-grid background ─────────────────────────────────────────
+   Pattern de points discret pour la zone <main> du back office.
+   Light : points neutral-300 sur fond neutral-50.
+   Dark  : points neutral-700 sur fond neutral-950.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.wwa-dot-grid {
+  background-color: #f8fafc; /* neutral-50 */
+  background-image: url('/dashboard-bg-light.svg');
+  background-size: 500px 500px;
+  background-repeat: repeat;
+}
+
+.dark .wwa-dot-grid {
+  background-color: #030712; /* neutral-950 */
+  background-image: url('/dashboard-bg-dark.svg');
+}
+
+/* ── Messages doodle background ─────────────────────────────────────────────
+   Pattern d'icônes line-art pour la zone de conversation.
+   Light : fond neutral-50, icônes primary-500 transparents.
+   Dark  : fond neutral-950, mêmes icônes.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.wwa-doodle-msg {
+  background-color: #f8fafc; /* neutral-50 */
+  background-image: url('/doodle-bg.svg');
+  background-size: 440px 440px;
+  background-repeat: repeat;
+}
+
+.dark .wwa-doodle-msg {
+  background-color: #020617; /* neutral-950 */
+}
+
 /* Scroll animations */
 /* To disable scroll animations remove the class "sroll-animation" from root html in the layout file */
 .scroll-animation .col {

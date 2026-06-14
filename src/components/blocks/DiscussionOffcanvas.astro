@@ -1,0 +1,312 @@
+---
+interface Props {
+  candidatureId: number
+  conversationId?: number | null
+  role: 'admin' | 'candidate'
+}
+const { candidatureId, conversationId, role } = Astro.props
+---
+
+<div
+  id="discussion-offcanvas-root"
+  data-candidature-id={candidatureId}
+  data-conversation-id={conversationId ?? ''}
+  data-role={role}
+>
+  <!-- Backdrop -->
+  <div
+    id="discussion-backdrop"
+    class="fixed inset-0 bg-neutral-900/30 z-40 hidden opacity-0 transition-opacity duration-300 backdrop-blur-[2px]"
+  ></div>
+
+  <!-- Panel -->
+  <aside
+    id="discussion-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Discussion"
+    class="fixed top-0 right-0 h-full w-full max-w-lg bg-white z-50 flex flex-col translate-x-full transition-transform duration-300 ease-in-out border-l border-neutral-100 shadow-2xl shadow-neutral-900/10 dark:bg-neutral-900 dark:border-neutral-800"
+  >
+    <!-- Header -->
+    <div class="flex items-center gap-3 px-5 h-14 border-b border-neutral-100 shrink-0 dark:border-neutral-800">
+      <div class="h-8 w-8 rounded bg-primary-50 flex items-center justify-center shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
+      </div>
+      <div class="flex-1">
+        <h2 class="font-headings font-bold text-sm text-neutral-800 dark:text-neutral-100">Discussion</h2>
+        <p class="text-[10px] text-neutral-400" id="discussion-subtitle">Commentaires &amp; messages</p>
+      </div>
+      <button
+        id="discussion-close-btn"
+        class="h-8 w-8 flex items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+        aria-label="Fermer"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex items-center gap-0 border-b border-neutral-100 shrink-0 px-5 dark:border-neutral-800">
+      {(['all', 'comments', 'messages'] as const).map(tab => (
+        <button
+          class="discussion-tab py-3 px-1 mr-5 text-xs font-semibold border-b-2 transition-colors"
+          data-tab={tab}
+        >
+          {tab === 'all' ? 'Tout' : tab === 'comments' ? 'Notes internes' : 'Messages'}
+        </button>
+      ))}
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto" id="discussion-content">
+      <div id="discussion-loading" class="flex items-center justify-center py-12">
+        <div class="h-5 w-5 border-2 border-primary-100 border-t-primary-500 rounded-full animate-spin"></div>
+      </div>
+      <div id="discussion-timeline" class="hidden"></div>
+      <div id="discussion-empty" class="hidden py-12 text-center px-6">
+        <div class="h-10 w-10 rounded-full bg-neutral-50 flex items-center justify-center mx-auto mb-3 dark:bg-neutral-800">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+        </div>
+        <p class="text-xs font-medium text-neutral-400">Aucun échange pour l'instant</p>
+      </div>
+    </div>
+
+    <!-- Footer admin -->
+    {role === 'admin' && (
+      <div class="shrink-0 border-t border-neutral-100 p-4 dark:border-neutral-800" id="discussion-footer-admin">
+        <div id="compose-btns" class="flex gap-2">
+          <button class="discussion-compose-btn flex-1 rounded border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all text-left dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:bg-primary-950 dark:hover:text-primary-400" data-compose="comment">
+            + Note interne
+          </button>
+          {conversationId && (
+            <button class="discussion-compose-btn flex-1 rounded border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all text-left dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:bg-primary-950 dark:hover:text-primary-400" data-compose="message">
+              + Message candidat
+            </button>
+          )}
+        </div>
+
+        <div id="compose-area" class="hidden mt-3">
+          <p id="compose-label" class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400 mb-2"></p>
+          <textarea
+            id="compose-text"
+            rows={3}
+            placeholder="Votre message…"
+            class="w-full resize-none rounded border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-500"
+          ></textarea>
+          <div class="flex justify-end gap-2 mt-2">
+            <button id="compose-cancel" class="h-8 rounded px-3 text-xs font-medium text-neutral-400 hover:bg-neutral-100 transition-colors">Annuler</button>
+            <button id="compose-submit" class="h-8 rounded bg-primary-500 px-4 text-xs font-bold text-white hover:bg-primary-600 transition-colors disabled:opacity-40" disabled>
+              Envoyer
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Footer candidat -->
+    {role === 'candidate' && conversationId && (
+      <div class="shrink-0 border-t border-neutral-100 p-4 dark:border-neutral-800">
+        <div class="flex items-end gap-2">
+          <textarea
+            id="candidate-msg-input"
+            rows={2}
+            placeholder="Message à l'équipe WWA…"
+            class="flex-1 resize-none rounded border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-500"
+          ></textarea>
+          <button
+            id="candidate-msg-send"
+            disabled
+            class="h-9 w-9 shrink-0 rounded bg-primary-500 flex items-center justify-center text-white hover:bg-primary-600 transition-colors disabled:opacity-40"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    )}
+  </aside>
+</div>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const root = document.getElementById('discussion-offcanvas-root')
+    if (!root) return
+
+    const candId  = root.dataset.candidatureId!
+    const convId  = root.dataset.conversationId || null
+    const role    = root.dataset.role!
+    const panel   = document.getElementById('discussion-panel')!
+    const backdrop = document.getElementById('discussion-backdrop')!
+    const closeBtn = document.getElementById('discussion-close-btn')!
+    const loadingEl = document.getElementById('discussion-loading')!
+    const timeline  = document.getElementById('discussion-timeline')!
+    const emptyEl   = document.getElementById('discussion-empty')!
+    const tabs      = document.querySelectorAll<HTMLButtonElement>('.discussion-tab')
+
+    let activeTab = 'all'
+    let allItems: any[] = []
+
+    // ── Open / Close ──────────────────────────────────────────────
+    ;(window as any).__discussion = { open: openPanel, close: closePanel }
+
+    function openPanel() {
+      backdrop.classList.remove('hidden')
+      requestAnimationFrame(() => { backdrop.classList.remove('opacity-0'); backdrop.classList.add('opacity-100'); panel.classList.remove('translate-x-full') })
+      document.body.style.overflow = 'hidden'
+      loadDiscussion()
+    }
+    function closePanel() {
+      panel.classList.add('translate-x-full')
+      backdrop.classList.remove('opacity-100'); backdrop.classList.add('opacity-0')
+      setTimeout(() => { backdrop.classList.add('hidden'); document.body.style.overflow = '' }, 300)
+    }
+
+    closeBtn.addEventListener('click', closePanel)
+    backdrop.addEventListener('click', closePanel)
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel() })
+    document.querySelectorAll('[data-open-discussion]').forEach(btn => btn.addEventListener('click', openPanel))
+
+    // ── Tabs ──────────────────────────────────────────────────────
+    function updateTabs() {
+      tabs.forEach(t => {
+        const on = t.dataset.tab === activeTab
+        t.classList.toggle('text-primary-500', on); t.classList.toggle('border-primary-500', on)
+        t.classList.toggle('text-neutral-400', !on); t.classList.toggle('border-transparent', !on)
+      })
+    }
+    tabs.forEach(t => { t.addEventListener('click', () => { activeTab = t.dataset.tab!; updateTabs(); renderItems(filterItems()) }) })
+    updateTabs()
+
+    // ── Load ──────────────────────────────────────────────────────
+    async function loadDiscussion() {
+      loadingEl.classList.remove('hidden'); timeline.classList.add('hidden'); emptyEl.classList.add('hidden')
+      try {
+        const [candResp, convResp] = await Promise.all([
+          fetch(`/api/candidatures/${candId}`),
+          convId ? fetch(`/api/conversations/${convId}/messages`) : Promise.resolve(null),
+        ])
+        const cand     = candResp.ok ? await candResp.json() : null
+        const messages = convResp?.ok ? await convResp.json() : []
+        allItems = []
+        cand?.comments?.forEach((c: any)  => allItems.push({ ...c, _type: 'comment' }))
+        Array.isArray(messages) && messages.forEach((m: any) => allItems.push({ ...m, _type: 'message' }))
+        allItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        renderItems(filterItems())
+      } catch {} finally { loadingEl.classList.add('hidden') }
+    }
+
+    function filterItems() {
+      if (activeTab === 'comments') return allItems.filter(i => i._type === 'comment')
+      if (activeTab === 'messages') return allItems.filter(i => i._type === 'message')
+      return allItems
+    }
+
+    function renderItems(items: any[]) {
+      if (items.length === 0) { timeline.classList.add('hidden'); emptyEl.classList.remove('hidden'); return }
+      emptyEl.classList.add('hidden'); timeline.classList.remove('hidden')
+      timeline.innerHTML = items.map(item => item._type === 'comment' ? renderComment(item) : renderMsg(item)).join('')
+    }
+
+    function renderComment(c: any): string {
+      return `
+        <div class="border-b border-neutral-50 px-5 py-4 bg-gold-50/30">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="h-6 w-6 rounded-full bg-gold-100 flex items-center justify-center shrink-0">
+              <span class="text-[9px] font-bold text-gold-700">${escHtml((c.authorName ?? 'A').charAt(0).toUpperCase())}</span>
+            </div>
+            <span class="text-xs font-semibold text-neutral-600">${escHtml(c.authorName ?? 'Admin')}</span>
+            <span class="ml-auto text-[10px] text-neutral-400 tabular-nums">${fmtDate(c.createdAt)}</span>
+          </div>
+          <p class="text-sm text-neutral-600 leading-relaxed whitespace-pre-wrap pl-8">${escHtml(c.content)}</p>
+        </div>
+      `
+    }
+
+    function renderMsg(m: any): string {
+      const isOwnRole = (role === 'admin' && m.senderRole === 'admin') || (role === 'candidate' && m.senderRole === 'candidate')
+      return `
+        <div class="border-b border-neutral-50 px-5 py-4 ${isOwnRole ? 'bg-primary-50/20' : ''}">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="h-6 w-6 rounded-full ${m.senderRole === 'admin' ? 'bg-primary-100' : 'bg-neutral-100'} flex items-center justify-center shrink-0">
+              <span class="text-[9px] font-bold ${m.senderRole === 'admin' ? 'text-primary-600' : 'text-neutral-500'}">${escHtml((m.senderName ?? '?').charAt(0).toUpperCase())}</span>
+            </div>
+            <span class="text-xs font-semibold text-neutral-600">${escHtml(m.senderName ?? '')}</span>
+            <span class="text-[9px] font-semibold rounded-full px-2 py-0.5 ${m.senderRole === 'admin' ? 'bg-primary-50 text-primary-600' : 'bg-neutral-100 text-neutral-500'}">
+              ${m.senderRole === 'admin' ? 'Équipe WWA' : 'Candidat'}
+            </span>
+            ${m.read ? '<span class="ml-auto text-[10px] text-neutral-300">✓✓</span>' : '<span class="ml-auto"></span>'}
+            <span class="text-[10px] text-neutral-400 tabular-nums">${fmtDate(m.createdAt)}</span>
+          </div>
+          <p class="text-sm text-neutral-600 leading-relaxed whitespace-pre-wrap pl-8">${escHtml(m.content)}</p>
+        </div>
+      `
+    }
+
+    // ── Compose admin ─────────────────────────────────────────────
+    const composeArea   = document.getElementById('compose-area')
+    const composeBtns   = document.getElementById('compose-btns')
+    const composeText   = document.getElementById('compose-text')   as HTMLTextAreaElement | null
+    const composeLabel  = document.getElementById('compose-label')
+    const composeSubmit = document.getElementById('compose-submit') as HTMLButtonElement | null
+    const composeCancel = document.getElementById('compose-cancel')
+    let   composeMode   = 'comment'
+
+    document.querySelectorAll<HTMLButtonElement>('.discussion-compose-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        composeMode = btn.dataset.compose!
+        composeBtns?.classList.add('hidden')
+        composeArea?.classList.remove('hidden')
+        if (composeLabel) composeLabel.textContent = composeMode === 'comment' ? 'Note interne' : 'Message au candidat'
+        composeText?.focus()
+      })
+    })
+    composeCancel?.addEventListener('click', () => { composeArea?.classList.add('hidden'); composeBtns?.classList.remove('hidden'); if (composeText) composeText.value = '' })
+    composeText?.addEventListener('input', () => { if (composeSubmit) composeSubmit.disabled = composeText.value.trim() === '' })
+    composeSubmit?.addEventListener('click', async () => {
+      const text = composeText?.value.trim()
+      if (!text) return
+      composeSubmit.disabled = true
+      try {
+        let newItem: any = null
+        if (composeMode === 'comment') {
+          const resp = await fetch(`/api/candidatures/${candId}/comments`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: text }) })
+          if (resp.ok) newItem = { ...(await resp.json()), _type: 'comment' }
+        } else {
+          const resp = await fetch(`/api/conversations/${convId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: text }) })
+          if (resp.ok) newItem = { ...(await resp.json()), _type: 'message' }
+        }
+        if (newItem) { allItems.push(newItem); allItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); renderItems(filterItems()) }
+        if (composeText) composeText.value = ''
+        composeArea?.classList.add('hidden'); composeBtns?.classList.remove('hidden')
+      } finally { if (composeSubmit) composeSubmit.disabled = false }
+    })
+
+    // ── Candidat ──────────────────────────────────────────────────
+    const candInput = document.getElementById('candidate-msg-input') as HTMLTextAreaElement | null
+    const candSend  = document.getElementById('candidate-msg-send') as HTMLButtonElement | null
+    candInput?.addEventListener('input', () => { if (candSend) candSend.disabled = candInput.value.trim() === '' })
+    candSend?.addEventListener('click', async () => {
+      const text = candInput?.value.trim()
+      if (!text || !convId) return
+      candSend.disabled = true
+      try {
+        const resp = await fetch(`/api/conversations/${convId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: text }) })
+        if (resp.ok) { const m = await resp.json(); allItems.push({ ...m, _type: 'message' }); allItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); renderItems(filterItems()); if (candInput) candInput.value = '' }
+      } finally { if (candSend) candSend.disabled = false }
+    })
+
+    // ── Utils ─────────────────────────────────────────────────────
+    function escHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+    function fmtDate(iso: string) {
+      const d = new Date(iso)
+      return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })
+    }
+  })
+</script>

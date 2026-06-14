@@ -1,0 +1,232 @@
+---
+import Modal from '../../ui/Modal.astro'
+
+type Props = {
+  classes?: string
+}
+const { classes } = Astro.props
+---
+
+<Modal id="login" classes={classes} title="Se connecter">
+  <p class="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
+    Entrez vos identifiants pour accéder à votre espace.
+  </p>
+
+  <div
+    id="login-modal-error"
+    class="hidden mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+  ></div>
+
+  <form id="login-modal-form" novalidate class="flex flex-col gap-4">
+
+    <div class="relative w-full">
+      <input
+        id="login-modal-email"
+        type="email"
+        name="email"
+        placeholder="Adresse email"
+        autocomplete="email"
+        required
+        class="peer h-12 w-full rounded border border-neutral-200 px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all autofill:bg-white focus:border-amber-400 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:autofill:bg-neutral-900"
+      />
+      <label
+        for="login-modal-email"
+        class="absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 dark:before:bg-neutral-900"
+      >
+        Adresse email <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span>
+      </label>
+    </div>
+
+    <div class="relative w-full">
+      <input
+        id="login-modal-password"
+        type="password"
+        name="password"
+        placeholder="Mot de passe"
+        autocomplete="current-password"
+        required
+        class="peer h-12 w-full rounded border border-neutral-200 px-4 pr-10 text-sm text-neutral-500 placeholder-transparent outline-none transition-all autofill:bg-white focus:border-amber-400 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:autofill:bg-neutral-900"
+      />
+      <label
+        for="login-modal-password"
+        class="absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 dark:before:bg-neutral-900"
+      >
+        Mot de passe <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span>
+      </label>
+      <button
+        type="button"
+        id="login-modal-toggle-password"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 transition hover:text-neutral-600"
+        aria-label="Afficher le mot de passe"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+        </svg>
+      </button>
+    </div>
+
+    <button
+      type="submit"
+      id="login-modal-submit"
+      class="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-6 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+    >
+      Se connecter
+    </button>
+
+  </form>
+
+  <div class="my-4 text-center text-xs text-neutral-400">ou</div>
+
+  <button
+    disabled
+    title="Google OAuth — configuration en cours"
+    class="inline-flex h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded border border-neutral-200 bg-white px-6 text-sm font-medium text-neutral-500 opacity-50 dark:border-neutral-800 dark:bg-neutral-900"
+  >
+    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+    Continuer avec Google (bientôt disponible)
+  </button>
+
+  <p class="mt-5 text-center text-sm text-neutral-500 dark:text-neutral-400">
+    Pas encore de compte ?
+    <button
+      type="button"
+      data-modal="register"
+      class="font-medium text-primary-500 transition hover:text-primary-700 cursor-pointer"
+    >
+      Créer un compte
+    </button>
+  </p>
+</Modal>
+
+<script>
+  // Extrait le premier message d'erreur utile d'une réponse Laravel/API
+  function extractError(json: Record<string, unknown>, fallback: string): string {
+    if (json.errors && typeof json.errors === 'object') {
+      const first = Object.values(json.errors as Record<string, unknown[]>)[0]
+      if (Array.isArray(first) && typeof first[0] === 'string') return first[0]
+    }
+    return (typeof json.message === 'string' && json.message) ||
+           (typeof json.error === 'string' && json.error) ||
+           fallback
+  }
+
+  // ── État module-level (survit aux navigations ClientRouter) ────────────
+  let savedUrl = ''
+  let openedViaNav = false
+  let activeObserver: MutationObserver | null = null
+
+  // Bouton retour : enregistré une seule fois, lit le DOM au moment du firing
+  window.addEventListener('popstate', () => {
+    const modal = document.getElementById('login')
+    if (modal?.classList.contains('open')) {
+      openedViaNav = false
+      modal.classList.remove('open')
+    }
+  })
+
+  // Re-branché sur le nouveau DOM après chaque navigation (ClientRouter)
+  document.addEventListener('astro:page-load', () => {
+    const loginModal = document.getElementById('login') as HTMLElement | null
+    const form       = document.getElementById('login-modal-form') as HTMLFormElement | null
+    const errorBox   = document.getElementById('login-modal-error') as HTMLDivElement | null
+    const submitBtn  = document.getElementById('login-modal-submit') as HTMLButtonElement | null
+    const toggleBtn  = document.getElementById('login-modal-toggle-password') as HTMLButtonElement | null
+    const passwordInput = document.getElementById('login-modal-password') as HTMLInputElement | null
+
+    // Reset + reconnexion de l'observer sur le nouvel élément #login
+    savedUrl = ''
+    openedViaNav = false
+    activeObserver?.disconnect()
+    activeObserver = null
+
+    function onOpen() {
+      // Vérifie le cookie wwa_role (non-httponly) — valeur strictement validée
+      const roleMatch = document.cookie.match(/(?:^|;\s*)wwa_role=([^;]+)/)
+      const rawRole = roleMatch ? decodeURIComponent(roleMatch[1]) : null
+      const role = rawRole === 'admin' || rawRole === 'candidate' ? rawRole : null
+      if (role) {
+        loginModal!.classList.remove('open')
+        window.location.href = role === 'admin' ? '/admin' : '/dashboard'
+        return
+      }
+
+      if (window.location.pathname !== '/login') {
+        savedUrl = window.location.href
+        openedViaNav = true
+        history.pushState({ loginModal: true }, '', '/login')
+      }
+    }
+
+    function onClose() {
+      if (openedViaNav && savedUrl) {
+        history.replaceState(null, '', savedUrl)
+      }
+      savedUrl = ''
+      openedViaNav = false
+    }
+
+    if (loginModal) {
+      activeObserver = new MutationObserver(() => {
+        loginModal.classList.contains('open') ? onOpen() : onClose()
+      })
+      activeObserver.observe(loginModal, { attributes: true, attributeFilter: ['class'] })
+    }
+
+    // ── Toggle mot de passe ──────────────────────────────────────────────
+    toggleBtn?.addEventListener('click', () => {
+      if (!passwordInput) return
+      const isText = passwordInput.type === 'text'
+      passwordInput.type = isText ? 'password' : 'text'
+      toggleBtn.setAttribute('aria-label', isText ? 'Afficher le mot de passe' : 'Masquer le mot de passe')
+    })
+
+    // ── Soumission du formulaire ─────────────────────────────────────────
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      if (!errorBox || !submitBtn) return
+      errorBox.classList.add('hidden')
+      submitBtn.disabled = true
+      submitBtn.textContent = 'Connexion en cours…'
+
+      const data = new FormData(form)
+      try {
+        const resp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            email: data.get('email'),
+            password: data.get('password'),
+          }),
+        })
+        const json = await resp.json()
+
+        if (!resp.ok) {
+          errorBox.textContent = extractError(json, 'Identifiants invalides')
+          errorBox.classList.remove('hidden')
+          submitBtn.disabled = false
+          submitBtn.textContent = 'Se connecter'
+          return
+        }
+
+        // Cookie wwa_session posé server-side par l'endpoint — pas de localStorage
+        if (openedViaNav && savedUrl) {
+          history.replaceState(null, '', savedUrl)
+        }
+        openedViaNav = false
+
+        window.location.href = json.role === 'admin' ? '/admin' : '/dashboard'
+      } catch {
+        errorBox.textContent = 'Impossible de contacter le serveur. Vérifiez votre connexion.'
+        errorBox.classList.remove('hidden')
+        submitBtn.disabled = false
+        submitBtn.textContent = 'Se connecter'
+      }
+    })
+  })
+</script>

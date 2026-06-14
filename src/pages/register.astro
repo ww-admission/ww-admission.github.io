@@ -3,192 +3,208 @@ import Header from '../components/blocks/head/Header.astro'
 import '../styles/global.css'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/outfit'
+import { sessionCookieName, verifyToken } from '../lib/auth'
+
+const rawToken = Astro.cookies.get(sessionCookieName())?.value
+if (rawToken) {
+  const session = await verifyToken(rawToken)
+  if (session) {
+    return Astro.redirect(session.role === 'admin' ? '/admin' : '/dashboard')
+  }
+}
 ---
 
 <!doctype html>
 <html lang="fr" class="scroll-smooth antialiased">
   <Header title="Créer un compte — WWA" description="Rejoignez WorldWise Admission" />
-  <body class="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-md">
+  <body class="min-h-screen bg-neutral-50 flex items-center justify-center p-6 dark:bg-neutral-950">
+    <div class="w-80 max-w-full">
+
       <!-- Logo -->
-      <div class="text-center mb-8">
+      <div class="mb-6 flex justify-center">
         <a href="/" class="inline-flex items-center gap-2">
-          <img src="/logo.svg" alt="WWA" width="40" height="40" />
-          <span class="font-headings text-xl font-black tracking-wider text-neutral-700">WorldWise Admission</span>
+          <img src="/logo.svg" alt="WWA" width="32" height="32" />
+          <span class="font-headings text-sm font-black tracking-wider text-neutral-700 dark:text-neutral-100">WorldWise Admission</span>
         </a>
-        <h1 class="mt-6 text-2xl font-headings font-semibold text-neutral-700">Créer un compte</h1>
-        <p class="mt-2 text-sm text-neutral-500">Rejoignez des centaines d'étudiants accompagnés</p>
       </div>
 
-      <!-- Carte formulaire -->
-      <div class="bg-white rounded-2xl shadow-sm border border-neutral-100 p-8">
-        <div id="register-error" class="hidden mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"></div>
+      <!-- Card — style modal exacte -->
+      <div class="flex flex-col overflow-hidden rounded border border-neutral-100 bg-white text-neutral-500 shadow-xl shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-neutral-950/50">
 
-        <form id="register-form" novalidate class="space-y-4">
-          <div>
-            <label for="name" class="block text-sm font-medium text-neutral-700 mb-1.5">Nom complet</label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              autocomplete="name"
-              required
-              placeholder="Prénom Nom"
-              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
-            />
-          </div>
-
-          <div>
-            <label for="email" class="block text-sm font-medium text-neutral-700 mb-1.5">Adresse email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autocomplete="email"
-              required
-              placeholder="vous@exemple.com"
-              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
-            />
-          </div>
-
-          <div>
-            <label for="password" class="block text-sm font-medium text-neutral-700 mb-1.5">Mot de passe</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autocomplete="new-password"
-              required
-              placeholder="8 caractères minimum"
-              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
-            />
-          </div>
-
-          <div>
-            <label for="passwordConfirm" class="block text-sm font-medium text-neutral-700 mb-1.5">Confirmer le mot de passe</label>
-            <input
-              id="passwordConfirm"
-              name="passwordConfirm"
-              type="password"
-              autocomplete="new-password"
-              required
-              placeholder="••••••••"
-              class="w-full rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
-            />
-          </div>
-
-          <button
-            type="submit"
-            id="submit-btn"
-            class="w-full rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+        <!-- Header modal -->
+        <div class="flex items-center justify-between gap-6 border-b border-neutral-100 px-6 py-2 text-lg font-medium dark:border-neutral-800">
+          <h1 class="mb-0 truncate text-lg font-medium text-neutral-700 dark:text-neutral-100">S'inscrire</h1>
+          <a
+            href="/"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+            aria-label="Retour au site"
           >
-            Créer mon compte
-          </button>
-        </form>
-
-        <!-- Séparateur -->
-        <div class="flex items-center gap-3 my-5">
-          <div class="flex-1 h-px bg-neutral-100"></div>
-          <span class="text-xs text-neutral-400">ou</span>
-          <div class="flex-1 h-px bg-neutral-100"></div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </a>
         </div>
 
-        <button
-          disabled
-          title="Google OAuth — configuration en cours"
-          class="w-full flex items-center justify-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 opacity-50 cursor-not-allowed"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          S'inscrire avec Google (bientôt disponible)
-        </button>
+        <!-- Body modal -->
+        <div class="p-6">
 
-        <p class="mt-5 text-center text-sm text-neutral-500">
-          Déjà un compte ?
-          <a href="/login" class="font-medium text-primary-500 hover:text-primary-600 transition">
-            Se connecter
-          </a>
-        </p>
+          <p class="mb-4 text-sm text-neutral-500 dark:text-neutral-400">Entrez vos informations pour rejoindre la plateforme WWA.</p>
+
+          <!-- Alerte erreur -->
+          <div id="register-error" class="hidden mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"></div>
+
+          <form id="register-form" novalidate class="flex flex-col gap-4">
+
+            <!-- Nom complet -->
+            <div class="relative w-full">
+              <input
+                id="name"
+                type="text"
+                name="name"
+                placeholder="Nom complet"
+                autocomplete="name"
+                required
+                class="peer h-12 w-full rounded border border-neutral-200 px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all autofill:bg-white focus:border-amber-400 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:autofill:bg-neutral-900"
+              />
+              <label for="name" class="absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 dark:before:bg-neutral-900">
+                Nom complet <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span>
+              </label>
+            </div>
+
+            <!-- Email -->
+            <div class="relative w-full">
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="Adresse email"
+                autocomplete="email"
+                required
+                class="peer h-12 w-full rounded border border-neutral-200 px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all autofill:bg-white focus:border-amber-400 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:autofill:bg-neutral-900"
+              />
+              <label for="email" class="absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 dark:before:bg-neutral-900">
+                Adresse email <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span>
+              </label>
+            </div>
+
+            <!-- Mot de passe -->
+            <div class="relative w-full">
+              <input
+                id="password"
+                type="password"
+                name="password"
+                placeholder="Mot de passe"
+                autocomplete="new-password"
+                required
+                class="peer h-12 w-full rounded border border-neutral-200 px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all autofill:bg-white focus:border-amber-400 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:autofill:bg-neutral-900"
+              />
+              <label for="password" class="absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 dark:before:bg-neutral-900">
+                Mot de passe <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span>
+              </label>
+            </div>
+
+            <!-- Confirmation mot de passe -->
+            <div class="relative w-full">
+              <input
+                id="passwordConfirm"
+                type="password"
+                name="passwordConfirm"
+                placeholder="Confirmer le mot de passe"
+                autocomplete="new-password"
+                required
+                class="peer h-12 w-full rounded border border-neutral-200 px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all autofill:bg-white focus:border-amber-400 focus:outline-none dark:border-neutral-800 dark:bg-neutral-900 dark:autofill:bg-neutral-900"
+              />
+              <label for="passwordConfirm" class="absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 dark:before:bg-neutral-900">
+                Confirmer le mot de passe <span class="text-neutral-400" aria-hidden="true">&nbsp;*</span>
+              </label>
+            </div>
+
+            <!-- Bouton — style button--primary button--lg -->
+            <button
+              type="submit"
+              id="submit-btn"
+              class="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-6 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+            >
+              S'inscrire
+            </button>
+
+          </form>
+
+          <!-- Séparateur — style modal -->
+          <div class="my-4 text-center text-xs text-neutral-400">ou</div>
+
+          <!-- Google OAuth -->
+          <button
+            disabled
+            title="Google OAuth — configuration en cours"
+            class="inline-flex h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded border border-neutral-200 bg-white px-6 text-sm font-medium text-neutral-500 opacity-50 dark:border-neutral-800 dark:bg-neutral-900"
+          >
+            <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            S'inscrire avec Google (bientôt disponible)
+          </button>
+
+          <p class="mt-5 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            Déjà un compte ?
+            <a href="/login" class="font-medium text-primary-500 transition hover:text-primary-700">Se connecter</a>
+          </p>
+
+        </div>
       </div>
 
-      <p class="mt-6 text-center text-xs text-neutral-400">
-        <a href="/" class="hover:text-neutral-600 transition">← Retour au site</a>
-      </p>
     </div>
 
-    <script>
-      // Redirige immédiatement si déjà connecté
-      ;(function () {
-        try {
-          const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
-          if (s?.token && s?.role && (!s.exp || Date.now() < s.exp)) {
-            window.location.replace(s.role === 'admin' ? '/admin' : '/dashboard')
-          }
-        } catch {}
-      })()
+    <script is:inline>
+      var form      = document.getElementById('register-form')
+      var errorBox  = document.getElementById('register-error')
+      var submitBtn = document.getElementById('submit-btn')
 
-      const form = document.getElementById('register-form') as HTMLFormElement
-      const errorBox = document.getElementById('register-error') as HTMLDivElement
-      const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement
-
-      form.addEventListener('submit', async (e) => {
+      form && form.addEventListener('submit', async function (e) {
         e.preventDefault()
         errorBox.classList.add('hidden')
-        submitBtn.disabled = true
-        submitBtn.textContent = 'Création en cours…'
-
-        const data = new FormData(form)
-        const password = data.get('password') as string
-        const passwordConfirm = data.get('passwordConfirm') as string
-        const backendUrl = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000'
-
+        var password        = form.password.value
+        var passwordConfirm = form.passwordConfirm.value
         if (password !== passwordConfirm) {
           errorBox.textContent = 'Les mots de passe ne correspondent pas'
           errorBox.classList.remove('hidden')
-          submitBtn.disabled = false
-          submitBtn.textContent = 'Créer mon compte'
           return
         }
-
+        submitBtn.disabled = true
+        submitBtn.textContent = 'Création en cours…'
         try {
-          const resp = await fetch(`${backendUrl}/api/auth/register`, {
+          var resp = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({
-              name: data.get('name'),
-              email: data.get('email'),
-              password,
+              name: form.name.value,
+              email: form.email.value,
+              password: password,
               password_confirmation: passwordConfirm,
             }),
           })
-          const json = await resp.json()
-
+          var json = await resp.json()
           if (!resp.ok) {
-            errorBox.textContent = json.message ?? json.error ?? 'Une erreur est survenue'
+            var msg = json.message || json.error || 'Une erreur est survenue'
+            if (json.errors && typeof json.errors === 'object') {
+              var firstField = Object.values(json.errors)[0]
+              if (Array.isArray(firstField) && firstField[0]) msg = firstField[0]
+            }
+            errorBox.textContent = msg
             errorBox.classList.remove('hidden')
             submitBtn.disabled = false
-            submitBtn.textContent = 'Créer mon compte'
+            submitBtn.textContent = "S'inscrire"
             return
           }
-
-          localStorage.setItem('wwa_session', JSON.stringify({
-            name:  json.user.name,
-            email: json.user.email,
-            role:  json.user.role,
-            token: json.token,
-            exp:   Date.now() + 24 * 60 * 60 * 1000,
-          }))
-
           window.location.href = '/dashboard'
-        } catch {
+        } catch (err) {
           errorBox.textContent = 'Impossible de contacter le serveur. Vérifiez votre connexion.'
           errorBox.classList.remove('hidden')
           submitBtn.disabled = false
-          submitBtn.textContent = 'Créer mon compte'
+          submitBtn.textContent = "S'inscrire"
         }
       })
     </script>

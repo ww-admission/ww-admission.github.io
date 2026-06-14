@@ -1,0 +1,367 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="440" height="440" viewBox="0 0 440 440">
+<defs>
+<symbol id="i0" viewBox="0 0 24 24"><path d="M5 12l-2 0l9 -9l9 9l-2 0" vector-effect="non-scaling-stroke"/><path d="M19 12v7a2 2 0 0 1 -2 2h-4v-4h-2v4h-4a2 2 0 0 1 -2 -2v-7" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i1" viewBox="0 0 24 24"><path d="M12 17.75l-6.172 3.245l1.179 -6.873l-4.993 -4.867l6.9 -1.002l3.086 -6.253l3.086 6.253l6.9 1.002l-4.993 4.867l1.179 6.873z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i2" viewBox="0 0 24 24"><path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i3" viewBox="0 0 24 24"><path d="M8 9h8" vector-effect="non-scaling-stroke"/><path d="M8 13h6" vector-effect="non-scaling-stroke"/><path d="M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i4" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" vector-effect="non-scaling-stroke"/><path d="M3 7l9 6l9 -6" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i5" viewBox="0 0 24 24"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i6" viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i7" viewBox="0 0 24 24"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" vector-effect="non-scaling-stroke"/><path d="M3.6 9h16.8" vector-effect="non-scaling-stroke"/><path d="M3.6 15h16.8" vector-effect="non-scaling-stroke"/><path d="M11.5 3a17 17 0 0 0 0 18" vector-effect="non-scaling-stroke"/><path d="M12.5 3a17 17 0 0 1 0 18" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i8" viewBox="0 0 24 24"><path d="M4 20h4l10.5 -10.5a2 2 0 0 0 -4 -4l-10.5 10.5v4" vector-effect="non-scaling-stroke"/><path d="M13.5 6.5l4 4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i9" viewBox="0 0 24 24"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" vector-effect="non-scaling-stroke"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i10" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" vector-effect="non-scaling-stroke"/><path d="M9 17v1a3 3 0 0 0 6 0v-1" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i11" viewBox="0 0 24 24"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" vector-effect="non-scaling-stroke"/><path d="M21 21l-6 -6" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i12" viewBox="0 0 24 24"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2" vector-effect="non-scaling-stroke"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i13" viewBox="0 0 24 24"><path d="M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M6 17v-13l12 -2v13" vector-effect="non-scaling-stroke"/><path d="M15 15a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i14" viewBox="0 0 24 24"><path d="M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.487c0 1.927 -1.551 3.487 -3.465 3.487h-11.878" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i15" viewBox="0 0 24 24"><path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i16" viewBox="0 0 24 24"><path d="M3 9m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" vector-effect="non-scaling-stroke"/><path d="M8 7v-2a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2" vector-effect="non-scaling-stroke"/><path d="M3 13a20 20 0 0 0 18 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i17" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" vector-effect="non-scaling-stroke"/><path d="M16 3v4" vector-effect="non-scaling-stroke"/><path d="M8 3v4" vector-effect="non-scaling-stroke"/><path d="M4 11h16" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i18" viewBox="0 0 24 24"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" vector-effect="non-scaling-stroke"/><path d="M12 7v5l3 3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i19" viewBox="0 0 24 24"><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" vector-effect="non-scaling-stroke"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" vector-effect="non-scaling-stroke"/><path d="M3 6v13" vector-effect="non-scaling-stroke"/><path d="M12 6v13" vector-effect="non-scaling-stroke"/><path d="M21 6v13" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i20" viewBox="0 0 24 24"><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i21" viewBox="0 0 24 24"><path d="M5 13a2 2 0 0 0 2 2v4a2 2 0 0 0 2 2h6a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-10z" vector-effect="non-scaling-stroke"/><path d="M11 17a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" vector-effect="non-scaling-stroke"/><path d="M15 13v-4a3 3 0 0 0 -6 0v4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i22" viewBox="0 0 24 24"><path d="M8 21h8" vector-effect="non-scaling-stroke"/><path d="M12 17v4" vector-effect="non-scaling-stroke"/><path d="M7 4h-3v2.5c0 3 .3 4.5 3.3 5.5l4.7 4l4.7 -4c3 -1 3.3 -2.5 3.3 -5.5v-2.5h-3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i23" viewBox="0 0 24 24"><path d="M12 9m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0" vector-effect="non-scaling-stroke"/><path d="M9.265 16.265l-2.265 4.735l5 -3l5 3l-2.265 -4.735" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i24" viewBox="0 0 24 24"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9z" vector-effect="non-scaling-stroke"/><path d="M5 21v-7" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i25" viewBox="0 0 24 24"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" vector-effect="non-scaling-stroke"/><path d="M16.5 7.5l-5 5" vector-effect="non-scaling-stroke"/><path d="M10 10l2 -5l2 5l5 2l-5 2l-2 5l-2 -5l-5 -2z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i26" viewBox="0 0 24 24"><path d="M17 8v-3a1 1 0 0 0 -1 -1h-12a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1 -1 1h-12a2 2 0 0 1 -2 -2v-12" vector-effect="non-scaling-stroke"/><path d="M20 12v4h-4a2 2 0 0 1 0 -4h4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i27" viewBox="0 0 24 24"><path d="M3 12v7" vector-effect="non-scaling-stroke"/><path d="M7 10v9" vector-effect="non-scaling-stroke"/><path d="M11 8v11" vector-effect="non-scaling-stroke"/><path d="M15 6v13" vector-effect="non-scaling-stroke"/><path d="M19 4v15" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i28" viewBox="0 0 24 24"><path d="M4 19l4 -4l4 2l4 -8l4 4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i29" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" vector-effect="non-scaling-stroke"/><path d="M9.172 15.172a4 4 0 0 1 5.656 0" vector-effect="non-scaling-stroke"/><path d="M6.343 12.343a8 8 0 0 1 11.314 0" vector-effect="non-scaling-stroke"/><path d="M3.515 9.515c4.686 -4.687 12.284 -4.687 16.97 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i30" viewBox="0 0 24 24"><path d="M6 7h11a2 2 0 0 1 2 2v.5a.5 .5 0 0 0 .5 .5a.5 .5 0 0 1 .5 .5v3a.5 .5 0 0 1 -.5 .5a.5 .5 0 0 0 -.5 .5v.5a2 2 0 0 1 -2 2h-11a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2" vector-effect="non-scaling-stroke"/><path d="M7 10v4" vector-effect="non-scaling-stroke"/><path d="M10 10v4" vector-effect="non-scaling-stroke"/><path d="M13 10v4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i31" viewBox="0 0 24 24"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" vector-effect="non-scaling-stroke"/><path d="M3 12h1" vector-effect="non-scaling-stroke"/><path d="M20 12h1" vector-effect="non-scaling-stroke"/><path d="M12 3v1" vector-effect="non-scaling-stroke"/><path d="M12 20v1" vector-effect="non-scaling-stroke"/><path d="M5.6 5.6l.7 .7" vector-effect="non-scaling-stroke"/><path d="M17.7 5.6l-.7 .7" vector-effect="non-scaling-stroke"/><path d="M17.7 18.4l-.7 -.7" vector-effect="non-scaling-stroke"/><path d="M5.6 18.4l.7 -.7" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i32" viewBox="0 0 24 24"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i33" viewBox="0 0 24 24"><path d="M12 3l4 5h-2v5h-4v-5h-2z" vector-effect="non-scaling-stroke"/><path d="M7 19h10" vector-effect="non-scaling-stroke"/><path d="M9 13v6" vector-effect="non-scaling-stroke"/><path d="M15 13v6" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i34" viewBox="0 0 24 24"><path d="M5 21c0 -8.093 2.583 -12.603 6 -17" vector-effect="non-scaling-stroke"/><path d="M19 21c0 -8.093 -2.583 -12.603 -6 -17" vector-effect="non-scaling-stroke"/><path d="M5 21a7 7 0 0 1 14 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i35" viewBox="0 0 24 24"><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M12 12m0 -6c1.657 0 3 1.343 3 3s-1.343 3 -3 3" vector-effect="non-scaling-stroke"/><path d="M12 12m0 6c-1.657 0 -3 -1.343 -3 -3s1.343 -3 3 -3" vector-effect="non-scaling-stroke"/><path d="M12 12m-6 0c0 -1.657 1.343 -3 3 -3s3 1.343 3 3" vector-effect="non-scaling-stroke"/><path d="M12 12m6 0c0 1.657 -1.343 3 -3 3s-3 -1.343 -3 -3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i36" viewBox="0 0 24 24"><path d="M5 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" vector-effect="non-scaling-stroke"/><path d="M19 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" vector-effect="non-scaling-stroke"/><path d="M12 19v-4l-4 -4l2 -4" vector-effect="non-scaling-stroke"/><path d="M9 6m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" vector-effect="non-scaling-stroke"/><path d="M7 6h5l5 5" vector-effect="non-scaling-stroke"/><path d="M5 18l4 -4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i37" viewBox="0 0 24 24"><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" vector-effect="non-scaling-stroke"/><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" vector-effect="non-scaling-stroke"/><path d="M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i38" viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 7 7a6 6 0 0 0 3 -5a9 9 0 0 0 6 -8a3 3 0 0 0 -3 -3a9 9 0 0 0 -8 6a6 6 0 0 0 -5 3" vector-effect="non-scaling-stroke"/><path d="M7 14a6 6 0 0 0 -3 6a6 6 0 0 0 6 -3" vector-effect="non-scaling-stroke"/><path d="M15 9m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i39" viewBox="0 0 24 24"><path d="M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8a4.5 4.5 0 0 1 -4.5 4.5h-1.5a1 1 0 0 0 -1 1a1 1 0 0 0 1 1a1 1 0 0 1 1 1c0 1.38 -1.12 2.5 -2.5 2.5" vector-effect="non-scaling-stroke"/><path d="M8.5 10.5m-.5 0a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0" vector-effect="non-scaling-stroke"/><path d="M12 7.5m-.5 0a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0" vector-effect="non-scaling-stroke"/><path d="M15.5 10.5m-.5 0a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i40" viewBox="0 0 24 24"><path d="M12 4l8 8l-8 8l-8 -8z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i41" viewBox="0 0 24 24"><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M12 15v7" vector-effect="non-scaling-stroke"/><path d="M5 12h14" vector-effect="non-scaling-stroke"/><path d="M8 19l-3 2" vector-effect="non-scaling-stroke"/><path d="M16 19l3 2" vector-effect="non-scaling-stroke"/><path d="M5.536 16.536a7 7 0 0 1 -1.536 -4.536" vector-effect="non-scaling-stroke"/><path d="M18.464 16.536a7 7 0 0 0 1.536 -4.536" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i42" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2 -2h5v2.5a1.5 1.5 0 0 0 3 0v-2.5h5a2 2 0 0 1 2 2v5h-2.5a1.5 1.5 0 0 0 0 3h2.5v5a2 2 0 0 1 -2 2h-5v-2.5a1.5 1.5 0 0 0 -3 0v2.5h-5a2 2 0 0 1 -2 -2v-5h2.5a1.5 1.5 0 0 0 0 -3h-2.5v-5" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i43" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" vector-effect="non-scaling-stroke"/><path d="M12 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" vector-effect="non-scaling-stroke"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i44" viewBox="0 0 24 24"><path d="M13 3l-6 9h7l-6 9" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i45" viewBox="0 0 24 24"><path d="M7 8l-4 4l4 4" vector-effect="non-scaling-stroke"/><path d="M17 8l4 4l-4 4" vector-effect="non-scaling-stroke"/><path d="M14 4l-4 16" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i46" viewBox="0 0 24 24"><path d="M5 7l5 5l-5 5" vector-effect="non-scaling-stroke"/><path d="M12 19h7" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i47" viewBox="0 0 24 24"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" vector-effect="non-scaling-stroke"/><path d="M4 6v6a8 3 0 0 0 16 0v-6" vector-effect="non-scaling-stroke"/><path d="M4 12v6a8 3 0 0 0 16 0v-6" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i48" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z" vector-effect="non-scaling-stroke"/><path d="M3 8m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i49" viewBox="0 0 24 24"><path d="M9 4m-2 0a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v16l-5 -3l-5 3v-16z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i50" viewBox="0 0 24 24"><path d="M11.5 3.5h-7.5v7.5l8.5 8.5a2 2 0 0 0 2.828 0l5.172 -5.172a2 2 0 0 0 0 -2.828z" vector-effect="non-scaling-stroke"/><path d="M8 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i51" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" vector-effect="non-scaling-stroke"/><path d="M7 9l5 -5l5 5" vector-effect="non-scaling-stroke"/><path d="M12 4v13" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i52" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" vector-effect="non-scaling-stroke"/><path d="M7 11l5 5l5 -5" vector-effect="non-scaling-stroke"/><path d="M12 4v12" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i53" viewBox="0 0 24 24"><path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M8.7 10.7l6.6 -3.4" vector-effect="non-scaling-stroke"/><path d="M8.7 13.3l6.6 3.4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i54" viewBox="0 0 24 24"><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-2 2" vector-effect="non-scaling-stroke"/><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l2 -2" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i55" viewBox="0 0 24 24"><path d="M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" vector-effect="non-scaling-stroke"/><path d="M2 12c1.6 -4.097 5.336 -7 10 -7c4.664 0 8.4 2.903 10 7c-1.6 4.097 -5.336 7 -10 7c-4.664 0 -8.4 -2.903 -10 -7" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i56" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -5v5h5" vector-effect="non-scaling-stroke"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 5v-5h-5" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i57" viewBox="0 0 24 24"><path d="M4 6h16" vector-effect="non-scaling-stroke"/><path d="M9 12h6" vector-effect="non-scaling-stroke"/><path d="M11 18h2" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i58" viewBox="0 0 24 24"><path d="M12 5v14" vector-effect="non-scaling-stroke"/><path d="M5 12h14" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i59" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i60" viewBox="0 0 24 24"><path d="M12 9h.01" vector-effect="non-scaling-stroke"/><path d="M11 12h1v4h1" vector-effect="non-scaling-stroke"/><path d="M12 3c7.2 0 9 1.8 9 9s-1.8 9 -9 9s-9 -1.8 -9 -9s1.8 -9 9 -9z" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i61" viewBox="0 0 24 24"><path d="M12 9v4" vector-effect="non-scaling-stroke"/><path d="M12 16v.01" vector-effect="non-scaling-stroke"/><path d="M5.314 7l1.943 -3.342a2 2 0 0 1 3.486 0l8.943 15.342a2 2 0 0 1 -1.743 3h-17.886a2 2 0 0 1 -1.743 -3l1.943 -3.342" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i62" viewBox="0 0 24 24"><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" vector-effect="non-scaling-stroke"/><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" vector-effect="non-scaling-stroke"/><path d="M16 5l3 3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i63" viewBox="0 0 24 24"><path d="M4 7h16" vector-effect="non-scaling-stroke"/><path d="M10 11v6" vector-effect="non-scaling-stroke"/><path d="M14 11v6" vector-effect="non-scaling-stroke"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" vector-effect="non-scaling-stroke"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i64" viewBox="0 0 24 24"><path d="M8 8m-2 0a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" vector-effect="non-scaling-stroke"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i65" viewBox="0 0 24 24"><path d="M18.9 7a8 8 0 0 1 1.1 5a8 8 0 0 1 -8 8" vector-effect="non-scaling-stroke"/><path d="M8.538 3.147a8 8 0 0 1 9.35 4.879" vector-effect="non-scaling-stroke"/><path d="M3 14a8 8 0 0 1 6.52 -7.892" vector-effect="non-scaling-stroke"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" vector-effect="non-scaling-stroke"/><path d="M6 14a6 6 0 0 0 10 4" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i66" viewBox="0 0 24 24"><path d="M15 8h.01" vector-effect="non-scaling-stroke"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" vector-effect="non-scaling-stroke"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l4 4" vector-effect="non-scaling-stroke"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" vector-effect="non-scaling-stroke"/></symbol>
+<symbol id="i67" viewBox="0 0 24 24"><path d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 -4.069 4.069l-1.089 1.088l-4.054 4.052l-2.098 -.535l-4.81 4.808l-1.045 -.043l-.043 -1.046l4.808 -4.809l-.535 -2.1l4.053 -4.05l1.088 -1.09a2.877 2.877 0 0 1 4.192 -3.946z" vector-effect="non-scaling-stroke"/></symbol>
+</defs>
+<defs>
+  <pattern id="doodle" patternUnits="userSpaceOnUse" width="440" height="440">
+    
+    <g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.13">
+      <rect width="440" height="440" fill="transparent" stroke="none"/>
+<use href="#i29" transform="translate(353.42,162.83) rotate(13) scale(1.0300) translate(-12,-12)"/>
+<use href="#i35" transform="translate(362.22,108.45) rotate(328) scale(1.0237) translate(-12,-12)"/>
+<use href="#i59" transform="translate(159.18,222.86) rotate(95) scale(2.0839) translate(-12,-12)"/>
+<use href="#i47" transform="translate(213.06,145.56) rotate(252) scale(1.3023) translate(-12,-12)"/>
+<use href="#i21" transform="translate(414.48,90.43) rotate(40) scale(1.3755) translate(-12,-12)"/>
+<use href="#i3" transform="translate(113.82,73.00) rotate(359) scale(2.2229) translate(-12,-12)"/>
+<use href="#i66" transform="translate(239.79,-17.93) rotate(188) scale(3.3553) translate(-12,-12)"/>
+<use href="#i66" transform="translate(239.79,422.07) rotate(188) scale(3.3553) translate(-12,-12)"/>
+<use href="#i26" transform="translate(29.35,174.37) rotate(193) scale(1.1864) translate(-12,-12)"/>
+<use href="#i46" transform="translate(181.78,172.87) rotate(38) scale(1.9975) translate(-12,-12)"/>
+<use href="#i58" transform="translate(181.12,302.88) rotate(133) scale(1.3469) translate(-12,-12)"/>
+<use href="#i1" transform="translate(175.78,337.81) rotate(313) scale(0.8560) translate(-12,-12)"/>
+<use href="#i7" transform="translate(257.03,292.17) rotate(35) scale(1.4992) translate(-12,-12)"/>
+<use href="#i60" transform="translate(116.54,-8.39) rotate(47) scale(0.9619) translate(-12,-12)"/>
+<use href="#i60" transform="translate(116.54,431.61) rotate(47) scale(0.9619) translate(-12,-12)"/>
+<use href="#i52" transform="translate(340.64,71.58) rotate(150) scale(1.9360) translate(-12,-12)"/>
+<use href="#i36" transform="translate(307.21,115.51) rotate(288) scale(1.0092) translate(-12,-12)"/>
+<use href="#i18" transform="translate(359.04,265.94) rotate(268) scale(1.9565) translate(-12,-12)"/>
+<use href="#i64" transform="translate(337.12,131.92) rotate(321) scale(1.0350) translate(-12,-12)"/>
+<use href="#i11" transform="translate(168.55,54.15) rotate(152) scale(1.3584) translate(-12,-12)"/>
+<use href="#i17" transform="translate(87.50,288.24) rotate(176) scale(1.4081) translate(-12,-12)"/>
+<use href="#i42" transform="translate(3.14,244.03) rotate(238) scale(1.1953) translate(-12,-12)"/>
+<use href="#i42" transform="translate(443.14,244.03) rotate(238) scale(1.1953) translate(-12,-12)"/>
+<use href="#i12" transform="translate(300.76,57.04) rotate(261) scale(1.2484) translate(-12,-12)"/>
+<use href="#i53" transform="translate(381.17,182.43) rotate(70) scale(1.1671) translate(-12,-12)"/>
+<use href="#i40" transform="translate(368.17,-9.72) rotate(131) scale(2.1364) translate(-12,-12)"/>
+<use href="#i40" transform="translate(368.17,430.28) rotate(131) scale(2.1364) translate(-12,-12)"/>
+<use href="#i33" transform="translate(396.57,367.58) rotate(29) scale(2.3967) translate(-12,-12)"/>
+<use href="#i62" transform="translate(84.44,365.51) rotate(245) scale(1.0010) translate(-12,-12)"/>
+<use href="#i15" transform="translate(-2.88,338.16) rotate(281) scale(2.0822) translate(-12,-12)"/>
+<use href="#i15" transform="translate(437.12,338.16) rotate(281) scale(2.0822) translate(-12,-12)"/>
+<use href="#i27" transform="translate(90.58,35.00) rotate(198) scale(1.9744) translate(-12,-12)"/>
+<use href="#i27" transform="translate(90.58,475.00) rotate(198) scale(1.9744) translate(-12,-12)"/>
+<use href="#i2" transform="translate(389.55,30.84) rotate(292) scale(1.6477) translate(-12,-12)"/>
+<use href="#i4" transform="translate(235.50,105.92) rotate(21) scale(1.2911) translate(-12,-12)"/>
+<use href="#i30" transform="translate(18.06,-6.92) rotate(52) scale(0.9345) translate(-12,-12)"/>
+<use href="#i30" transform="translate(18.06,433.08) rotate(52) scale(0.9345) translate(-12,-12)"/>
+<use href="#i67" transform="translate(205.89,40.52) rotate(195) scale(1.9035) translate(-12,-12)"/>
+<use href="#i0" transform="translate(94.16,260.65) rotate(347) scale(1.0240) translate(-12,-12)"/>
+<use href="#i55" transform="translate(58.40,89.96) rotate(307) scale(1.8329) translate(-12,-12)"/>
+<use href="#i43" transform="translate(217.68,319.36) rotate(13) scale(1.4330) translate(-12,-12)"/>
+<use href="#i19" transform="translate(26.02,299.25) rotate(319) scale(0.9013) translate(-12,-12)"/>
+<use href="#i6" transform="translate(306.85,242.56) rotate(205) scale(2.1649) translate(-12,-12)"/>
+<use href="#i5" transform="translate(252.81,161.43) rotate(1) scale(1.0374) translate(-12,-12)"/>
+<use href="#i37" transform="translate(277.67,262.74) rotate(170) scale(0.9948) translate(-12,-12)"/>
+<use href="#i38" transform="translate(148.12,-28.51) rotate(250) scale(1.9188) translate(-12,-12)"/>
+<use href="#i38" transform="translate(148.12,411.49) rotate(250) scale(1.9188) translate(-12,-12)"/>
+<use href="#i44" transform="translate(124.92,329.29) rotate(90) scale(2.2883) translate(-12,-12)"/>
+<use href="#i61" transform="translate(194.72,-9.21) rotate(325) scale(0.8903) translate(-12,-12)"/>
+<use href="#i61" transform="translate(194.72,430.79) rotate(325) scale(0.8903) translate(-12,-12)"/>
+<use href="#i14" transform="translate(321.85,-8.71) rotate(136) scale(2.2105) translate(-12,-12)"/>
+<use href="#i14" transform="translate(321.85,431.29) rotate(136) scale(2.2105) translate(-12,-12)"/>
+<use href="#i10" transform="translate(30.73,362.50) rotate(253) scale(1.3708) translate(-12,-12)"/>
+<use href="#i8" transform="translate(208.05,382.41) rotate(232) scale(1.1821) translate(-12,-12)"/>
+<use href="#i25" transform="translate(278.74,11.34) rotate(67) scale(0.9373) translate(-12,-12)"/>
+<use href="#i25" transform="translate(278.74,451.34) rotate(67) scale(0.9373) translate(-12,-12)"/>
+<use href="#i48" transform="translate(155.79,291.76) rotate(299) scale(0.8956) translate(-12,-12)"/>
+<use href="#i65" transform="translate(197.97,100.06) rotate(203) scale(1.4500) translate(-12,-12)"/>
+<use href="#i63" transform="translate(144.44,150.25) rotate(284) scale(1.0239) translate(-12,-12)"/>
+<use href="#i28" transform="translate(273.12,179.78) rotate(355) scale(1.2485) translate(-12,-12)"/>
+<use href="#i24" transform="translate(214.64,259.93) rotate(24) scale(0.9465) translate(-12,-12)"/>
+<use href="#i16" transform="translate(148.63,269.06) rotate(232) scale(1.3049) translate(-12,-12)"/>
+<use href="#i32" transform="translate(234.43,205.08) rotate(69) scale(2.2963) translate(-12,-12)"/>
+<use href="#i51" transform="translate(176.86,358.63) rotate(277) scale(0.9510) translate(-12,-12)"/>
+<use href="#i20" transform="translate(107.62,138.26) rotate(324) scale(1.3849) translate(-12,-12)"/>
+<use href="#i9" transform="translate(384.49,236.22) rotate(66) scale(0.9343) translate(-12,-12)"/>
+<use href="#i23" transform="translate(46.44,314.68) rotate(268) scale(0.9868) translate(-12,-12)"/>
+<use href="#i50" transform="translate(274.31,128.05) rotate(323) scale(2.1778) translate(-12,-12)"/>
+<use href="#i31" transform="translate(319.09,308.98) rotate(182) scale(1.0307) translate(-12,-12)"/>
+<use href="#i39" transform="translate(53.95,227.68) rotate(96) scale(1.4533) translate(-12,-12)"/>
+<use href="#i22" transform="translate(37.18,273.19) rotate(98) scale(1.3043) translate(-12,-12)"/>
+<use href="#i56" transform="translate(-9.31,385.89) rotate(35) scale(1.1305) translate(-12,-12)"/>
+<use href="#i56" transform="translate(430.69,385.89) rotate(35) scale(1.1305) translate(-12,-12)"/>
+<use href="#i45" transform="translate(342.24,31.16) rotate(54) scale(0.8569) translate(-12,-12)"/>
+<use href="#i57" transform="translate(385.23,306.89) rotate(18) scale(1.3652) translate(-12,-12)"/>
+<use href="#i49" transform="translate(116.79,379.07) rotate(64) scale(1.3508) translate(-12,-12)"/>
+<use href="#i41" transform="translate(47.15,-0.49) rotate(159) scale(1.3389) translate(-12,-12)"/>
+<use href="#i41" transform="translate(47.15,439.51) rotate(159) scale(1.3389) translate(-12,-12)"/>
+<use href="#i34" transform="translate(21.34,221.27) rotate(269) scale(1.0368) translate(-12,-12)"/>
+<use href="#i54" transform="translate(-15.73,185.01) rotate(215) scale(1.0050) translate(-12,-12)"/>
+<use href="#i54" transform="translate(424.27,185.01) rotate(215) scale(1.0050) translate(-12,-12)"/>
+<use href="#i13" transform="translate(292.89,340.73) rotate(238) scale(1.5672) translate(-12,-12)"/>
+<use href="#i41" transform="translate(16.33,402.06) rotate(45) scale(1.2340) translate(-12,-12)"/>
+<use href="#i41" transform="translate(456.33,402.06) rotate(45) scale(1.2340) translate(-12,-12)"/>
+<use href="#i43" transform="translate(58.32,160.92) rotate(181) scale(1.5090) translate(-12,-12)"/>
+<use href="#i45" transform="translate(13.01,196.55) rotate(196) scale(0.9209) translate(-12,-12)"/>
+<use href="#i45" transform="translate(453.01,196.55) rotate(196) scale(0.9209) translate(-12,-12)"/>
+<use href="#i53" transform="translate(61.96,392.03) rotate(107) scale(0.9176) translate(-12,-12)"/>
+<use href="#i67" transform="translate(6.18,82.18) rotate(213) scale(1.4188) translate(-12,-12)"/>
+<use href="#i67" transform="translate(446.18,82.18) rotate(213) scale(1.4188) translate(-12,-12)"/>
+<use href="#i1" transform="translate(-4.06,299.87) rotate(96) scale(1.4834) translate(-12,-12)"/>
+<use href="#i1" transform="translate(435.94,299.87) rotate(96) scale(1.4834) translate(-12,-12)"/>
+<use href="#i3" transform="translate(381.51,135.16) rotate(103) scale(1.4550) translate(-12,-12)"/>
+<use href="#i15" transform="translate(326.31,175.69) rotate(163) scale(0.8639) translate(-12,-12)"/>
+<use href="#i17" transform="translate(87.78,338.74) rotate(17) scale(1.3386) translate(-12,-12)"/>
+<use href="#i47" transform="translate(244.48,354.14) rotate(156) scale(1.4444) translate(-12,-12)"/>
+<use href="#i36" transform="translate(256.70,72.65) rotate(13) scale(2.3344) translate(-12,-12)"/>
+<use href="#i62" transform="translate(4.90,149.28) rotate(267) scale(1.2920) translate(-12,-12)"/>
+<use href="#i62" transform="translate(444.90,149.28) rotate(267) scale(1.2920) translate(-12,-12)"/>
+<use href="#i18" transform="translate(192.18,226.00) rotate(275) scale(1.0261) translate(-12,-12)"/>
+<use href="#i55" transform="translate(-3.58,6.97) rotate(279) scale(1.0498) translate(-12,-12)"/>
+<use href="#i55" transform="translate(-3.58,446.97) rotate(279) scale(1.0498) translate(-12,-12)"/>
+<use href="#i55" transform="translate(436.42,6.97) rotate(279) scale(1.0498) translate(-12,-12)"/>
+<use href="#i55" transform="translate(436.42,446.97) rotate(279) scale(1.0498) translate(-12,-12)"/>
+<use href="#i38" transform="translate(122.99,286.87) rotate(339) scale(0.9183) translate(-12,-12)"/>
+<use href="#i65" transform="translate(319.80,371.79) rotate(8) scale(0.9158) translate(-12,-12)"/>
+<use href="#i60" transform="translate(345.04,397.76) rotate(25) scale(0.8825) translate(-12,-12)"/>
+<use href="#i6" transform="translate(105.84,182.62) rotate(282) scale(0.9203) translate(-12,-12)"/>
+<use href="#i22" transform="translate(330.26,207.11) rotate(284) scale(1.2863) translate(-12,-12)"/>
+<use href="#i31" transform="translate(237.32,140.95) rotate(185) scale(0.8566) translate(-12,-12)"/>
+<use href="#i46" transform="translate(136.12,40.77) rotate(135) scale(0.8796) translate(-12,-12)"/>
+<use href="#i32" transform="translate(304.03,194.06) rotate(329) scale(1.0009) translate(-12,-12)"/>
+<use href="#i2" transform="translate(88.70,406.27) rotate(21) scale(1.1653) translate(-12,-12)"/>
+<use href="#i29" transform="translate(-16.85,258.16) rotate(182) scale(1.0069) translate(-12,-12)"/>
+<use href="#i29" transform="translate(423.15,258.16) rotate(182) scale(1.0069) translate(-12,-12)"/>
+<use href="#i24" transform="translate(117.45,406.89) rotate(332) scale(0.9370) translate(-12,-12)"/>
+<use href="#i35" transform="translate(-6.59,211.34) rotate(159) scale(0.9388) translate(-12,-12)"/>
+<use href="#i35" transform="translate(433.41,211.34) rotate(159) scale(0.9388) translate(-12,-12)"/>
+<use href="#i12" transform="translate(362.90,203.21) rotate(281) scale(0.9811) translate(-12,-12)"/>
+<use href="#i56" transform="translate(185.17,127.53) rotate(123) scale(0.8903) translate(-12,-12)"/>
+<use href="#i64" transform="translate(16.23,38.13) rotate(118) scale(2.1727) translate(-12,-12)"/>
+<use href="#i64" transform="translate(16.23,478.13) rotate(118) scale(2.1727) translate(-12,-12)"/>
+<use href="#i64" transform="translate(456.23,38.13) rotate(118) scale(2.1727) translate(-12,-12)"/>
+<use href="#i64" transform="translate(456.23,478.13) rotate(118) scale(2.1727) translate(-12,-12)"/>
+<use href="#i34" transform="translate(253.38,325.39) rotate(159) scale(1.1518) translate(-12,-12)"/>
+<use href="#i66" transform="translate(115.47,204.67) rotate(106) scale(0.8637) translate(-12,-12)"/>
+<use href="#i30" transform="translate(214.25,70.53) rotate(315) scale(1.0347) translate(-12,-12)"/>
+<use href="#i10" transform="translate(163.15,23.30) rotate(150) scale(1.0201) translate(-12,-12)"/>
+<use href="#i27" transform="translate(275.93,386.99) rotate(343) scale(1.3880) translate(-12,-12)"/>
+<use href="#i49" transform="translate(353.22,324.55) rotate(231) scale(1.2712) translate(-12,-12)"/>
+<use href="#i11" transform="translate(186.65,248.46) rotate(9) scale(1.0266) translate(-12,-12)"/>
+<use href="#i19" transform="translate(120.63,14.74) rotate(260) scale(1.1087) translate(-12,-12)"/>
+<use href="#i19" transform="translate(120.63,454.74) rotate(260) scale(1.1087) translate(-12,-12)"/>
+<use href="#i21" transform="translate(43.32,115.81) rotate(324) scale(0.8548) translate(-12,-12)"/>
+<use href="#i50" transform="translate(181.86,415.08) rotate(294) scale(0.9038) translate(-12,-12)"/>
+<use href="#i5" transform="translate(420.82,140.45) rotate(184) scale(0.8962) translate(-12,-12)"/>
+<use href="#i33" transform="translate(323.68,34.30) rotate(144) scale(0.8703) translate(-12,-12)"/>
+<use href="#i51" transform="translate(142.53,104.29) rotate(108) scale(0.8832) translate(-12,-12)"/>
+<use href="#i0" transform="translate(227.67,283.48) rotate(333) scale(1.0002) translate(-12,-12)"/>
+<use href="#i9" transform="translate(88.11,236.24) rotate(211) scale(1.0303) translate(-12,-12)"/>
+<use href="#i48" transform="translate(397.96,259.34) rotate(279) scale(0.8555) translate(-12,-12)"/>
+<use href="#i58" transform="translate(328.28,100.52) rotate(277) scale(0.9371) translate(-12,-12)"/>
+<use href="#i57" transform="translate(405.53,200.29) rotate(189) scale(0.9689) translate(-12,-12)"/>
+<use href="#i59" transform="translate(344.23,299.38) rotate(13) scale(0.9724) translate(-12,-12)"/>
+<use href="#i4" transform="translate(239.29,30.25) rotate(252) scale(0.9408) translate(-12,-12)"/>
+<use href="#i40" transform="translate(397.10,407.03) rotate(309) scale(0.8910) translate(-12,-12)"/>
+<use href="#i52" transform="translate(160.99,91.16) rotate(204) scale(0.8621) translate(-12,-12)"/>
+<use href="#i39" transform="translate(155.01,360.41) rotate(10) scale(1.0197) translate(-12,-12)"/>
+<use href="#i16" transform="translate(64.37,194.07) rotate(223) scale(0.8648) translate(-12,-12)"/>
+<use href="#i37" transform="translate(56.95,51.09) rotate(88) scale(0.9311) translate(-12,-12)"/>
+<use href="#i8" transform="translate(73.56,127.49) rotate(25) scale(0.9341) translate(-12,-12)"/>
+<use href="#i54" transform="translate(36.31,140.04) rotate(344) scale(0.9619) translate(-12,-12)"/>
+<use href="#i13" transform="translate(126.88,245.16) rotate(104) scale(1.4705) translate(-12,-12)"/>
+<use href="#i23" transform="translate(424.14,64.98) rotate(115) scale(0.8747) translate(-12,-12)"/>
+<use href="#i28" transform="translate(415.27,217.73) rotate(151) scale(0.8558) translate(-12,-12)"/>
+<use href="#i44" transform="translate(66.34,250.86) rotate(106) scale(0.9984) translate(-12,-12)"/>
+<use href="#i63" transform="translate(68.66,-13.81) rotate(78) scale(0.9793) translate(-12,-12)"/>
+<use href="#i63" transform="translate(68.66,426.19) rotate(78) scale(0.9793) translate(-12,-12)"/>
+<use href="#i20" transform="translate(403.32,3.71) rotate(79) scale(1.2110) translate(-12,-12)"/>
+<use href="#i20" transform="translate(403.32,443.71) rotate(79) scale(1.2110) translate(-12,-12)"/>
+<use href="#i14" transform="translate(258.54,238.71) rotate(160) scale(1.5073) translate(-12,-12)"/>
+<use href="#i7" transform="translate(289.80,302.36) rotate(21) scale(1.1380) translate(-12,-12)"/>
+<use href="#i42" transform="translate(243.05,266.51) rotate(275) scale(0.9611) translate(-12,-12)"/>
+<use href="#i61" transform="translate(421.14,116.49) rotate(168) scale(1.0161) translate(-12,-12)"/>
+<use href="#i25" transform="translate(392.29,278.04) rotate(170) scale(0.9825) translate(-12,-12)"/>
+<use href="#i26" transform="translate(56.32,355.72) rotate(150) scale(0.9659) translate(-12,-12)"/>
+<use href="#i42" transform="translate(20.76,117.04) rotate(267) scale(1.1911) translate(-12,-12)"/>
+<use href="#i42" transform="translate(460.76,117.04) rotate(267) scale(1.1911) translate(-12,-12)"/>
+<use href="#i29" transform="translate(122.89,169.59) rotate(353) scale(1.0115) translate(-12,-12)"/>
+<use href="#i13" transform="translate(353.62,355.63) rotate(147) scale(0.8994) translate(-12,-12)"/>
+<use href="#i32" transform="translate(413.59,48.14) rotate(249) scale(0.8891) translate(-12,-12)"/>
+<use href="#i55" transform="translate(44.58,199.01) rotate(19) scale(0.9600) translate(-12,-12)"/>
+<use href="#i41" transform="translate(321.18,280.66) rotate(324) scale(0.9642) translate(-12,-12)"/>
+<use href="#i35" transform="translate(362.19,24.54) rotate(146) scale(0.9805) translate(-12,-12)"/>
+<use href="#i27" transform="translate(39.40,411.78) rotate(324) scale(0.9780) translate(-12,-12)"/>
+<use href="#i2" transform="translate(316.59,145.80) rotate(345) scale(1.0184) translate(-12,-12)"/>
+<use href="#i33" transform="translate(306.75,387.32) rotate(273) scale(0.9440) translate(-12,-12)"/>
+<use href="#i4" transform="translate(378.18,60.45) rotate(199) scale(1.0281) translate(-12,-12)"/>
+<use href="#i20" transform="translate(89.70,196.36) rotate(312) scale(0.9984) translate(-12,-12)"/>
+<use href="#i43" transform="translate(205.43,291.74) rotate(288) scale(0.9346) translate(-12,-12)"/>
+<use href="#i58" transform="translate(213.24,238.58) rotate(52) scale(0.8627) translate(-12,-12)"/>
+<use href="#i1" transform="translate(136.48,194.00) rotate(316) scale(1.2842) translate(-12,-12)"/>
+<use href="#i6" transform="translate(400.75,161.41) rotate(270) scale(1.0347) translate(-12,-12)"/>
+<use href="#i5" transform="translate(158.39,118.99) rotate(81) scale(0.8730) translate(-12,-12)"/>
+<use href="#i38" transform="translate(49.47,294.15) rotate(58) scale(0.9755) translate(-12,-12)"/>
+<use href="#i51" transform="translate(32.41,330.29) rotate(161) scale(0.8624) translate(-12,-12)"/>
+<use href="#i17" transform="translate(180.87,10.09) rotate(338) scale(0.8826) translate(-12,-12)"/>
+<use href="#i17" transform="translate(180.87,450.09) rotate(338) scale(0.8826) translate(-12,-12)"/>
+<use href="#i63" transform="translate(398.66,328.74) rotate(200) scale(0.9949) translate(-12,-12)"/>
+<use href="#i48" transform="translate(347.16,185.50) rotate(323) scale(0.8896) translate(-12,-12)"/>
+<use href="#i3" transform="translate(175.06,270.64) rotate(190) scale(1.0347) translate(-12,-12)"/>
+<use href="#i22" transform="translate(53.09,335.37) rotate(110) scale(0.9210) translate(-12,-12)"/>
+<use href="#i60" transform="translate(184.40,389.94) rotate(102) scale(0.9752) translate(-12,-12)"/>
+<use href="#i54" transform="translate(136.41,123.07) rotate(282) scale(0.8603) translate(-12,-12)"/>
+<use href="#i0" transform="translate(185.83,203.25) rotate(53) scale(0.8982) translate(-12,-12)"/>
+<use href="#i31" transform="translate(106.50,111.99) rotate(21) scale(0.9233) translate(-12,-12)"/>
+<use href="#i11" transform="translate(179.93,82.06) rotate(90) scale(0.8870) translate(-12,-12)"/>
+<use href="#i67" transform="translate(143.53,2.83) rotate(132) scale(0.9026) translate(-12,-12)"/>
+<use href="#i67" transform="translate(143.53,442.83) rotate(132) scale(0.9026) translate(-12,-12)"/>
+<use href="#i56" transform="translate(272.72,211.50) rotate(56) scale(1.2503) translate(-12,-12)"/>
+<use href="#i30" transform="translate(420.56,419.48) rotate(17) scale(0.9259) translate(-12,-12)"/>
+<use href="#i36" transform="translate(376.85,87.36) rotate(134) scale(0.9678) translate(-12,-12)"/>
+<use href="#i44" transform="translate(108.80,225.20) rotate(345) scale(0.9816) translate(-12,-12)"/>
+<use href="#i26" transform="translate(298.24,91.16) rotate(241) scale(1.3857) translate(-12,-12)"/>
+<use href="#i45" transform="translate(399.71,115.05) rotate(310) scale(0.9194) translate(-12,-12)"/>
+<use href="#i40" transform="translate(73.43,313.54) rotate(269) scale(0.9303) translate(-12,-12)"/>
+<use href="#i65" transform="translate(83.54,155.21) rotate(77) scale(0.8549) translate(-12,-12)"/>
+<use href="#i53" transform="translate(417.56,23.83) rotate(239) scale(1.0109) translate(-12,-12)"/>
+<use href="#i57" transform="translate(303.96,166.37) rotate(111) scale(0.9086) translate(-12,-12)"/>
+<use href="#i7" transform="translate(391.52,214.26) rotate(167) scale(0.9001) translate(-12,-12)"/>
+<use href="#i14" transform="translate(358.78,225.33) rotate(115) scale(1.0097) translate(-12,-12)"/>
+<use href="#i66" transform="translate(287.60,32.66) rotate(96) scale(1.0086) translate(-12,-12)"/>
+<use href="#i52" transform="translate(150.70,72.60) rotate(315) scale(0.8843) translate(-12,-12)"/>
+<use href="#i19" transform="translate(64.62,276.69) rotate(170) scale(0.8709) translate(-12,-12)"/>
+<use href="#i18" transform="translate(58.66,26.08) rotate(342) scale(0.9007) translate(-12,-12)"/>
+<use href="#i59" transform="translate(228.27,166.62) rotate(51) scale(0.9976) translate(-12,-12)"/>
+<use href="#i25" transform="translate(295.45,369.69) rotate(165) scale(0.8921) translate(-12,-12)"/>
+<use href="#i37" transform="translate(209.80,356.93) rotate(243) scale(0.9203) translate(-12,-12)"/>
+<use href="#i39" transform="translate(86.69,104.11) rotate(296) scale(1.0467) translate(-12,-12)"/>
+<use href="#i16" transform="translate(-0.21,272.98) rotate(223) scale(0.9417) translate(-12,-12)"/>
+<use href="#i16" transform="translate(439.79,272.98) rotate(223) scale(0.9417) translate(-12,-12)"/>
+<use href="#i61" transform="translate(370.69,396.58) rotate(100) scale(0.9976) translate(-12,-12)"/>
+<use href="#i12" transform="translate(91.81,-4.04) rotate(330) scale(0.9347) translate(-12,-12)"/>
+<use href="#i12" transform="translate(91.81,435.96) rotate(330) scale(0.9347) translate(-12,-12)"/>
+<use href="#i46" transform="translate(293.65,410.20) rotate(74) scale(0.9376) translate(-12,-12)"/>
+<use href="#i34" transform="translate(30.65,75.72) rotate(225) scale(0.8608) translate(-12,-12)"/>
+<use href="#i49" transform="translate(262.00,30.87) rotate(8) scale(0.9245) translate(-12,-12)"/>
+<use href="#i50" transform="translate(411.26,293.69) rotate(271) scale(0.9088) translate(-12,-12)"/>
+<use href="#i9" transform="translate(284.20,-7.76) rotate(347) scale(0.8893) translate(-12,-12)"/>
+<use href="#i9" transform="translate(284.20,432.24) rotate(347) scale(0.8893) translate(-12,-12)"/>
+<use href="#i47" transform="translate(328.87,345.16) rotate(356) scale(1.0269) translate(-12,-12)"/>
+<use href="#i8" transform="translate(80.97,66.28) rotate(116) scale(0.9003) translate(-12,-12)"/>
+<use href="#i64" transform="translate(413.88,239.96) rotate(14) scale(0.8643) translate(-12,-12)"/>
+<use href="#i28" transform="translate(398.57,72.44) rotate(49) scale(0.8650) translate(-12,-12)"/>
+<use href="#i10" transform="translate(0.87,106.01) rotate(36) scale(0.8872) translate(-12,-12)"/>
+<use href="#i10" transform="translate(440.87,106.01) rotate(36) scale(0.8872) translate(-12,-12)"/>
+<use href="#i21" transform="translate(142.42,380.52) rotate(43) scale(0.8946) translate(-12,-12)"/>
+<use href="#i15" transform="translate(372.69,340.64) rotate(165) scale(0.8751) translate(-12,-12)"/>
+<use href="#i24" transform="translate(30.76,248.30) rotate(85) scale(1.1144) translate(-12,-12)"/>
+<use href="#i62" transform="translate(162.22,380.30) rotate(354) scale(0.9805) translate(-12,-12)"/>
+<use href="#i23" transform="translate(295.38,276.56) rotate(208) scale(1.1084) translate(-12,-12)"/>
+<use href="#i66" transform="translate(166.07,143.56) rotate(235) scale(1.1071) translate(-12,-12)"/>
+<use href="#i52" transform="translate(352.87,379.91) rotate(24) scale(0.9040) translate(-12,-12)"/>
+<use href="#i49" transform="translate(192.05,346.93) rotate(284) scale(0.8599) translate(-12,-12)"/>
+<use href="#i25" transform="translate(76.27,214.38) rotate(318) scale(0.9784) translate(-12,-12)"/>
+<use href="#i29" transform="translate(78.23,178.63) rotate(45) scale(0.9739) translate(-12,-12)"/>
+<use href="#i51" transform="translate(113.39,267.74) rotate(201) scale(0.8908) translate(-12,-12)"/>
+<use href="#i45" transform="translate(146.43,172.43) rotate(75) scale(0.9175) translate(-12,-12)"/>
+<use href="#i54" transform="translate(196.90,273.51) rotate(299) scale(0.8719) translate(-12,-12)"/>
+<use href="#i32" transform="translate(423.23,160.82) rotate(280) scale(0.8824) translate(-12,-12)"/>
+<use href="#i46" transform="translate(163.11,319.97) rotate(178) scale(0.9799) translate(-12,-12)"/>
+<use href="#i22" transform="translate(232.92,249.03) rotate(14) scale(0.8710) translate(-12,-12)"/>
+<use href="#i2" transform="translate(41.65,389.81) rotate(291) scale(0.9027) translate(-12,-12)"/>
+<use href="#i24" transform="translate(5.43,175.20) rotate(339) scale(1.0117) translate(-12,-12)"/>
+<use href="#i24" transform="translate(445.43,175.20) rotate(339) scale(1.0117) translate(-12,-12)"/>
+<use href="#i21" transform="translate(73.08,8.31) rotate(318) scale(1.0022) translate(-12,-12)"/>
+<use href="#i21" transform="translate(73.08,448.31) rotate(318) scale(1.0022) translate(-12,-12)"/>
+<use href="#i39" transform="translate(374.60,160.61) rotate(76) scale(0.8630) translate(-12,-12)"/>
+<use href="#i63" transform="translate(269.84,354.32) rotate(180) scale(0.9567) translate(-12,-12)"/>
+<use href="#i50" transform="translate(200.40,9.91) rotate(337) scale(0.8945) translate(-12,-12)"/>
+<use href="#i50" transform="translate(200.40,449.91) rotate(337) scale(0.8945) translate(-12,-12)"/>
+<use href="#i57" transform="translate(332.80,157.21) rotate(93) scale(0.8504) translate(-12,-12)"/>
+<use href="#i14" transform="translate(274.86,321.24) rotate(86) scale(0.8920) translate(-12,-12)"/>
+<use href="#i41" transform="translate(307.61,22.06) rotate(286) scale(0.9264) translate(-12,-12)"/>
+<use href="#i31" transform="translate(357.73,46.27) rotate(358) scale(0.9398) translate(-12,-12)"/>
+<use href="#i42" transform="translate(168.66,-5.42) rotate(275) scale(0.9396) translate(-12,-12)"/>
+<use href="#i42" transform="translate(168.66,434.58) rotate(275) scale(0.9396) translate(-12,-12)"/>
+<use href="#i56" transform="translate(29.05,95.32) rotate(194) scale(0.9597) translate(-12,-12)"/>
+<use href="#i60" transform="translate(93.63,384.59) rotate(233) scale(0.8944) translate(-12,-12)"/>
+<use href="#i18" transform="translate(232.96,376.90) rotate(144) scale(0.9117) translate(-12,-12)"/>
+<use href="#i5" transform="translate(193.99,67.62) rotate(131) scale(0.8622) translate(-12,-12)"/>
+<use href="#i64" transform="translate(8.97,374.12) rotate(72) scale(0.8777) translate(-12,-12)"/>
+<use href="#i64" transform="translate(448.97,374.12) rotate(72) scale(0.8777) translate(-12,-12)"/>
+<use href="#i7" transform="translate(-0.40,126.32) rotate(48) scale(0.9138) translate(-12,-12)"/>
+<use href="#i7" transform="translate(439.60,126.32) rotate(48) scale(0.9138) translate(-12,-12)"/>
+<use href="#i44" transform="translate(215.78,121.46) rotate(11) scale(0.8867) translate(-12,-12)"/>
+<use href="#i67" transform="translate(1.00,419.50) rotate(179) scale(0.8961) translate(-12,-12)"/>
+<use href="#i67" transform="translate(441.00,419.50) rotate(179) scale(0.8961) translate(-12,-12)"/>
+<use href="#i4" transform="translate(96.13,311.45) rotate(218) scale(0.8905) translate(-12,-12)"/>
+<use href="#i11" transform="translate(284.30,159.37) rotate(83) scale(0.9249) translate(-12,-12)"/>
+<use href="#i28" transform="translate(327.50,390.17) rotate(187) scale(0.9234) translate(-12,-12)"/>
+<use href="#i9" transform="translate(192.57,328.51) rotate(344) scale(0.8596) translate(-12,-12)"/>
+<use href="#i40" transform="translate(356.94,139.99) rotate(82) scale(0.8506) translate(-12,-12)"/>
+<use href="#i17" transform="translate(338.25,230.21) rotate(1) scale(0.8909) translate(-12,-12)"/>
+<use href="#i27" transform="translate(134.02,361.87) rotate(252) scale(0.8614) translate(-12,-12)"/>
+<use href="#i43" transform="translate(363.43,295.56) rotate(236) scale(0.8760) translate(-12,-12)"/>
+    </g>
+  </pattern>
+</defs>
+<rect width="440" height="440" fill="url(#doodle)"/>
+</svg>

@@ -10,7 +10,7 @@ class Candidature extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'destination', 'programme', 'niveau_vise', 'status',
+        'user_id', 'reference', 'destination', 'programme', 'niveau_vise', 'status',
         'personal_info', 'academic_info', 'documents', 'complementary_info', 'submitted_at',
     ];
 
@@ -38,5 +38,10 @@ class Candidature extends Model
     public function conversation()
     {
         return $this->hasOne(Conversation::class);
+    }
+
+    public function attachments()
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 }

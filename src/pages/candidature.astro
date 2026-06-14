@@ -1,46 +1,116 @@
 ---
-export const prerender = true
-// Page Candidature — WWA
-// Formulaire progressif multi-étapes pour postuler dans les universités partenaires.
+// Page Candidature — WWA (marketing)
+// Le formulaire est désormais accessible uniquement dans le dashboard (/dashboard/candidature).
 
 import Layout from '../layouts/Layout.astro'
 import Section from '../components/ui/Section.astro'
 import Row from '../components/ui/Row.astro'
 import Col from '../components/ui/Col.astro'
-import ApplicationForm from '../components/blocks/candidature/ApplicationForm.astro'
+import { sessionCookieName, verifyToken } from '../lib/auth'
 
 const SEO = {
   title: 'WWA | Déposer ma candidature',
   description:
     'Déposez votre candidature en ligne pour intégrer une université partenaire en Chine, au Ghana ou dans une autre destination académique accompagnée par WWA.',
 }
+
+// Si l'utilisateur est déjà connecté, proposer un lien direct vers son espace
+const rawToken = Astro.cookies.get(sessionCookieName())?.value
+const session  = rawToken ? await verifyToken(rawToken) : null
+const ctaHref  = session ? '/dashboard/candidature' : '/register'
+const ctaLabel = session ? 'Accéder à mon espace candidature' : 'Créer mon compte gratuitement'
+
+const STEPS = [
+  { num: '01', label: 'Informations personnelles',  desc: 'État civil, passeport, coordonnées, adresse.' },
+  { num: '02', label: 'Parcours académique',         desc: 'Niveau actuel, établissement, spécialité, moyenne.' },
+  { num: '03', label: 'Destination & Programme',    desc: 'Pays visé, niveau d\'études souhaité, programme et faculté.' },
+  { num: '04', label: 'Informations complémentaires', desc: 'Contact d\'urgence, expérience en Chine, financement (Chine uniquement).' },
+  { num: '05', label: 'Documents',                  desc: 'Diplôme, pièce d\'identité, photo, relevés de notes.' },
+  { num: '06', label: 'Récapitulatif & Envoi',      desc: 'Vérification complète et validation de votre dossier.' },
+]
 ---
 
 <Layout title={SEO.title} description={SEO.description}>
-  <!-- En-tête de page -->
+
+  <!-- ── Hero ──────────────────────────────────────────── -->
   <Section padding="both" classes="bg-neutral-50 dark:bg-neutral-950/30">
     <Row>
       <Col span="12" classes="text-center">
-        <p class="mb-2 text-sm font-semibold uppercase tracking-widest text-primary-500">
-          Rejoignez-nous
-        </p>
-        <h1 class="mb-4">
-          Déposez votre <strong>candidature</strong>
+        <span class="mb-4 inline-block rounded-full bg-primary-50 px-4 py-1.5 text-sm font-semibold text-primary-600 dark:bg-primary-950/50">
+          Candidature en ligne
+        </span>
+        <h1 class="mb-5">
+          Déposez votre <strong>candidature</strong><br/>en quelques étapes
         </h1>
-        <p class="mx-auto max-w-xl text-neutral-500 dark:text-neutral-400">
-          Complétez le formulaire ci-dessous en 6 étapes. Votre dossier sera étudié par notre
-          équipe et nous vous recontacterons dans les meilleurs délais.
+        <p class="mx-auto mb-8 max-w-xl text-lg text-neutral-500 dark:text-neutral-400">
+          Notre formulaire guidé vous accompagne pas à pas. Votre dossier est étudié par l'équipe WWA et vous êtes recontacté dans les meilleurs délais.
         </p>
+        <div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <a
+            href={ctaHref}
+            class="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 text-sm font-bold text-white hover:text-white transition hover:bg-primary-700"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            {ctaLabel}
+          </a>
+          {!session && (
+            <a
+              href="/login?redirect=/dashboard/candidature"
+              class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-6 py-3 text-sm font-medium text-neutral-600 transition hover:border-neutral-300 hover:text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+            >
+              J'ai déjà un compte →
+            </a>
+          )}
+        </div>
       </Col>
     </Row>
   </Section>
 
-  <!-- Formulaire -->
-  <Section padding="both" classes="bg-neutral-50 dark:bg-neutral-900/30">
+  <!-- ── Les 6 étapes ──────────────────────────────────── -->
+  <Section padding="both">
     <Row>
-      <Col span="8" classes="lg:col-start-3">
-        <ApplicationForm />
+      <Col span="12" classes="text-center mb-10">
+        <h2 class="mb-3">Comment ça fonctionne ?</h2>
+        <p class="mx-auto max-w-lg text-neutral-500 dark:text-neutral-400">
+          Le formulaire se complète en 6 étapes claires. Vous pouvez sauvegarder votre brouillon et revenir à tout moment.
+        </p>
+      </Col>
+    </Row>
+    <Row>
+      {STEPS.map((step) => (
+        <Col span="12" classes="sm:col-span-6 lg:col-span-4 mb-6">
+          <div class="flex gap-4 rounded-xl border border-neutral-100 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-600 dark:bg-primary-950/40">
+              {step.num}
+            </div>
+            <div>
+              <p class="mb-1 text-sm font-semibold text-neutral-700 dark:text-neutral-100">{step.label}</p>
+              <p class="text-sm text-neutral-400">{step.desc}</p>
+            </div>
+          </div>
+        </Col>
+      ))}
+    </Row>
+  </Section>
+
+  <!-- ── CTA bas de page ────────────────────────────────── -->
+  <Section padding="both" classes="bg-primary-500">
+    <Row>
+      <Col span="12" classes="text-center">
+        <h2 class="mb-4 text-white">Prêt à démarrer ?</h2>
+        <p class="mx-auto mb-8 max-w-md text-primary-100">
+          Créez votre compte gratuitement pour accéder à votre espace de candidature sécurisé.
+        </p>
+        <a
+          href={ctaHref}
+          class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-bold text-primary-600 transition hover:bg-primary-50"
+        >
+          {ctaLabel}
+        </a>
       </Col>
     </Row>
   </Section>
+
 </Layout>

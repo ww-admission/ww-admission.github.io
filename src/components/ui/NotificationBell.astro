@@ -1,0 +1,300 @@
+---
+interface Props {
+  placement?: 'sidebar' | 'mobile'
+}
+const { placement = 'mobile' } = Astro.props
+
+// Position du dropdown selon le placement
+const dropdownPos = placement === 'sidebar'
+  ? 'bottom-full mb-2 left-0'   // Grand écran : s'ouvre vers le haut, se déploie vers la droite
+  : 'top-full mt-2 right-0'     // Mobile : s'ouvre vers le bas, aligné à droite
+---
+
+<div class="relative notification-bell-wrapper" data-placement={placement}>
+  <button
+    id="notification-bell-btn"
+    class="notification-bell-btn relative flex h-8 w-8 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+    aria-label="Notifications"
+    aria-haspopup="true"
+    aria-expanded="false"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+    </svg>
+    <span class="notification-bell-count absolute -top-0.5 -right-0.5 hidden items-center justify-center h-4 w-4 rounded-full bg-primary-500 text-[9px] font-bold text-white leading-none"></span>
+  </button>
+
+  <!-- Dropdown -->
+  <div
+    class={`notification-dropdown hidden absolute ${dropdownPos} w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xl shadow-neutral-900/10 dark:shadow-neutral-950/60 z-[200] overflow-hidden`}
+    role="menu"
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 px-4 py-3">
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-neutral-400 dark:text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        <span class="text-xs font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-300">Notifications</span>
+      </div>
+      <button
+        class="notification-mark-all text-[11px] font-semibold text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+      >
+        Tout marquer lu
+      </button>
+    </div>
+
+    <!-- Liste -->
+    <ul class="notification-list divide-y divide-neutral-50 dark:divide-neutral-800 max-h-72 overflow-y-auto">
+      <li class="notification-empty px-4 py-8 text-center text-xs text-neutral-400 dark:text-neutral-500">
+        Aucune notification
+      </li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // ── Handler global wwa:new-notification (unique par document, pas par instance) ──
+  // Ajouté une fois à l'init du module. Met à jour tous les badges présents.
+  function incrementAllBadges() {
+    document.querySelectorAll<HTMLElement>('.notification-bell-count').forEach(badge => {
+      const c = badge.classList.contains('hidden') ? 0 : parseInt(badge.textContent ?? '0', 10)
+      const n = isNaN(c) ? 1 : c + 1
+      badge.textContent = n > 9 ? '9+' : String(n)
+      badge.classList.remove('hidden')
+      badge.classList.add('flex')
+    })
+  }
+
+  // Ce listener reste actif pour toute la durée du module (pas nettoyé entre navigations)
+  document.addEventListener('wwa:new-notification', incrementAllBadges)
+
+  // ── Abonnement au canal Echo user.{uid} (NotificationCreated) ───────────
+  // Déclenché via wwa:echo-ready, qui est émis DANS le callback astro:page-load
+  // de DashboardLayout — avant que astro:page-load des modules enfants ne soit appelé.
+  // On s'abonne ici (niveau module, pas par instance) pour éviter les doublons.
+  //
+  // Sécurité : l'auth du canal passe par /api/broadcasting/auth → Sanctum →
+  // channels.php ($user->id === $userId). Le uid exposé en data-attr est non-sensible :
+  // ce n'est pas un secret, l'autorisation est vérifiée côté serveur.
+
+  function subscribeUserChannel(echo: any): void {
+    const uid = parseInt(document.body.dataset.uid ?? '0', 10)
+    if (!uid || !echo) return
+
+    try {
+      echo.private(`user.${uid}`)
+        .listen('.notification.created', () => {
+          // On route via l'event générique pour que toutes les cloches se mettent à jour
+          document.dispatchEvent(new CustomEvent('wwa:new-notification'))
+        })
+
+      // Resync badge à la reconnexion (coupure réseau temporaire)
+      // pusher:connection_established fire aussi à la connexion initiale ;
+      // le fetch est idempotent (on lit juste le compteur non-lu).
+      echo.connector?.pusher?.connection?.bind('connected', async () => {
+        try {
+          const resp = await fetch('/api/notifications')
+          if (!resp.ok) return
+          const { unreadCount } = await resp.json()
+          document.querySelectorAll<HTMLElement>('.notification-bell-count').forEach(badge => {
+            badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount)
+            badge.classList.toggle('hidden', unreadCount === 0)
+            badge.classList.toggle('flex', unreadCount > 0)
+          })
+        } catch {}
+      })
+    } catch (e) {
+      console.warn('[NotificationBell] subscribeUserChannel failed:', e)
+    }
+  }
+
+  // wwa:echo-ready fire synchroniquement dans le callback astro:page-load de DashboardLayout.
+  // Ce listener (niveau module) est déjà enregistré quand cela arrive.
+  document.addEventListener('wwa:echo-ready', (e: Event) => {
+    subscribeUserChannel((e as CustomEvent).detail?.echo)
+  })
+
+  // ── Init par instance de cloche ──────────────────────────────────────────
+  const pollingIntervals: ReturnType<typeof setInterval>[] = []
+
+  function initBell(wrapper: HTMLElement) {
+    const btn      = wrapper.querySelector<HTMLButtonElement>('.notification-bell-btn')
+    const dropdown = wrapper.querySelector<HTMLElement>('.notification-dropdown')
+    const listMaybe = wrapper.querySelector<HTMLElement>('.notification-list')
+    const markAll   = wrapper.querySelector<HTMLButtonElement>('.notification-mark-all')
+    if (!btn || !dropdown || !listMaybe) return
+    const list = listMaybe as HTMLElement
+
+    let open = false
+
+    function setAllBadges(count: number) {
+      document.querySelectorAll<HTMLElement>('.notification-bell-count').forEach(badge => {
+        badge.textContent = count > 9 ? '9+' : String(count)
+        badge.classList.toggle('hidden', count === 0)
+        badge.classList.toggle('flex', count > 0)
+      })
+    }
+
+    // ── Toggle dropdown ────────────────────────────────────────────────────
+    btn.addEventListener('click', async e => {
+      e.stopPropagation()
+      open = !open
+      dropdown.classList.toggle('hidden', !open)
+      btn.setAttribute('aria-expanded', String(open))
+      if (open) await loadNotifications()
+    })
+
+    document.addEventListener('click', e => {
+      if (open && !wrapper.contains(e.target as Node)) {
+        open = false
+        dropdown.classList.add('hidden')
+        btn.setAttribute('aria-expanded', 'false')
+      }
+    })
+
+    // ── Mark all read ──────────────────────────────────────────────────────
+    markAll?.addEventListener('click', async () => {
+      await fetch('/api/notifications', { method: 'POST' })
+      setAllBadges(0)
+      list.querySelectorAll<HTMLElement>('[data-notif-id]').forEach(el => {
+        el.classList.remove('bg-primary-50/50', 'dark:bg-primary-950/40')
+        el.querySelector('.notif-dot')?.remove()
+      })
+    })
+
+    // ── Charger les notifications ──────────────────────────────────────────
+    async function loadNotifications() {
+      list.innerHTML = '<li class="px-4 py-8 flex justify-center"><div class="h-4 w-4 border-2 border-primary-100 border-t-primary-500 rounded-full animate-spin"></div></li>'
+      try {
+        const resp = await fetch('/api/notifications')
+        if (!resp.ok) {
+          list.innerHTML = '<li class="px-4 py-6 text-center text-xs text-neutral-400 dark:text-neutral-500">Erreur de chargement</li>'
+          return
+        }
+        const data = await resp.json()
+        renderNotifications(data.notifications ?? [])
+        setAllBadges(data.unreadCount ?? 0)
+      } catch {
+        list.innerHTML = '<li class="px-4 py-6 text-center text-xs text-neutral-400 dark:text-neutral-500">Erreur de chargement</li>'
+      }
+    }
+
+    // ── Rendu des notifications ────────────────────────────────────────────
+    function renderNotifications(notifications: any[]) {
+      if (notifications.length === 0) {
+        list.innerHTML = '<li class="notification-empty px-4 py-8 text-center text-xs text-neutral-400 dark:text-neutral-500">Aucune notification</li>'
+        return
+      }
+
+      list.innerHTML = notifications.map(n => {
+        const icon = iconFor(n)
+        return `
+          <li data-notif-id="${n.id}"
+              data-notif-type="${n.data?.type ?? ''}"
+              data-conv-id="${n.data?.conversationId ?? ''}"
+              data-cand-id="${n.data?.candidatureId ?? ''}"
+              class="group flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors
+                     hover:bg-neutral-50 dark:hover:bg-neutral-800/60
+                     ${!n.read ? 'bg-primary-50/50 dark:bg-primary-950/40' : ''}">
+            <div class="mt-0.5 shrink-0 flex items-center justify-center h-7 w-7 rounded-lg ${n.read ? 'bg-neutral-100 dark:bg-neutral-800' : 'bg-primary-100 dark:bg-primary-900'}">
+              ${icon}
+              ${!n.read ? '<span class="notif-dot absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary-500"></span>' : ''}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs leading-snug text-neutral-700 dark:text-neutral-200 line-clamp-2">${labelFor(n)}</p>
+              <p class="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">${timeAgo(n.createdAt)}</p>
+            </div>
+            ${!n.read ? `<span class="mt-2 shrink-0 h-1.5 w-1.5 rounded-full bg-primary-500"></span>` : ''}
+          </li>`
+      }).join('')
+
+      list.querySelectorAll<HTMLElement>('[data-notif-id]').forEach(item => {
+        item.addEventListener('click', async () => {
+          const id       = item.dataset.notifId!
+          const notifType = item.dataset.notifType ?? ''
+          const convId    = item.dataset.convId ?? ''
+          const candId    = item.dataset.candId ?? ''
+          const isAdmin   = document.cookie.split(';').some(c => c.trim() === 'wwa_role=admin')
+
+          // Marquer comme lu
+          fetch(`/api/notifications/${id}/read`, { method: 'PATCH' }).catch(() => {})
+          item.classList.remove('bg-primary-50/50', 'dark:bg-primary-950/40')
+          item.querySelector('.notif-dot')?.remove()
+          item.querySelector('span.bg-primary-500.rounded-full')?.remove()
+
+          const countEl = document.querySelector<HTMLElement>('.notification-bell-count:not(.hidden)')
+          const c = parseInt(countEl?.textContent ?? '0', 10)
+          setAllBadges(Math.max(0, isNaN(c) ? 0 : c - 1))
+
+          if (notifType === 'new_message' && convId) {
+            window.location.href = (isAdmin ? '/admin/messages' : '/dashboard/messages') + `?conv=${convId}`
+          } else if (notifType === 'candidature_submitted' && candId && isAdmin) {
+            window.location.href = `/admin/candidatures/${candId}`
+          } else if (notifType === 'candidature_status_changed' && candId) {
+            window.location.href = isAdmin ? `/admin/candidatures/${candId}` : `/dashboard/candidature`
+          }
+        })
+      })
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function iconFor(n: any): string {
+      const t = n.data?.type ?? ''
+      const cls = `h-3.5 w-3.5 ${n.read ? 'text-neutral-400 dark:text-neutral-500' : 'text-primary-500 dark:text-primary-400'}`
+      if (t === 'new_message') return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`
+      if (t === 'candidature_submitted') return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`
+      if (t === 'candidature_status_changed') return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+      return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+    }
+
+    function labelFor(n: any): string {
+      const d = n.data ?? {}
+      switch (d.type) {
+        case 'new_message':
+          return `Nouveau message de <strong class="font-semibold">${escHtml(d.senderName ?? '')}</strong>${d.preview ? ` · <span class="text-neutral-500 dark:text-neutral-400 italic">${escHtml(d.preview.slice(0, 50))}${d.preview.length > 50 ? '…' : ''}</span>` : ''}`
+        case 'candidature_submitted':
+          return `Nouvelle candidature — <strong class="font-semibold">${escHtml(d.candidateName ?? '')}</strong>`
+        case 'candidature_status_changed':
+          return `Statut mis à jour : <strong class="font-semibold">${escHtml(d.newLabel ?? '')}</strong>`
+        default:
+          return String(n.type ?? '').replace(/_/g, ' ')
+      }
+    }
+
+    function escHtml(s: string): string {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+
+    function timeAgo(iso: string): string {
+      const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+      if (mins < 1)  return "À l'instant"
+      if (mins < 60) return `Il y a ${mins} min`
+      const h = Math.floor(mins / 60)
+      if (h < 24)    return `Il y a ${h} h`
+      return `Il y a ${Math.floor(h / 24)} j`
+    }
+
+    // ── Polling silencieux toutes les 30 s ────────────────────────────────
+    const interval = setInterval(async () => {
+      if (open) return
+      try {
+        const resp = await fetch('/api/notifications')
+        if (!resp.ok) return
+        setAllBadges((await resp.json()).unreadCount ?? 0)
+      } catch {}
+    }, 30000)
+    pollingIntervals.push(interval)
+  }
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────
+  document.addEventListener('astro:page-load', () => {
+    document.querySelectorAll<HTMLElement>('.notification-bell-wrapper').forEach(initBell)
+  })
+
+  document.addEventListener('astro:before-swap', () => {
+    pollingIntervals.forEach(clearInterval)
+    pollingIntervals.length = 0
+  })
+</script>

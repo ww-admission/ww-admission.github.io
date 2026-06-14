@@ -1,8 +1,7 @@
 ---
 import Header from '../components/blocks/head/Header.astro'
+import NotificationBell from '../components/ui/NotificationBell.astro'
 import '../styles/global.css'
-import '@fontsource-variable/inter'
-import '@fontsource-variable/outfit'
 
 interface Props {
   title: string
@@ -10,183 +9,534 @@ interface Props {
 }
 
 const { title, activeNav = '' } = Astro.props
+const session = Astro.locals.session!
+const isAdmin = session.role === 'admin'
+
+type NavItem = { href: string; label: string; key: string; icon: string }
+
+const ADMIN_NAV: NavItem[] = [
+  {
+    href: '/admin',
+    label: 'Tableau de bord',
+    key: 'overview',
+    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  },
+  {
+    href: '/admin/candidatures',
+    label: 'Candidatures',
+    key: 'candidatures',
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  },
+  {
+    href: '/admin/messages',
+    label: 'Messages',
+    key: 'messages',
+    icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+  },
+  {
+    href: '/admin/contacts',
+    label: 'Contacts',
+    key: 'contacts',
+    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+  },
+  {
+    href: '/admin/accounts',
+    label: 'Comptes & Accès',
+    key: 'accounts',
+    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+  },
+  {
+    href: '/admin/logs',
+    label: "Logs d'activité",
+    key: 'logs',
+    icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+  },
+]
+
+const CANDIDATE_NAV: NavItem[] = [
+  {
+    href: '/dashboard',
+    label: 'Aperçu',
+    key: 'overview',
+    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  },
+  {
+    href: '/dashboard/candidature',
+    label: 'Ma candidature',
+    key: 'candidature',
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  },
+  {
+    href: '/dashboard/messages',
+    label: 'Messages',
+    key: 'messages',
+    icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+  },
+  {
+    href: '/dashboard/contacts',
+    label: 'Contacts',
+    key: 'contacts',
+    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+  },
+]
+
+const navItems = isAdmin ? ADMIN_NAV : CANDIDATE_NAV
+const userInitial = (session.name || '?').charAt(0).toUpperCase()
 ---
 
 <!doctype html>
-<html lang="fr" class="scroll-smooth antialiased">
-  <Header title={`${title} — WWA`} description="Espace WorldWise Admission" />
-  <body class="min-h-screen bg-neutral-50">
+<html lang="fr" class="antialiased overflow-hidden">
+  <Header title={`${title} — WWA`} description="Espace WorldWise Admission">
+    <!--
+      Script anti-FOUC injecté dans <head> via le slot.
+      Exécuté AVANT le premier paint → zéro flash de couleurs claires.
+      Clé unifiée 'theme' (même que le site public dans LocalScripts.astro).
+    -->
+    <script is:inline slot="head">
+      ;(function () {
+        var t    = localStorage.getItem('theme')
+        var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+      })()
+    </script>
+  </Header>
+  <body class="bg-neutral-50 text-neutral-700 overflow-hidden dark:bg-neutral-950 dark:text-neutral-300"
+        data-uid={session.uid ?? 0}>
 
-    <!-- Spinner affiché jusqu'à ce que JS confirme l'auth -->
-    <div id="auth-loading" class="fixed inset-0 z-50 bg-neutral-50 flex items-center justify-center">
-      <div class="animate-spin h-8 w-8 rounded-full border-2 border-primary-500 border-t-transparent"></div>
+    <!-- Overlay du sweep de transition dark/light — plein écran, z-index max -->
+    <div id="theme-sweep" aria-hidden="true"></div>
+
+    <div class="flex h-screen overflow-hidden">
+
+      <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+      <aside
+        id="sidebar"
+        class="fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-white border-r border-neutral-100 dark:bg-neutral-900 dark:border-neutral-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 [&_p]:mb-0"
+      >
+        <!-- Logo -->
+        <div class="flex h-16 shrink-0 items-center gap-3 border-b border-neutral-100 dark:border-neutral-800 px-5">
+          <img src="/logo.svg" alt="WWA" width="36" height="36" class="shrink-0" />
+          <div class="leading-tight">
+            <p class="font-headings font-black text-sm tracking-wide text-neutral-800 dark:text-neutral-100">WorldWise</p>
+            <p class="font-headings text-xs font-medium text-primary-500 tracking-widest uppercase">Admission</p>
+          </div>
+        </div>
+
+        <!-- Badge rôle -->
+        <div class="shrink-0 px-5 pt-4 pb-3">
+          {isAdmin ? (
+            <div class="inline-flex items-center gap-1.5 rounded-full bg-primary-50 border border-primary-100 px-3 py-1 dark:bg-primary-950 dark:border-primary-900">
+              <span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
+              <span class="text-xs font-semibold text-primary-600 tracking-wide dark:text-primary-400">Super Admin</span>
+            </div>
+          ) : (
+            <div class="inline-flex items-center gap-1.5 rounded-full bg-gold-100 border border-gold-200 px-3 py-1 dark:bg-gold-900/30 dark:border-gold-800">
+              <span class="h-1.5 w-1.5 rounded-full bg-gold-600 dark:bg-gold-400"></span>
+              <span class="text-xs font-semibold text-gold-800 tracking-wide dark:text-gold-300">Candidat</span>
+            </div>
+          )}
+        </div>
+
+        <!-- Séparateur de section -->
+        <div class="px-5 pb-2">
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-600">Navigation</p>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-scroll px-3 space-y-0.5 pb-4">
+          {navItems.map(item => {
+            const isActive = activeNav === item.key || (item.key === 'overview' && activeNav === '')
+            return (
+              <a
+                href={item.href}
+                class={`group flex items-center gap-3 rounded px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-primary-50 text-primary-600 border-l-2 border-primary-500 dark:bg-primary-950 dark:text-primary-400'
+                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 border-l-2 border-transparent dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class={`h-4 w-4 shrink-0 transition-colors duration-200 ${isActive ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-300'}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d={item.icon} />
+                </svg>
+                {item.label}
+              </a>
+            )
+          })}
+        </nav>
+
+        <!-- Communauté — lien spécial en bas de nav, au-dessus du profil -->
+        <div class="shrink-0 px-3 pb-2">
+          {(() => {
+            const communityHref   = isAdmin ? '/admin/community' : '/dashboard/community'
+            const communityActive = activeNav === 'community'
+            return (
+              <a
+                href={communityHref}
+                class={`group flex items-center gap-3 rounded px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  communityActive
+                    ? 'bg-primary-50 text-primary-600 border-l-2 border-primary-500 dark:bg-primary-950 dark:text-primary-400'
+                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 border-l-2 border-transparent dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class={`h-4 w-4 shrink-0 transition-colors duration-200 ${communityActive ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-300'}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Communauté</span>
+                <span class="ml-auto h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" title="Actif"></span>
+              </a>
+            )
+          })()}
+        </div>
+
+        <!-- User + déconnexion -->
+        <div class="shrink-0 border-t border-neutral-100 dark:border-neutral-800 p-4">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="h-9 w-9 rounded-full bg-primary-500 flex items-center justify-center shrink-0 shadow-sm">
+              <span class="text-sm font-bold text-white">{userInitial}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate">{session.name}</p>
+              <p class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{session.sub}</p>
+            </div>
+            <NotificationBell placement="sidebar" />
+            <!-- Toggle dark/light mode -->
+            <button
+              type="button"
+              id="theme-toggle"
+              title="Mode sombre / clair"
+              class="h-9 w-9 flex items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300 transition-colors"
+              aria-label="Changer le thème"
+            >
+              <!-- Lune : affichée en mode clair -->
+              <svg id="icon-moon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+              </svg>
+              <!-- Soleil : affichée en mode sombre -->
+              <svg id="icon-sun" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+              </svg>
+            </button>
+          </div>
+          <button
+            type="button"
+            id="logout-btn"
+            class="group w-full flex items-center gap-2 rounded px-3 py-2 text-xs font-medium text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300 transition-colors duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            Se déconnecter
+          </button>
+        </div>
+      </aside>
+
+      <!-- Overlay mobile -->
+      <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-neutral-900/40 backdrop-blur-sm hidden lg:hidden" aria-hidden="true"></div>
+
+      <!-- ── Contenu principal ─────────────────────────────────────────── -->
+      <div class="flex flex-1 flex-col min-w-0 lg:ml-64">
+
+        <!-- Header mobile -->
+        <header class="flex h-14 shrink-0 items-center gap-3 border-b border-neutral-100 bg-white px-4 lg:hidden dark:bg-neutral-900 dark:border-neutral-800">
+          <button
+            id="sidebar-toggle"
+            class="p-2 rounded text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200 transition-colors"
+            aria-label="Menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+          <img src="/logo.svg" alt="WWA" width="28" height="28" />
+          <span class="font-headings font-black text-sm text-neutral-800 dark:text-neutral-100 flex-1">WorldWise Admission</span>
+          <NotificationBell placement="mobile" />
+        </header>
+
+        <!-- Contenu de la page -->
+        <!-- [&_p]:mb-0 neutralise le mb-6 global de global.css sur tous les <p> du dashboard -->
+        <main class="flex-1 overflow-y-scroll [&_p]:mb-0 [&_h1]:mb-0 [&_h2]:mb-0 [&_h3]:mb-0">
+          <slot />
+        </main>
+      </div>
     </div>
 
-    <div id="app-shell" class="hidden">
-      <div class="flex h-screen overflow-hidden">
-
-        <!-- ── Sidebar ──────────────────────────────────────────────────── -->
-        <aside
-          id="sidebar"
-          class="fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-neutral-100 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300"
-        >
-          <!-- Logo -->
-          <div class="flex items-center gap-2.5 px-5 h-16 border-b border-neutral-100 shrink-0">
-            <img src="/logo.svg" alt="WWA" width="32" height="32" />
-            <div>
-              <p class="font-headings font-black text-sm tracking-wide text-neutral-700 leading-none">WorldWise</p>
-              <p class="font-headings text-xs text-neutral-400">Admission</p>
-            </div>
+    <!-- ── Modale confirmation déconnexion ─────────────────────── -->
+    <div
+      id="logout-modal"
+      class="hidden fixed inset-0 z-50 items-center justify-center bg-neutral-900/50 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logout-modal-title"
+    >
+      <div class="m-6 w-full max-w-xs overflow-hidden rounded border border-neutral-100 bg-white shadow-xl shadow-neutral-700/10 dark:bg-neutral-900 dark:border-neutral-800 dark:shadow-neutral-950/50">
+        <div class="flex items-center gap-3 border-b border-neutral-100 dark:border-neutral-800 px-5 py-4">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-950">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
           </div>
-
-          <!-- Badge rôle -->
-          <div class="px-5 py-3 border-b border-neutral-100 shrink-0">
-            <span id="role-badge" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-neutral-100 text-neutral-500">
-              <span id="role-dot" class="h-1.5 w-1.5 rounded-full bg-neutral-400"></span>
-              <span id="role-label">…</span>
-            </span>
-          </div>
-
-          <!-- Navigation -->
-          <nav id="sidebar-nav" class="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-            <!-- Peuplé par JS -->
-          </nav>
-
-          <!-- User info + déconnexion -->
-          <div class="border-t border-neutral-100 p-4 shrink-0">
-            <div class="flex items-center gap-3 mb-3">
-              <div class="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                <span id="user-initial" class="text-sm font-semibold text-primary-600">?</span>
-              </div>
-              <div class="min-w-0">
-                <p id="user-name" class="text-sm font-medium text-neutral-700 truncate">—</p>
-                <p id="user-email" class="text-xs text-neutral-400 truncate">—</p>
-              </div>
-            </div>
-            <button
-              id="logout-btn"
-              type="button"
-              class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-              Déconnexion
-            </button>
-          </div>
-        </aside>
-
-        <!-- Overlay mobile -->
-        <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black/30 hidden lg:hidden" aria-hidden="true"></div>
-
-        <!-- ── Contenu principal ─────────────────────────────────────────── -->
-        <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
-          <header class="h-16 bg-white border-b border-neutral-100 flex items-center gap-4 px-4 shrink-0 lg:hidden">
-            <button id="sidebar-toggle" class="p-2 rounded-lg text-neutral-500 hover:bg-neutral-50 transition" aria-label="Menu">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-              </svg>
-            </button>
-            <img src="/logo.svg" alt="WWA" width="28" height="28" />
-            <span class="font-headings font-black text-sm tracking-wide text-neutral-700">WWA</span>
-          </header>
-
-          <main class="flex-1 overflow-y-auto">
-            <slot />
-          </main>
+          <h2 id="logout-modal-title" class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Se déconnecter ?</h2>
+        </div>
+        <div class="px-5 py-4">
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">Votre session sera fermée et vous serez redirigé vers la page d'accueil.</p>
+        </div>
+        <div class="flex items-center justify-end gap-2 border-t border-neutral-100 dark:border-neutral-800 px-5 py-3">
+          <button
+            type="button"
+            id="logout-cancel"
+            class="h-9 rounded border border-neutral-200 dark:border-neutral-700 px-4 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            id="logout-confirm"
+            class="h-9 rounded bg-red-500 px-4 text-sm font-bold text-white hover:bg-red-600 transition-colors"
+          >
+            Se déconnecter
+          </button>
         </div>
       </div>
     </div>
 
-    <script is:inline define:vars={{ activeNav }}>
-      const ADMIN_NAV = [
-        { href: '/admin', label: 'Tableau de bord', key: 'overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-        { href: '/admin/candidatures', label: 'Candidatures', key: 'candidatures', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-        { href: '/admin/messages', label: 'Messages', key: 'messages', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
-        { href: '/admin/logs', label: 'Logs', key: 'logs', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
-      ]
-      const CANDIDATE_NAV = [
-        { href: '/dashboard', label: 'Aperçu', key: 'overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-        { href: '/dashboard/candidature', label: 'Ma candidature', key: 'candidature', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-        { href: '/dashboard/messages', label: 'Messages', key: 'messages', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
-      ]
+    <!-- Sidebar mobile toggle — is:inline pour éviter le flash de contenu non-initialisé -->
+    <script is:inline>
+      var toggle  = document.getElementById('sidebar-toggle')
+      var sidebar = document.getElementById('sidebar')
+      var overlay = document.getElementById('sidebar-overlay')
 
-      function renderNav(items) {
-        const nav = document.getElementById('sidebar-nav')
-        if (!nav) return
-        nav.innerHTML = items.map(item => {
-          const isActive = activeNav === item.key || (item.key === 'overview' && activeNav === '')
-          return `<a href="${item.href}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? 'bg-primary-50 text-primary-600' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="${item.icon}" />
-            </svg>
-            ${item.label}
-          </a>`
-        }).join('')
+      function openSidebar() {
+        if (!sidebar || !overlay) return
+        sidebar.classList.remove('-translate-x-full')
+        overlay.classList.remove('hidden')
+        document.body.style.overflow = 'hidden'
+      }
+      function closeSidebar() {
+        if (!sidebar || !overlay) return
+        sidebar.classList.add('-translate-x-full')
+        overlay.classList.add('hidden')
+        document.body.style.overflow = ''
       }
 
-      function init() {
-        let session = null
-        try { session = JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch {}
+      toggle  && toggle.addEventListener('click', openSidebar)
+      overlay && overlay.addEventListener('click', closeSidebar)
+    </script>
 
-        if (!session?.token || !session?.role) {
-          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname)
-          return
-        }
-
-        if (session.exp && Date.now() > session.exp) {
-          localStorage.removeItem('wwa_session')
-          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname)
-          return
-        }
-
-        const isAdmin = session.role === 'admin'
-
-        renderNav(isAdmin ? ADMIN_NAV : CANDIDATE_NAV)
-
-        const badge = document.getElementById('role-badge')
-        const dot   = document.getElementById('role-dot')
-        const label = document.getElementById('role-label')
-        if (isAdmin) {
-          badge?.classList.replace('bg-neutral-100', 'bg-primary-50')
-          badge?.classList.replace('text-neutral-500', 'text-primary-600')
-          dot?.classList.replace('bg-neutral-400', 'bg-primary-500')
-          if (label) label.textContent = 'Super Admin'
+    <!--
+      Toggle dark/light — module script unique.
+      astro:page-load couvre premier chargement + chaque navigation ClientRouter.
+      astro:after-swap gère l'application du thème avant la fin des animations.
+      btn.onclick = garantit un seul handler même si l'élément est morphé.
+    -->
+    <script>
+      function wwaThemeSync() {
+        // 1. Relire localStorage et réappliquer la classe (belt-and-suspenders nav)
+        const t    = localStorage.getItem('theme')
+        const dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) {
+          document.documentElement.classList.add('dark')
         } else {
-          badge?.classList.replace('bg-neutral-100', 'bg-amber-50')
-          badge?.classList.replace('text-neutral-500', 'text-amber-700')
-          dot?.classList.replace('bg-neutral-400', 'bg-amber-500')
-          if (label) label.textContent = 'Candidat'
+          document.documentElement.classList.remove('dark')
         }
 
-        const initial = document.getElementById('user-initial')
-        const name    = document.getElementById('user-name')
-        const email   = document.getElementById('user-email')
-        if (initial) initial.textContent = (session.name || '?').charAt(0).toUpperCase()
-        if (name)    name.textContent    = session.name  || '—'
-        if (email)   email.textContent   = session.email || '—'
+        // 2. Sync icônes lune/soleil
+        const moon = document.getElementById('icon-moon')
+        const sun  = document.getElementById('icon-sun')
+        if (moon) moon.classList.toggle('hidden', dark)
+        if (sun)  sun.classList.toggle('hidden', !dark)
 
-        document.getElementById('auth-loading')?.remove()
-        const shell = document.getElementById('app-shell')
-        if (shell) { shell.classList.remove('hidden'); shell.classList.add('flex') }
+        // 3. (Re)attacher le handler du toggle
+        const btn = document.getElementById('theme-toggle')
+        if (!btn) return
+        btn.onclick = () => {
+          // Déclencher le sweep visuel avant + pendant le changement de thème
+          const sweep = document.getElementById('theme-sweep')
+          if (sweep) {
+            sweep.classList.remove('sweeping')
+            void sweep.offsetHeight // force reflow pour relancer l'animation
+            sweep.classList.add('sweeping')
+            setTimeout(() => sweep.classList.remove('sweeping'), 650)
+          }
+
+          const nowDark = !document.documentElement.classList.contains('dark')
+          if (nowDark) {
+            document.documentElement.classList.add('dark')
+            localStorage.setItem('theme', 'dark')
+          } else {
+            document.documentElement.classList.remove('dark')
+            localStorage.setItem('theme', 'light')
+          }
+          const m = document.getElementById('icon-moon')
+          const s = document.getElementById('icon-sun')
+          if (m) m.classList.toggle('hidden', nowDark)
+          if (s) s.classList.toggle('hidden', !nowDark)
+        }
       }
 
-      init()
+      // Premier chargement + chaque navigation Astro
+      document.addEventListener('astro:page-load', wwaThemeSync)
+      // Également sur after-swap (s'exécute avant page-load, couvre les animations)
+      document.addEventListener('astro:after-swap', wwaThemeSync)
+    </script>
 
-      document.getElementById('logout-btn')?.addEventListener('click', () => {
-        localStorage.removeItem('wwa_session')
-        window.location.href = '/login'
+    <!-- Logout modal — module script, garanti d'être attaché après astro:page-load -->
+    <script>
+      document.addEventListener('astro:page-load', () => {
+        const logoutBtn     = document.getElementById('logout-btn')
+        const logoutModal   = document.getElementById('logout-modal')
+        const logoutCancel  = document.getElementById('logout-cancel')
+        const logoutConfirm = document.getElementById('logout-confirm') as HTMLButtonElement | null
+        if (!logoutBtn || !logoutModal || !logoutCancel || !logoutConfirm) return
+
+        function openLogoutModal() {
+          logoutModal!.classList.remove('hidden')
+          logoutModal!.classList.add('flex')
+          logoutConfirm!.focus()
+        }
+
+        function closeLogoutModal() {
+          logoutModal!.classList.add('hidden')
+          logoutModal!.classList.remove('flex')
+        }
+
+        logoutBtn.addEventListener('click', openLogoutModal)
+        logoutCancel.addEventListener('click', closeLogoutModal)
+
+        logoutConfirm.addEventListener('click', () => {
+          logoutConfirm!.disabled = true
+          logoutConfirm!.textContent = 'Déconnexion…'
+          fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'fetch' },
+          })
+            .catch(() => {})
+            .finally(() => { window.location.href = '/' })
+        })
+
+        logoutModal.addEventListener('click', (e) => {
+          if (e.target === logoutModal) closeLogoutModal()
+        })
+
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
+          if (e.key === 'Escape' && !logoutModal!.classList.contains('hidden')) closeLogoutModal()
+        })
+      })
+    </script>
+
+    <!-- Echo / Reverb WebSocket -->
+    <script>
+      import Echo from 'laravel-echo'
+      import Pusher from 'pusher-js'
+
+      ;(window as any).Pusher = Pusher
+
+      document.addEventListener('astro:page-load', () => {
+        const roleCookie = document.cookie.split(';').find(c => c.trim().startsWith('wwa_role='))
+        if (!roleCookie) return
+        if ((window as any).__echoInstance) return
+
+        const echo = new Echo({
+          broadcaster:       'reverb',
+          key:               import.meta.env.PUBLIC_REVERB_APP_KEY,
+          wsHost:            import.meta.env.PUBLIC_REVERB_HOST ?? 'localhost',
+          wsPort:            Number(import.meta.env.PUBLIC_REVERB_PORT ?? 8080),
+          wssPort:           Number(import.meta.env.PUBLIC_REVERB_PORT ?? 8080),
+          forceTLS:          (import.meta.env.PUBLIC_REVERB_SCHEME ?? 'http') === 'https',
+          enabledTransports: ['ws', 'wss'],
+          authEndpoint:      '/api/broadcasting/auth',
+        })
+
+        ;(window as any).__echoInstance = echo
+        document.dispatchEvent(new CustomEvent('wwa:echo-ready', { detail: { echo } }))
       })
 
-      const toggle  = document.getElementById('sidebar-toggle')
-      const sidebar = document.getElementById('sidebar')
-      const overlay = document.getElementById('sidebar-overlay')
-
-      function openSidebar()  { sidebar?.classList.remove('-translate-x-full'); overlay?.classList.remove('hidden'); document.body.style.overflow = 'hidden' }
-      function closeSidebar() { sidebar?.classList.add('-translate-x-full');    overlay?.classList.add('hidden');    document.body.style.overflow = ''       }
-
-      toggle?.addEventListener('click', openSidebar)
-      overlay?.addEventListener('click', closeSidebar)
+      document.addEventListener('astro:before-swap', () => {
+        ;(window as any).__echoInstance?.disconnect()
+        ;(window as any).__echoInstance = null
+      })
     </script>
   </body>
 </html>
+
+<!--
+  Styles globaux de transition de thème.
+  is:global → non scopés, appliqués au document entier.
+-->
+<style is:global>
+  /* ── Sweep de transition dark / light ───────────────────────────────────
+     Reproduit l'effet lumineux du bouton CTA, à l'échelle de la page.
+     Un faisceau blanc biaisé traverse l'écran de gauche à droite en 0.55 s.
+     ─────────────────────────────────────────────────────────────────────── */
+
+  @keyframes wwa-sweep {
+    from  { opacity: 0;   left: -22%; }
+    30%   { opacity: 1; }
+    70%   { opacity: 1; }
+    to    { opacity: 0;   left: 112%; }
+  }
+
+  /* Conteneur overlay : fixé, plein écran, non cliquable */
+  #theme-sweep {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  /* Le faisceau lui-même (pseudo-élément) */
+  #theme-sweep.sweeping::after {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 0;
+    left: -22%;
+    width: 20%;
+    height: 100%;
+    background: linear-gradient(
+      to right,
+      transparent              0%,
+      rgba(160, 160, 160, 0.08) 20%,
+      rgba(160, 160, 160, 0.45) 50%,
+      rgba(160, 160, 160, 0.08) 80%,
+      transparent               100%
+    );
+    box-shadow:
+      0 0 80px 35px rgba(150, 150, 150, 0.25),
+      0 0 20px  8px rgba(150, 150, 150, 0.40);
+    transform: skewX(-14deg);
+    animation: wwa-sweep 0.55s ease-in-out forwards;
+  }
+
+  /* ── Transitions douces sur les éléments de fond du dashboard ───────────
+     Les couleurs bg / text / border fondent en parallèle du sweep.
+     On cible uniquement les éléments structurels lourds pour éviter
+     d'interférer avec les transitions hover des boutons et liens.
+     ─────────────────────────────────────────────────────────────────────── */
+
+  body,
+  #sidebar,
+  #sidebar > *,
+  .lg\:ml-64 > header,
+  .lg\:ml-64 > main,
+  .wwa-dot-grid {
+    transition:
+      background-color 0.35s ease,
+      border-color     0.25s ease,
+      color            0.25s ease;
+  }
+</style>

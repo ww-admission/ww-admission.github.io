@@ -1,0 +1,123 @@
+---
+interface Props {
+  id: string
+  title?: string
+  width?: string
+}
+const { id, title = '', width = 'max-w-xl' } = Astro.props
+---
+
+<!-- Backdrop -->
+<div
+  id={`${id}-backdrop`}
+  class="offcanvas-backdrop fixed inset-0 bg-neutral-900/40 z-40 hidden opacity-0 transition-opacity duration-300"
+  data-offcanvas-id={id}
+></div>
+
+<!-- Panel -->
+<aside
+  id={id}
+  role="dialog"
+  aria-modal="true"
+  aria-label={title}
+  class={`offcanvas fixed top-0 right-0 h-full ${width} w-full bg-white z-50 shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-in-out`}
+>
+  <!-- Header -->
+  <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100 shrink-0">
+    <h2 class="font-sora font-semibold text-neutral-900 text-base">
+      {title}
+      <slot name="title-extra" />
+    </h2>
+    <button
+      class="offcanvas-close p-2 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+      data-offcanvas-id={id}
+      aria-label="Fermer"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <div class="flex-1 overflow-y-auto">
+    <slot />
+  </div>
+
+  <!-- Footer -->
+  <slot name="footer" />
+</aside>
+
+<script>
+  function initOffcanvas() {
+    // Ouvrir
+    document.querySelectorAll('[data-open-offcanvas]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.openOffcanvas!
+        openOffcanvas(id)
+      })
+    })
+
+    // Fermer via bouton X
+    document.querySelectorAll('.offcanvas-close').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.offcanvasId!
+        closeOffcanvas(id)
+      })
+    })
+
+    // Fermer via backdrop
+    document.querySelectorAll('.offcanvas-backdrop').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = (el as HTMLElement).dataset.offcanvasId!
+        closeOffcanvas(id)
+      })
+    })
+
+    // Touche Échap
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.offcanvas:not(.translate-x-full)').forEach(panel => {
+          closeOffcanvas(panel.id)
+        })
+      }
+    })
+  }
+
+  function openOffcanvas(id: string) {
+    const panel   = document.getElementById(id)
+    const backdrop = document.getElementById(`${id}-backdrop`)
+    if (!panel || !backdrop) return
+
+    backdrop.classList.remove('hidden')
+    requestAnimationFrame(() => {
+      backdrop.classList.remove('opacity-0')
+      backdrop.classList.add('opacity-100')
+      panel.classList.remove('translate-x-full')
+    })
+
+    document.body.style.overflow = 'hidden'
+    panel.dispatchEvent(new CustomEvent('offcanvas:open', { bubbles: true }))
+  }
+
+  function closeOffcanvas(id: string) {
+    const panel    = document.getElementById(id)
+    const backdrop = document.getElementById(`${id}-backdrop`)
+    if (!panel || !backdrop) return
+
+    panel.classList.add('translate-x-full')
+    backdrop.classList.remove('opacity-100')
+    backdrop.classList.add('opacity-0')
+
+    setTimeout(() => {
+      backdrop.classList.add('hidden')
+      document.body.style.overflow = ''
+      panel.dispatchEvent(new CustomEvent('offcanvas:close', { bubbles: true }))
+    }, 300)
+  }
+
+  // Exposer globalement pour utilisation depuis d'autres scripts
+  ;(window as any).__offcanvas = { open: openOffcanvas, close: closeOffcanvas }
+
+  document.addEventListener('astro:page-load', initOffcanvas)
+</script>

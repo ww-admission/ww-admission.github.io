@@ -1,0 +1,394 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro'
+import Pagination from '../../components/ui/Pagination.astro'
+import {
+  MOCK_COMMUNITY,
+  DESTINATION_FLAGS,
+  MEMBER_STATUS_LABELS,
+  MEMBER_STATUS_COLORS,
+  type CommunityMember,
+  type MemberStatus,
+} from '../../lib/contacts-data'
+import { backendFetch } from '../../lib/auth'
+
+const session = Astro.locals.session!
+
+const page    = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10))
+const perPage = (() => {
+  const v = parseInt(Astro.url.searchParams.get('per_page') ?? '30', 10)
+  return [30, 50, 100].includes(v) ? v : 30
+})()
+
+const AVATAR_COLORS = [
+  'bg-primary-500', 'bg-primary-700', 'bg-gold-600',
+  'bg-neutral-500', 'bg-neutral-600', 'bg-neutral-700',
+]
+
+function normalizeServerMember(raw: any, idx: number): CommunityMember {
+  const parts = (raw.name ?? '').trim().split(' ')
+  const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
+  return {
+    id:               String(raw.id),
+    name:             raw.name ?? '',
+    initials,
+    avatarColor:      AVATAR_COLORS[idx % AVATAR_COLORS.length],
+    nationality:      raw.nationality ?? '—',
+    status:           raw.status as MemberStatus,
+    destination:      raw.destination ?? '—',
+    destinationFlag:  DESTINATION_FLAGS[raw.destination] ?? '🌍',
+    city:             raw.city ?? undefined,
+    university:       raw.university ?? undefined,
+    domain:           raw.domain ?? '—',
+    programme:        raw.programme ?? undefined,
+    studyYear:        raw.study_year ?? undefined,
+    graduationYear:   raw.graduation_year ?? undefined,
+    bio:              raw.bio ?? undefined,
+    languages:        raw.languages ?? undefined,
+    lookingFor:       raw.looking_for ?? undefined,
+    isVerified:       Boolean(raw.is_verified),
+    joinedAt:         raw.created_at ?? new Date().toISOString(),
+    linkedinUrl:      raw.linkedin_url ?? undefined,
+    isPublic:         Boolean(raw.is_community_public),
+  }
+}
+
+let allMembers: CommunityMember[] = []
+let meta = { total: 0, current_page: page, last_page: 1, per_page: perPage }
+let useMock = false
+
+try {
+  const qs   = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+  const resp = await backendFetch(`/community/admin?${qs}`, session)
+  if (resp.ok) {
+    const d   = await resp.json()
+    const raw = (d.data ?? d) as any[]
+    allMembers = raw.map((m, i) => normalizeServerMember(m, i))
+    if (d.meta ?? d.last_page) {
+      meta = {
+        total:        d.meta?.total ?? d.total ?? allMembers.length,
+        current_page: d.meta?.current_page ?? d.current_page ?? page,
+        last_page:    d.meta?.last_page ?? d.last_page ?? 1,
+        per_page:     d.meta?.per_page ?? d.per_page ?? perPage,
+      }
+    } else {
+      meta = { total: allMembers.length, current_page: page, last_page: 1, per_page: perPage }
+    }
+  } else {
+    useMock = true
+  }
+} catch {
+  useMock = true
+}
+
+if (useMock) {
+  allMembers = MOCK_COMMUNITY
+  meta = {
+    total:        MOCK_COMMUNITY.length,
+    current_page: page,
+    last_page:    Math.max(1, Math.ceil(MOCK_COMMUNITY.length / perPage)),
+    per_page:     perPage,
+  }
+}
+
+const stats = {
+  total:       meta.total,
+  studying:    allMembers.filter(m => m.status === 'studying').length,
+  alumni:      allMembers.filter(m => m.status === 'alumni').length,
+  candidature: allMembers.filter(m => m.status === 'candidature').length,
+}
+const destinations = ['Toutes', ...new Set(allMembers.map(m => m.destination))]
+const domains      = ['Tous', ...new Set(allMembers.map(m => m.domain))].sort()
+const members = useMock ? allMembers.slice((page - 1) * perPage, page * perPage) : allMembers
+---
+
+<DashboardLayout title="Communauté" activeNav="community">
+
+  <script is:inline define:vars={{ membersData: allMembers }}>
+    window.__COMMUNITY_MEMBERS__ = membersData
+  </script>
+
+  <div class="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+
+    <!-- En-tête admin -->
+    <div class="flex flex-col sm:flex-row sm:items-end gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Réseau</p>
+        <h1 class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">Communauté</h1>
+        <p class="text-sm text-neutral-400 mt-1">Vue admin — tous les membres, vérifiés et non vérifiés.</p>
+      </div>
+      <div class="sm:ml-auto flex items-center gap-4 text-center flex-wrap">
+        <div><p class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">{stats.total}</p><p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Membres</p></div>
+        <div class="h-6 w-px bg-neutral-200 hidden sm:block"></div>
+        <div><p class="font-headings text-2xl font-bold text-green-600">{stats.studying}</p><p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">En études</p></div>
+        <div class="h-6 w-px bg-neutral-200 hidden sm:block"></div>
+        <div><p class="font-headings text-2xl font-bold text-purple-600">{stats.alumni}</p><p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Alumni</p></div>
+        <div class="h-6 w-px bg-neutral-200 hidden sm:block"></div>
+        <div><p class="font-headings text-2xl font-bold text-amber-600">{stats.candidature}</p><p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Candidatures</p></div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="bg-white border border-neutral-100 rounded p-4 space-y-4 dark:bg-neutral-900 dark:border-neutral-800">
+      <div class="relative">
+        <div class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1010 17.5a7.5 7.5 0 006.65-.85z"/>
+          </svg>
+        </div>
+        <input id="community-search" type="text" autocomplete="off" placeholder="Rechercher par nom, université, ville, domaine…"
+          class="h-10 w-full rounded border border-neutral-200 bg-white pl-9 pr-4 text-sm text-neutral-700 placeholder-neutral-400 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder-neutral-500"/>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mr-1">Statut</span>
+        {(['all', 'candidature', 'studying', 'alumni'] as const).map(s => (
+          <button data-status-filter={s} class={`status-filter-btn inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${s === 'all' ? 'bg-primary-500 border-primary-500 text-white' : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary-300 hover:text-primary-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400'}`}>
+            {s === 'all' ? 'Tous' : MEMBER_STATUS_LABELS[s as MemberStatus]}
+          </button>
+        ))}
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Destination</span>
+          <select id="filter-destination" class="h-8 rounded border border-neutral-200 bg-white px-2.5 text-xs text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+            {destinations.map(d => <option value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Domaine</span>
+          <select id="filter-domain" class="h-8 rounded border border-neutral-200 bg-white px-2.5 text-xs text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+            {domains.map(d => <option value={d}>{d}</option>)}
+          </select>
+        </div>
+        <button id="reset-filters" class="ml-auto text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Réinitialiser</button>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <p id="result-count" class="text-xs text-neutral-400"><span class="font-semibold text-neutral-600 dark:text-neutral-300">{members.length}</span> membre{members.length > 1 ? 's' : ''}</p>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] text-neutral-400">Admin : profils non vérifiés inclus</span>
+        <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+      </div>
+    </div>
+
+    <!-- Grille -->
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" id="community-grid">
+      {members.map((m) => (
+        <div class="member-card group relative flex flex-col bg-white border border-neutral-100 rounded overflow-hidden cursor-pointer hover:border-primary-200 hover:shadow-sm transition-all dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-primary-800"
+          data-id={m.id} data-status={m.status} data-destination={m.destination} data-domain={m.domain} data-university={m.university ?? ''}
+          data-search={[m.name, m.destination, m.city ?? '', m.university ?? '', m.domain, m.programme ?? '', m.nationality, m.status].join(' ').toLowerCase()}
+        >
+          <div class={`h-1 ${m.status === 'studying' ? 'bg-primary-400' : m.status === 'alumni' ? 'bg-neutral-300' : 'bg-gold-400'}`}></div>
+          <div class="p-5 flex flex-col gap-3 flex-1">
+            <div class="flex items-start gap-3">
+              <div class={`relative h-11 w-11 rounded-full ${m.avatarColor} flex items-center justify-center shrink-0 shadow-sm`}>
+                <span class="text-sm font-bold text-white">{m.initials}</span>
+                {!m.isVerified && (
+                  <span class="member-unverified-badge absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-amber-400 flex items-center justify-center shadow-sm" title="Non vérifié">
+                    <span class="text-white text-[8px] font-bold">!</span>
+                  </span>
+                )}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{m.name}</p>
+                <p class="text-xs text-neutral-400 truncate">{m.nationality}</p>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+                <span class="text-base leading-none">{m.destinationFlag}</span>
+                <span class="font-medium">{m.destination}</span>
+                {m.city && <span class="text-neutral-400">· {m.city}</span>}
+              </div>
+              <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate">{m.domain}{m.programme ? ` — ${m.programme}` : ''}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class={`inline-flex items-center text-[10px] font-bold uppercase tracking-wide rounded-full border px-2 py-0.5 ${MEMBER_STATUS_COLORS[m.status]}`}>
+                {MEMBER_STATUS_LABELS[m.status]}
+              </span>
+              {m.studyYear && <span class="text-[10px] text-neutral-400">{m.studyYear}</span>}
+              {m.graduationYear && <span class="text-[10px] text-neutral-400">Diplômé {m.graduationYear}</span>}
+            </div>
+          </div>
+          <div class="shrink-0 border-t border-neutral-50 px-5 py-3 flex items-center justify-between bg-neutral-50/30 dark:border-neutral-800 dark:bg-neutral-800/30">
+            <span class="member-footer-status text-[10px] text-neutral-400">{m.isVerified ? '✓ Vérifié' : '⚠ Non vérifié'}</span>
+            <span class="text-xs font-semibold text-primary-500 group-hover:text-primary-600 transition-colors">Voir →</span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div id="no-members" class="hidden py-20 text-center">
+      <p class="text-sm font-medium text-neutral-500 dark:text-neutral-400">Aucun membre trouvé</p>
+    </div>
+
+    <!-- Pagination -->
+    <Pagination
+      currentPage={meta.current_page}
+      lastPage={meta.last_page}
+      total={meta.total}
+      perPage={meta.per_page}
+      baseUrl={Astro.url}
+    />
+
+  </div>
+
+  <!-- Panel -->
+  <div id="member-panel" class="hidden fixed inset-y-0 right-0 z-40 flex-col w-full max-w-md bg-white border-l border-neutral-100 shadow-2xl transform translate-x-full transition-transform duration-300 dark:bg-neutral-900 dark:border-neutral-800">
+    <div class="shrink-0 flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+      <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Profil membre</h2>
+      <div class="flex items-center gap-2">
+        <button id="btn-verify-member" class="h-8 px-3 rounded border border-neutral-200 text-xs font-semibold text-neutral-500 hover:border-green-300 hover:text-green-600 transition-all dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-green-700 dark:hover:text-green-400">Vérifier</button>
+        <button id="panel-close" class="h-8 w-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition-all dark:hover:text-neutral-200 dark:hover:bg-neutral-800">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="panel-body" class="flex-1 overflow-y-auto p-6">
+      <p class="text-sm text-neutral-400">Sélectionnez un membre pour voir son profil.</p>
+    </div>
+  </div>
+  <div id="panel-overlay" class="hidden fixed inset-0 z-30 bg-neutral-900/20 dark:bg-neutral-950/50 backdrop-blur-[2px]"></div>
+
+  <script>
+    import type { CommunityMember } from '../../lib/contacts-data'
+    const MEMBERS: CommunityMember[] = (window as any).__COMMUNITY_MEMBERS__ ?? []
+    function esc(s: string) { return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+    const STATUS_LABELS: Record<string,string> = { candidature:'En candidature', studying:'En études', alumni:'Diplômé(e)' }
+    const STATUS_COLORS: Record<string,string> = {
+      candidature: 'bg-gold-100 text-gold-800 dark:bg-gold-900/40 dark:text-gold-300',
+      studying:    'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300',
+      alumni:      'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+    }
+
+    document.addEventListener('astro:page-load', () => {
+      const panel = document.getElementById('member-panel')!
+      const overlay = document.getElementById('panel-overlay')!
+      const body = document.getElementById('panel-body')!
+      const closeBtn = document.getElementById('panel-close')!
+      const searchInput = document.getElementById('community-search') as HTMLInputElement
+      const destFilter = document.getElementById('filter-destination') as HTMLSelectElement
+      const domainFilter = document.getElementById('filter-domain') as HTMLSelectElement
+      const resetBtn = document.getElementById('reset-filters')
+      const countEl = document.getElementById('result-count')
+      const noMembers = document.getElementById('no-members')
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('.member-card'))
+      const statusBtns = document.querySelectorAll<HTMLButtonElement>('.status-filter-btn')
+      let activeStatus = 'all'
+
+      let currentMemberId = ''
+
+      function openPanel(id: string) {
+        const m = MEMBERS.find(x => x.id === id)
+        if (!m) return
+        currentMemberId = id
+        body.innerHTML = `
+          <div class="${m.avatarColor} h-16 w-16 rounded-full flex items-center justify-center mb-4 shadow-md">
+            <span class="text-2xl font-bold text-white">${esc(m.initials)}</span>
+          </div>
+          <h3 class="font-headings font-bold text-neutral-800 dark:text-neutral-100 text-lg mb-0.5">${esc(m.name)}</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-3">${esc(m.nationality)}</p>
+          <span class="inline-block text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-0.5 mb-4 ${STATUS_COLORS[m.status]??''}">${STATUS_LABELS[m.status]??m.status}</span>
+          <div class="space-y-2 text-sm text-neutral-600 dark:text-neutral-300 mb-4">
+            <p>${esc(m.destinationFlag)} <strong>${esc(m.destination)}</strong>${m.city ? ` · ${esc(m.city)}` : ''}</p>
+            <p>📚 ${esc(m.domain)}${m.programme ? ` — ${esc(m.programme)}` : ''}</p>
+            ${m.university ? `<p>🏛 ${esc(m.university)}</p>` : ''}
+          </div>
+          ${m.bio ? `<p class="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed mb-4">${esc(m.bio)}</p>` : ''}
+          <p class="text-xs text-neutral-400 border-t border-neutral-100 dark:border-neutral-800 pt-4 mt-4">Membre depuis ${new Date(m.joinedAt).toLocaleDateString('fr-FR', { month:'long', year:'numeric' })}</p>
+          <p class="text-xs mt-1 ${m.isVerified ? 'text-green-600' : 'text-amber-600'} member-verified-status">${m.isVerified ? '✓ Profil vérifié' : '⚠ Profil non vérifié — en attente de validation'}</p>
+        `
+        const verifyBtn = document.getElementById('btn-verify-member')
+        if (verifyBtn) verifyBtn.classList.toggle('hidden', m.isVerified)
+        panel.classList.remove('hidden')
+        panel.classList.add('flex')
+        overlay.classList.remove('hidden')
+        requestAnimationFrame(() => panel.classList.remove('translate-x-full'))
+        document.body.style.overflow = 'hidden'
+      }
+
+      function closePanel() {
+        panel.classList.add('translate-x-full')
+        setTimeout(() => {
+          panel.classList.add('hidden')
+          panel.classList.remove('flex')
+          overlay.classList.add('hidden')
+          document.body.style.overflow = ''
+        }, 300)
+      }
+
+      cards.forEach(c => c.addEventListener('click', () => openPanel(c.dataset.id!)))
+      closeBtn.addEventListener('click', closePanel)
+      overlay.addEventListener('click', closePanel)
+      document.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Escape') closePanel() })
+
+      document.getElementById('btn-verify-member')?.addEventListener('click', () => {
+        const m = MEMBERS.find(x => x.id === currentMemberId)
+        if (!m) return
+        if (confirm(`Vérifier et valider le profil de ${m.name} ?`)) {
+          m.isVerified = true
+          const statusEl = body.querySelector<HTMLElement>('.member-verified-status')
+          if (statusEl) {
+            statusEl.className = 'text-xs mt-1 text-green-600 member-verified-status'
+            statusEl.textContent = '✓ Profil vérifié'
+          }
+          document.getElementById('btn-verify-member')?.classList.add('hidden')
+          const card = document.querySelector<HTMLElement>(`.member-card[data-id="${currentMemberId}"]`)
+          if (card) {
+            const badge = card.querySelector('.member-unverified-badge')
+            badge?.remove()
+            const footerStatus = card.querySelector<HTMLElement>('.member-footer-status')
+            if (footerStatus) footerStatus.textContent = '✓ Vérifié'
+          }
+        }
+      })
+
+      function applyFilters() {
+        const q = searchInput?.value.trim().toLowerCase() ?? ''
+        const terms = q.split(/\s+/).filter(Boolean)
+        const dest = destFilter?.value ?? 'Toutes'
+        const dom = domainFilter?.value ?? 'Tous'
+        let visible = 0
+        cards.forEach(card => {
+          const ds = card.dataset
+          const show = (activeStatus === 'all' || ds.status === activeStatus) && (dest === 'Toutes' || ds.destination === dest) && (dom === 'Tous' || ds.domain === dom) && (terms.length === 0 || terms.every(t => (ds.search ?? '').includes(t)))
+          card.classList.toggle('hidden', !show)
+          if (show) visible++
+        })
+        if (countEl) countEl.innerHTML = `<span class="font-semibold text-neutral-600 dark:text-neutral-300">${visible}</span> membre${visible > 1 ? 's' : ''}`
+        noMembers?.classList.toggle('hidden', visible > 0)
+      }
+
+      statusBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeStatus = btn.dataset.statusFilter!
+          statusBtns.forEach(b => {
+            const on = b.dataset.statusFilter === activeStatus
+            b.classList.toggle('bg-primary-500', on); b.classList.toggle('border-primary-500', on); b.classList.toggle('text-white', on)
+            b.classList.toggle('bg-white', !on); b.classList.toggle('border-neutral-200', !on); b.classList.toggle('text-neutral-500', !on)
+            b.classList.toggle('hover:text-primary-600', !on); b.classList.toggle('hover:border-primary-300', !on)
+            b.classList.toggle('dark:bg-neutral-800', !on); b.classList.toggle('dark:border-neutral-700', !on); b.classList.toggle('dark:text-neutral-400', !on)
+            b.classList.toggle('dark:hover:text-primary-400', !on); b.classList.toggle('dark:hover:border-primary-700', !on)
+          })
+          applyFilters()
+        })
+      })
+      searchInput?.addEventListener('input', applyFilters)
+      destFilter?.addEventListener('change', applyFilters)
+      domainFilter?.addEventListener('change', applyFilters)
+      resetBtn?.addEventListener('click', () => {
+        if (searchInput) searchInput.value = ''
+        if (destFilter) destFilter.value = 'Toutes'
+        if (domainFilter) domainFilter.value = 'Tous'
+        activeStatus = 'all'
+        statusBtns.forEach(b => {
+          const on = b.dataset.statusFilter === 'all'
+          b.classList.toggle('bg-primary-500',on); b.classList.toggle('border-primary-500',on); b.classList.toggle('text-white',on)
+          b.classList.toggle('bg-white',!on); b.classList.toggle('border-neutral-200',!on); b.classList.toggle('text-neutral-500',!on)
+          b.classList.toggle('dark:bg-neutral-800',!on); b.classList.toggle('dark:border-neutral-700',!on); b.classList.toggle('dark:text-neutral-400',!on)
+        })
+        applyFilters()
+      })
+    })
+  </script>
+</DashboardLayout>

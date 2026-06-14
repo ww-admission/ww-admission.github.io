@@ -1,0 +1,456 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro'
+import Pagination from '../../components/ui/Pagination.astro'
+import {
+  MOCK_CONTACTS,
+  CONTACT_TYPE_LABELS,
+  CONTACT_TYPE_COLORS,
+  type Contact,
+  type ContactType,
+} from '../../lib/contacts-data'
+import { backendFetch } from '../../lib/auth'
+
+const session = Astro.locals.session!
+
+const page    = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10))
+const perPage = (() => {
+  const v = parseInt(Astro.url.searchParams.get('per_page') ?? '30', 10)
+  return [30, 50, 100].includes(v) ? v : 30
+})()
+
+let allContacts: Contact[] = []
+let meta = { total: 0, current_page: page, last_page: 1, per_page: perPage }
+let useMock = false
+
+try {
+  const resp = await backendFetch('/network/contacts', session)
+  if (resp.ok) {
+    const d = await resp.json()
+    allContacts = (d.data ?? d) as Contact[]
+    meta = {
+      total:        d.meta?.total ?? d.total ?? allContacts.length,
+      current_page: d.meta?.current_page ?? d.current_page ?? page,
+      last_page:    d.meta?.last_page ?? d.last_page ?? 1,
+      per_page:     d.meta?.per_page ?? d.per_page ?? perPage,
+    }
+  } else {
+    useMock = true
+  }
+} catch {
+  useMock = true
+}
+
+if (useMock) {
+  const mockFiltered = MOCK_CONTACTS.filter(c => c.isDefault || ['ref-001', 'school-001'].includes(c.id))
+  allContacts = mockFiltered
+  meta = {
+    total:        mockFiltered.length,
+    current_page: page,
+    last_page:    Math.max(1, Math.ceil(mockFiltered.length / perPage)),
+    per_page:     perPage,
+  }
+}
+
+const types = ['all', ...new Set(allContacts.map(c => c.type))] as ('all' | ContactType)[]
+const contacts = useMock ? allContacts.slice((page - 1) * perPage, page * perPage) : allContacts
+---
+
+<DashboardLayout title="Contacts" activeNav="contacts">
+  <div class="p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+
+    <!-- En-tête -->
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Mon réseau</p>
+      <h1 class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">Contacts</h1>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div class="relative">
+      <div class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1010 17.5a7.5 7.5 0 006.65-.85z"/>
+        </svg>
+      </div>
+      <input
+        id="contact-search"
+        type="text"
+        autocomplete="off"
+        placeholder="Rechercher un contact, une école, un conseiller…"
+        class="h-10 w-full rounded border border-neutral-200 bg-white pl-9 pr-4 text-sm text-neutral-700 placeholder-neutral-400 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder-neutral-500"
+      />
+    </div>
+
+    <!-- Filtres par type -->
+    <div class="flex flex-wrap gap-2" id="type-filters">
+      {types.map(t => (
+        <button
+          data-filter={t}
+          class={`contact-filter-btn inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
+            t === 'all'
+              ? 'bg-primary-500 border-primary-500 text-white'
+              : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary-300 hover:text-primary-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400'
+          }`}
+        >
+          {t === 'all' ? 'Tous' : CONTACT_TYPE_LABELS[t as ContactType]}
+        </button>
+      ))}
+    </div>
+
+    <!-- Grille de contacts -->
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" id="contacts-grid">
+      {contacts.map((c) => (
+        <div
+          class="contact-card group relative flex flex-col bg-white border border-neutral-100 rounded overflow-hidden cursor-pointer hover:border-primary-200 hover:shadow-sm transition-all dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-primary-700"
+          data-id={c.id}
+          data-type={c.type}
+          data-search={[c.name, c.role, c.email, c.location ?? '', c.type, CONTACT_TYPE_LABELS[c.type]].join(' ').toLowerCase()}
+        >
+          {c.isDefault && (
+            <div class="h-1 bg-primary-500"></div>
+          )}
+          <div class="p-5 flex flex-col gap-4 flex-1">
+
+            <!-- Header -->
+            <div class="flex items-start gap-3">
+              <div class={`h-11 w-11 rounded-full ${c.avatarColor} flex items-center justify-center shrink-0 shadow-sm`}>
+                <span class="text-sm font-bold text-white">{c.initials}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                  <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-100 truncate">{c.name}</p>
+                  {c.isDefault && (
+                    <span class="text-[9px] font-bold uppercase tracking-wide rounded-full bg-primary-100 text-primary-600 dark:bg-primary-950 dark:text-primary-400 px-1.5 py-0.5 shrink-0">Officiel</span>
+                  )}
+                </div>
+                <p class="text-xs text-neutral-400 truncate">{c.role}</p>
+              </div>
+            </div>
+
+            <!-- Badge type -->
+            <div>
+              <span class={`inline-flex items-center text-[10px] font-bold uppercase tracking-wide rounded-full border px-2 py-0.5 ${CONTACT_TYPE_COLORS[c.type]}`}>
+                {CONTACT_TYPE_LABELS[c.type]}
+              </span>
+            </div>
+
+            <!-- Infos -->
+            <div class="space-y-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+              {c.location && (
+                <div class="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                  <span class="truncate">{c.location}</span>
+                </div>
+              )}
+              {c.availability && (
+                <div class="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span class="truncate">{c.availability}</span>
+                </div>
+              )}
+            </div>
+
+            <!-- Tags spécialisations (2 max) -->
+            {c.specializations && c.specializations.length > 0 && (
+              <div class="flex flex-wrap gap-1">
+                {c.specializations.slice(0, 3).map(s => (
+                  <span class="text-[10px] rounded bg-neutral-50 border border-neutral-100 px-2 py-0.5 text-neutral-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400">{s}</span>
+                ))}
+                {c.specializations.length > 3 && (
+                  <span class="text-[10px] rounded bg-neutral-50 border border-neutral-100 px-2 py-0.5 text-neutral-400 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-500">+{c.specializations.length - 3}</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <!-- Actions -->
+          <div class="shrink-0 border-t border-neutral-100 px-5 py-3 flex items-center gap-3 bg-neutral-50/50 dark:bg-neutral-800/40 dark:border-neutral-800">
+            <button
+              class="contact-detail-btn flex-1 text-xs font-semibold text-neutral-500 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-400 transition-colors text-left"
+              data-id={c.id}
+            >
+              Voir la fiche →
+            </button>
+            <a
+              href={`mailto:${c.email}`}
+              class="inline-flex items-center justify-center h-7 w-7 rounded border border-neutral-200 bg-white text-neutral-400 hover:border-primary-300 hover:text-primary-600 transition-all dark:bg-neutral-800 dark:border-neutral-700 dark:hover:border-primary-700 dark:hover:text-primary-400"
+              title={`Envoyer un email à ${c.name}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+            </a>
+            {c.conversationId && (
+              <a
+                href={`/dashboard/messages`}
+                class="inline-flex items-center justify-center h-7 w-7 rounded border border-neutral-200 bg-white text-neutral-400 hover:border-primary-300 hover:text-primary-600 transition-all dark:bg-neutral-800 dark:border-neutral-700 dark:hover:border-primary-700 dark:hover:text-primary-400"
+                title="Voir la conversation"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Aucun résultat -->
+    <div id="no-contacts" class="hidden py-16 text-center">
+      <p class="text-sm font-medium text-neutral-500 dark:text-neutral-400">Aucun contact trouvé</p>
+      <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Essayez d'autres mots-clés</p>
+    </div>
+
+    <!-- Pagination -->
+    <Pagination
+      currentPage={meta.current_page}
+      lastPage={meta.last_page}
+      total={meta.total}
+      perPage={meta.per_page}
+      baseUrl={Astro.url}
+    />
+
+  </div>
+
+  <!-- ── Modale détail contact ─────────────────────────────────────── -->
+  <div
+    id="contact-panel"
+    class="hidden fixed inset-0 z-40 items-center justify-center p-4 sm:p-6 bg-neutral-900/40 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="contact-modal-title"
+  >
+    <!-- Carte modale animée -->
+    <div
+      id="contact-modal-card"
+      class="w-full max-w-2xl max-h-[88vh] flex flex-col rounded-xl border border-neutral-100 bg-white shadow-2xl shadow-neutral-900/20 overflow-hidden transition-all duration-200 opacity-0 scale-95 dark:bg-neutral-900 dark:border-neutral-800 dark:shadow-neutral-950/60"
+    >
+      <div class="shrink-0 flex items-center justify-between px-6 py-4 border-b border-neutral-100 dark:border-neutral-800">
+        <h2 id="contact-modal-title" class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Fiche contact</h2>
+        <button id="panel-close" class="h-8 w-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 transition-all" aria-label="Fermer">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="panel-content" class="flex-1 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- Injection des données via window global — fiable avec le bundler Astro -->
+  <script is:inline define:vars={{ contactsForClient: allContacts }}>
+    window.__CONTACTS_DATA__ = contactsForClient
+  </script>
+
+  <script>
+    import type { Contact } from '../../lib/contacts-data'
+
+    const ALL_CONTACTS: Contact[] = (window as any).__CONTACTS_DATA__ ?? []
+
+    function esc(s: string) {
+      return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    // ── Filtres + recherche ───────────────────────────────────────────
+    document.addEventListener('astro:page-load', () => {
+      const searchInput = document.getElementById('contact-search') as HTMLInputElement | null
+      const filterBtns  = document.querySelectorAll<HTMLButtonElement>('.contact-filter-btn')
+      const cards       = document.querySelectorAll<HTMLElement>('.contact-card')
+      const noResults   = document.getElementById('no-contacts')
+      let activeFilter  = 'all'
+
+      function refresh() {
+        const q = searchInput?.value.trim().toLowerCase() ?? ''
+        const terms = q.split(/\s+/).filter(Boolean)
+        let visible = 0
+        cards.forEach(card => {
+          const typeMatch   = activeFilter === 'all' || card.dataset.type === activeFilter
+          const searchMatch = terms.length === 0 || terms.every(t => (card.dataset.search ?? '').includes(t))
+          const show = typeMatch && searchMatch
+          card.classList.toggle('hidden', !show)
+          if (show) visible++
+        })
+        noResults?.classList.toggle('hidden', visible > 0)
+      }
+
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeFilter = btn.dataset.filter!
+          filterBtns.forEach(b => {
+            const active = b.dataset.filter === activeFilter
+            b.classList.toggle('bg-primary-500',           active)
+            b.classList.toggle('border-primary-500',       active)
+            b.classList.toggle('text-white',               active)
+            b.classList.toggle('bg-white',                 !active)
+            b.classList.toggle('dark:bg-neutral-800',      !active)
+            b.classList.toggle('border-neutral-200',       !active)
+            b.classList.toggle('dark:border-neutral-700',  !active)
+            b.classList.toggle('text-neutral-500',         !active)
+            b.classList.toggle('dark:text-neutral-400',    !active)
+            b.classList.toggle('hover:text-primary-600',   !active)
+            b.classList.toggle('hover:border-primary-300', !active)
+            b.classList.toggle('dark:hover:border-primary-700', !active)
+            b.classList.toggle('dark:hover:text-primary-400',   !active)
+          })
+          refresh()
+        })
+      })
+      searchInput?.addEventListener('input', refresh)
+
+      // ── Modale détail ─────────────────────────────────────────────
+      const panel    = document.getElementById('contact-panel')!
+      const card     = document.getElementById('contact-modal-card')!
+      const content  = document.getElementById('panel-content')!
+      const closeBtn = document.getElementById('panel-close')!
+
+      function openPanel(id: string) {
+        const c = ALL_CONTACTS.find(x => x.id === id)
+        if (!c || !panel) return
+        content.innerHTML = renderDetail(c)
+        panel.classList.remove('hidden')
+        panel.classList.add('flex')
+        document.body.style.overflow = 'hidden'
+        requestAnimationFrame(() => {
+          card.classList.remove('opacity-0', 'scale-95')
+          card.classList.add('opacity-100', 'scale-100')
+        })
+      }
+
+      function closePanel() {
+        card.classList.remove('opacity-100', 'scale-100')
+        card.classList.add('opacity-0', 'scale-95')
+        setTimeout(() => {
+          panel.classList.add('hidden')
+          panel.classList.remove('flex')
+          document.body.style.overflow = ''
+        }, 200)
+      }
+
+      document.querySelectorAll<HTMLButtonElement>('.contact-detail-btn').forEach(btn => {
+        btn.addEventListener('click', () => openPanel(btn.dataset.id!))
+      })
+      document.querySelectorAll<HTMLElement>('.contact-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('a, button.contact-detail-btn')) return
+          openPanel(card.dataset.id!)
+        })
+      })
+
+      closeBtn.addEventListener('click', closePanel)
+      panel.addEventListener('click', (e: MouseEvent) => { if (e.target === panel) closePanel() })
+      document.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') closePanel()
+      })
+    })
+
+    function renderDetail(c: Contact): string {
+      const CTYPE_LABELS: Record<string, string> = {
+        wwa_team: 'Équipe WWA', referent: 'Référent', school: 'École / Université',
+        company: 'Cabinet / Entreprise', advisor: 'Conseiller', personal: 'Contact personnel'
+      }
+      const CTYPE_COLORS: Record<string, string> = {
+        wwa_team: 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300',
+        referent: 'bg-gold-100 text-gold-800 dark:bg-gold-900/40 dark:text-gold-300',
+        school:   'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+        company:  'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+        advisor:  'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+        personal: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+      }
+      const langs  = (c.languages ?? []).join(' · ') || '—'
+      const specs  = (c.specializations ?? []).map(s => `<span class="text-[10px] rounded bg-neutral-50 border border-neutral-100 px-2 py-1 text-neutral-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400">${esc(s)}</span>`).join('')
+
+      return `
+        <!-- Profil -->
+        <div class="p-6 border-b border-neutral-100 dark:border-neutral-800">
+          <div class="flex items-center gap-4 mb-5">
+            <div class="${c.avatarColor} h-16 w-16 rounded-full flex items-center justify-center shrink-0 shadow-md">
+              <span class="text-xl font-bold text-white">${esc(c.initials)}</span>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <h3 class="font-headings font-bold text-neutral-800 dark:text-neutral-100 text-base">${esc(c.name)}</h3>
+                ${c.isDefault ? '<span class="text-[9px] font-bold uppercase tracking-wide rounded-full bg-primary-100 text-primary-600 dark:bg-primary-950 dark:text-primary-400 px-1.5 py-0.5">Officiel</span>' : ''}
+              </div>
+              <p class="text-sm text-neutral-500 dark:text-neutral-400">${esc(c.role)}</p>
+              <span class="${CTYPE_COLORS[c.type] ?? ''} mt-1.5 inline-block text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-0.5">
+                ${CTYPE_LABELS[c.type] ?? c.type}
+              </span>
+            </div>
+          </div>
+
+          <!-- Actions rapides -->
+          <div class="flex gap-2">
+            <a href="mailto:${esc(c.email)}" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-600 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400 dark:hover:bg-primary-950">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              Email
+            </a>
+            ${c.phone ? `<a href="tel:${esc(c.phone)}" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-600 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400 dark:hover:bg-primary-950">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+              Appeler
+            </a>` : ''}
+            ${c.conversationId ? `<a href="/dashboard/messages" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded bg-primary-500 px-3 py-2 text-xs font-bold text-white hover:text-white hover:bg-primary-600 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              Messages
+            </a>` : ''}
+          </div>
+        </div>
+
+        <!-- Coordonnées -->
+        <div class="p-6 border-b border-neutral-100 dark:border-neutral-800 space-y-3">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Coordonnées</h4>
+          <div class="space-y-2.5">
+            <div class="flex items-center gap-2.5 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              <a href="mailto:${esc(c.email)}" class="text-primary-500 hover:underline truncate">${esc(c.email)}</a>
+            </div>
+            ${c.phone ? `<div class="flex items-center gap-2.5 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+              <a href="tel:${esc(c.phone)}" class="text-neutral-600 dark:text-neutral-300">${esc(c.phone)}</a>
+            </div>` : ''}
+            ${c.location ? `<div class="flex items-center gap-2.5 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              <span class="text-neutral-600 dark:text-neutral-300">${esc(c.location)}</span>
+            </div>` : ''}
+            ${c.website ? `<div class="flex items-center gap-2.5 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+              <a href="${esc(c.website)}" target="_blank" rel="noopener" class="text-primary-500 hover:underline truncate">${esc(c.website.replace('https://', ''))}</a>
+            </div>` : ''}
+            ${c.availability ? `<div class="flex items-center gap-2.5 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-neutral-600 dark:text-neutral-300">${esc(c.availability)}</span>
+            </div>` : ''}
+            ${c.languages ? `<div class="flex items-center gap-2.5 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+              <span class="text-neutral-600 dark:text-neutral-300">${esc(langs)}</span>
+            </div>` : ''}
+          </div>
+        </div>
+
+        ${c.bio ? `<!-- Bio -->
+        <div class="p-6 border-b border-neutral-100 dark:border-neutral-800 space-y-3">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">À propos</h4>
+          <p class="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">${esc(c.bio)}</p>
+        </div>` : ''}
+
+        ${c.specializations && c.specializations.length > 0 ? `<!-- Spécialisations -->
+        <div class="p-6 border-b border-neutral-100 dark:border-neutral-800 space-y-3">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Spécialisations</h4>
+          <div class="flex flex-wrap gap-1.5">${specs}</div>
+        </div>` : ''}
+
+        ${c.tags && c.tags.length > 0 ? `<!-- Tags -->
+        <div class="p-6 space-y-3">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Tags</h4>
+          <div class="flex flex-wrap gap-1.5">
+            ${(c.tags ?? []).map(t => `<span class="text-[10px] rounded-full bg-neutral-100 text-neutral-500 px-2.5 py-1 dark:bg-neutral-800 dark:text-neutral-400">${esc(t)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+      `
+    }
+  </script>
+
+</DashboardLayout>

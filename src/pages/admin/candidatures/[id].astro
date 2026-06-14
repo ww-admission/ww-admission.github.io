@@ -1,259 +1,260 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro'
-import {
-  MOCK_CANDIDATURES,
-  MOCK_CONVERSATIONS,
-  MOCK_MESSAGES,
-  STATUS_LABELS,
-  STATUS_COLORS,
-  formatDate,
-  formatDateTime,
-  type CandidatureStatus,
-} from '../../../lib/mock-data'
+import AttachmentList from '../../../components/ui/AttachmentList.astro'
+import DiscussionOffcanvas from '../../../components/blocks/DiscussionOffcanvas.astro'
+import { STATUS_LABELS, STATUS_COLORS, type CandidatureStatus } from '../../../lib/mock-data'
+import { backendFetch } from '../../../lib/auth'
 
-export function getStaticPaths() {
-  return MOCK_CANDIDATURES.map(c => ({ params: { id: c.id } }))
-}
+const session = Astro.locals.session!
+const { id }  = Astro.params
 
-const { id } = Astro.params
-const candidature = MOCK_CANDIDATURES.find(c => c.id === id)!
-const conversation = MOCK_CONVERSATIONS.find(c => c.candidatureId === id)
-const messages = conversation ? (MOCK_MESSAGES[conversation.id] ?? []) : []
+const resp = await backendFetch(`/candidatures/${id}`, session)
+if (!resp.ok) return Astro.redirect('/admin/candidatures')
+
+const candidature  = await resp.json()
+const personalInfo = candidature.personalInfo  ?? {}
+const academicInfo = candidature.academicInfo  ?? {}
+const attachments  = candidature.attachments   ?? []
+
+let conversationId: number | null = null
+try {
+  const convResp = await backendFetch('/conversations', session)
+  if (convResp.ok) {
+    const convs: any[] = await convResp.json()
+    conversationId = convs.find((c: any) => String(c.candidatureId) === String(candidature.id))?.id ?? null
+  }
+} catch {}
 
 const ALL_STATUSES: CandidatureStatus[] = ['pending', 'reviewing', 'on_hold', 'accepted', 'rejected']
+
+function fmtDt(iso: string) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+type InfoRow = [string, string | undefined | null]
+const personalRows: InfoRow[] = [
+  ['Prénom',            personalInfo.prenom],
+  ['Nom',               personalInfo.nom],
+  ['Date de naissance', personalInfo.dateNaissance],
+  ['Nationalité',       personalInfo.nationalite],
+  ['Email',             candidature.candidateEmail],
+  ['Téléphone',         candidature.candidatePhone],
+  ['Pays de résidence', personalInfo.paysResidence],
+]
+const academicRows: InfoRow[] = [
+  ['Niveau actuel',  academicInfo.niveauEtude],
+  ['Établissement',  academicInfo.etablissement],
+  ['Spécialité',     academicInfo.specialite],
+  ['Moyenne / 20',   academicInfo.moyenne],
+  ['Niveau visé',    candidature.niveauVise],
+  ['Destination',    candidature.destination],
+  ['Programme',      candidature.programme],
+]
 ---
 
 <DashboardLayout title={`Candidature — ${candidature.candidateName}`} activeNav="candidatures">
-  <div class="p-6 max-w-5xl mx-auto space-y-6">
+
+  <DiscussionOffcanvas
+    candidatureId={candidature.id}
+    conversationId={conversationId}
+    role="admin"
+  />
+
+  <div class="p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
 
     <!-- Breadcrumb -->
-    <div class="flex items-center gap-2 text-sm text-neutral-400">
-      <a href="/admin/candidatures" class="hover:text-primary-500 transition">Candidatures</a>
-      <span>/</span>
-      <span class="text-neutral-700">{candidature.candidateName}</span>
-    </div>
+    <nav class="flex items-center gap-2 text-xs text-neutral-400">
+      <a href="/admin/candidatures" class="hover:text-primary-500 transition-colors font-medium">Candidatures</a>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+      </svg>
+      <span class="text-neutral-600 dark:text-neutral-300 font-medium">{candidature.candidateName}</span>
+    </nav>
 
-    <!-- En-tête candidature -->
-    <div class="bg-white rounded-xl border border-neutral-100 p-6">
-      <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-        <div class="h-14 w-14 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 text-xl font-bold text-neutral-600">
-          {candidature.candidateName.charAt(0)}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex flex-wrap items-center gap-3 mb-1">
-            <h1 class="text-xl font-headings font-semibold text-neutral-700">{candidature.candidateName}</h1>
-            <span class={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[candidature.status as CandidatureStatus]}`}>
-              {STATUS_LABELS[candidature.status as CandidatureStatus]}
-            </span>
+    <!-- ── Carte candidat ──────────────────────────────────────────── -->
+    <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+      <!-- Bandeau coloré en haut -->
+      <div class="h-1.5 bg-primary-500"></div>
+
+      <div class="p-6">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+
+          <!-- Avatar + identité -->
+          <div class="flex items-center gap-4">
+            <div class="h-14 w-14 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+              <span class="text-xl font-bold text-white">{(candidature.candidateName ?? '?').charAt(0)}</span>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <h1 class="font-headings text-xl font-bold text-neutral-800 dark:text-neutral-100">{candidature.candidateName}</h1>
+                <span
+                  id="status-badge"
+                  class={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLORS[candidature.status as CandidatureStatus] ?? 'bg-neutral-100 text-neutral-600'}`}
+                >
+                  {STATUS_LABELS[candidature.status as CandidatureStatus] ?? candidature.status}
+                </span>
+              </div>
+              <p class="text-sm text-neutral-500 dark:text-neutral-400">{candidature.candidateEmail}</p>
+              <p class="text-xs text-neutral-400 mt-0.5">Soumis le {fmtDt(candidature.submittedAt)} · <span class="font-medium text-neutral-600 dark:text-neutral-300">{candidature.destination}</span></p>
+            </div>
           </div>
-          <p class="text-sm text-neutral-500">{candidature.candidateEmail} · {candidature.candidatePhone}</p>
-          <p class="text-sm text-neutral-400 mt-1">
-            Soumis le {formatDateTime(candidature.submittedAt)} ·
-            <span class="font-medium text-neutral-600">{candidature.destination}</span> ·
-            {candidature.programme}
-          </p>
-        </div>
-        <!-- Changer statut -->
-        <div class="shrink-0">
-          <form id="status-form" class="flex gap-2 items-center">
-            <select
-              id="status-select"
-              name="status"
-              class="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
-            >
-              {ALL_STATUSES.map(s => (
-                <option value={s} selected={s === candidature.status}>
-                  {STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
+
+          <!-- Actions -->
+          <div class="sm:ml-auto flex flex-wrap items-center gap-2">
+            <!-- Changer statut -->
+            <form id="status-form" class="flex items-center gap-2">
+              <select
+                id="status-select"
+                name="status"
+                class="h-9 rounded border border-neutral-200 bg-white px-3 text-sm text-neutral-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:focus:border-amber-500"
+              >
+                {ALL_STATUSES.map(s => (
+                  <option value={s} selected={s === candidature.status}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                class="h-9 rounded bg-primary-500 px-4 text-sm font-semibold text-white hover:bg-primary-600 transition-colors"
+              >
+                Enregistrer
+              </button>
+            </form>
+
+            <!-- Discussion -->
             <button
-              type="submit"
-              class="rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition"
+              data-open-discussion
+              class="h-9 inline-flex items-center gap-2 rounded border border-neutral-200 px-3 text-sm font-medium text-neutral-600 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-primary-700 dark:hover:bg-primary-950 dark:hover:text-primary-400"
             >
-              Enregistrer
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              Discussion
+              {candidature.comments?.length > 0 && (
+                <span class="h-5 min-w-[20px] rounded-full bg-primary-500 flex items-center justify-center px-1.5 text-[10px] font-bold text-white">
+                  {candidature.comments.length}
+                </span>
+              )}
             </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- ── Grille infos ─────────────────────────────────────────────── -->
     <div class="grid lg:grid-cols-2 gap-6">
+
       <!-- Infos personnelles -->
-      <div class="bg-white rounded-xl border border-neutral-100 p-5">
-        <h2 class="text-sm font-semibold text-neutral-700 mb-4">Informations personnelles</h2>
-        <dl class="space-y-2.5">
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Date de naissance</dt>
-            <dd class="text-sm text-neutral-700">{formatDate(candidature.personalInfo.dateNaissance)}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Nationalité</dt>
-            <dd class="text-sm text-neutral-700">{candidature.personalInfo.nationalite}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Ville / Pays</dt>
-            <dd class="text-sm text-neutral-700">{candidature.personalInfo.ville}, {candidature.personalInfo.pays}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Situation</dt>
-            <dd class="text-sm text-neutral-700">{candidature.personalInfo.situationFamiliale}</dd>
-          </div>
+      <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+        <div class="px-5 py-4 border-b border-neutral-50 flex items-center gap-2 dark:border-neutral-800">
+          <div class="h-6 w-1 rounded-full bg-primary-500"></div>
+          <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Informations personnelles</h2>
+        </div>
+        <dl>
+          {personalRows.map(([label, val], i) => (
+            <div class={`flex items-baseline gap-3 px-5 py-2 border-b border-neutral-100 last:border-0 dark:border-neutral-800 ${i % 2 === 0 ? 'bg-white dark:bg-neutral-900' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}>
+              <dt class="w-36 shrink-0 text-xs text-neutral-400">{label}</dt>
+              <dd class="text-sm text-neutral-700 dark:text-neutral-200 font-medium">{val || '—'}</dd>
+            </div>
+          ))}
         </dl>
       </div>
 
       <!-- Infos académiques -->
-      <div class="bg-white rounded-xl border border-neutral-100 p-5">
-        <h2 class="text-sm font-semibold text-neutral-700 mb-4">Parcours académique</h2>
-        <dl class="space-y-2.5">
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Niveau actuel</dt>
-            <dd class="text-sm text-neutral-700">{candidature.academicInfo.niveauActuel}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Établissement</dt>
-            <dd class="text-sm text-neutral-700">{candidature.academicInfo.etablissement}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Spécialité</dt>
-            <dd class="text-sm text-neutral-700">{candidature.academicInfo.specialite}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Moyenne</dt>
-            <dd class="text-sm text-neutral-700">{candidature.academicInfo.moyenne}/20</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="text-xs text-neutral-400 w-32 shrink-0">Langues</dt>
-            <dd class="text-sm text-neutral-700">{candidature.academicInfo.langues.join(', ')}</dd>
-          </div>
-        </dl>
-      </div>
-
-      <!-- Documents -->
-      <div class="bg-white rounded-xl border border-neutral-100 p-5">
-        <h2 class="text-sm font-semibold text-neutral-700 mb-4">Documents fournis</h2>
-        {candidature.documents.length === 0 ? (
-          <p class="text-sm text-neutral-400">Aucun document</p>
-        ) : (
-          <ul class="space-y-2">
-            {candidature.documents.map(doc => (
-              <li class="flex items-center gap-3 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <span class="text-neutral-700">{doc.originalName}</span>
-                <span class="text-neutral-400 text-xs">({doc.name})</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p class="text-xs text-neutral-400 mt-3 italic">
-          Les vrais fichiers seront disponibles après l'intégration du backend Laravel.
-        </p>
-      </div>
-
-      <!-- Commentaires admin -->
-      <div class="bg-white rounded-xl border border-neutral-100 p-5">
-        <h2 class="text-sm font-semibold text-neutral-700 mb-4">Commentaires internes</h2>
-        {candidature.comments.length === 0 ? (
-          <p class="text-sm text-neutral-400 mb-4">Aucun commentaire</p>
-        ) : (
-          <div class="space-y-3 mb-4">
-            {candidature.comments.map(comment => (
-              <div class="rounded-lg bg-neutral-50 p-3">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs font-semibold text-neutral-700">{comment.authorName}</span>
-                  <span class="text-xs text-neutral-400">{formatDateTime(comment.createdAt)}</span>
-                </div>
-                <p class="text-sm text-neutral-600">{comment.content}</p>
-              </div>
-            ))}
-          </div>
-        )}
-        <textarea
-          id="new-comment"
-          rows={3}
-          placeholder="Ajouter un commentaire interne…"
-          class="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 resize-none transition"
-        ></textarea>
-        <button
-          id="add-comment-btn"
-          class="mt-2 rounded-lg bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition"
-        >
-          Ajouter
-        </button>
-      </div>
-    </div>
-
-    <!-- Messagerie avec le candidat -->
-    <div class="bg-white rounded-xl border border-neutral-100 p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-neutral-700">Messagerie avec {candidature.candidateName}</h2>
-        {conversation && (
-          <a href="/admin/messages" class="text-xs text-primary-500 hover:text-primary-600 transition">Voir toutes les discussions →</a>
-        )}
-      </div>
-
-      {messages.length === 0 ? (
-        <p class="text-sm text-neutral-400 text-center py-8">Aucun message. Commencez la conversation !</p>
-      ) : (
-        <div class="space-y-3 mb-4 max-h-64 overflow-y-auto">
-          {messages.map(msg => (
-            <div class={`flex ${msg.senderRole === 'admin' ? 'justify-end' : 'justify-start'}`}>
-              <div class={`max-w-[70%] rounded-xl px-4 py-2.5 ${
-                msg.senderRole === 'admin'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-neutral-100 text-neutral-700'
-              }`}>
-                <p class="text-sm">{msg.content}</p>
-                <p class={`text-xs mt-1 ${msg.senderRole === 'admin' ? 'text-primary-200' : 'text-neutral-400'}`}>
-                  {formatDateTime(msg.createdAt)}
-                </p>
-              </div>
+      <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+        <div class="px-5 py-4 border-b border-neutral-50 flex items-center gap-2 dark:border-neutral-800">
+          <div class="h-6 w-1 rounded-full bg-gold-500"></div>
+          <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Parcours académique</h2>
+        </div>
+        <dl>
+          {academicRows.map(([label, val], i) => (
+            <div class={`flex items-baseline gap-3 px-5 py-2 border-b border-neutral-100 last:border-0 dark:border-neutral-800 ${i % 2 === 0 ? 'bg-white dark:bg-neutral-900' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}>
+              <dt class="w-36 shrink-0 text-xs text-neutral-400">{label}</dt>
+              <dd class="text-sm text-neutral-700 dark:text-neutral-200 font-medium">{val || '—'}</dd>
             </div>
           ))}
-        </div>
-      )}
-
-      <div class="flex gap-2">
-        <input
-          id="message-input"
-          type="text"
-          placeholder="Écrire un message…"
-          class="flex-1 rounded-lg border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
-        />
-        <button
-          id="send-message-btn"
-          class="rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 transition"
-        >
-          Envoyer
-        </button>
+        </dl>
       </div>
     </div>
+
+    <!-- ── Pièces jointes ───────────────────────────────────────────── -->
+    <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+      <div class="px-5 py-4 border-b border-neutral-50 flex items-center justify-between dark:border-neutral-800">
+        <div class="flex items-center gap-2">
+          <div class="h-6 w-1 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>
+          <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Pièces jointes</h2>
+        </div>
+        {attachments.length > 0 && (
+          <span class="text-xs text-neutral-400 font-medium">{attachments.length} fichier{attachments.length > 1 ? 's' : ''}</span>
+        )}
+      </div>
+      <div class="p-5">
+        <AttachmentList attachments={attachments} canDelete={true} />
+      </div>
+    </div>
+
+    <!-- ── Commentaires (aperçu) ────────────────────────────────────── -->
+    {candidature.comments?.length > 0 && (
+      <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+        <div class="px-5 py-4 border-b border-neutral-50 flex items-center justify-between dark:border-neutral-800">
+          <div class="flex items-center gap-2">
+            <div class="h-6 w-1 rounded-full bg-gold-500"></div>
+            <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">
+              Notes internes <span class="text-neutral-400 font-normal">({candidature.comments.length})</span>
+            </h2>
+          </div>
+          <button data-open-discussion class="text-xs font-semibold text-primary-500 hover:text-primary-600 transition-colors">
+            Voir tout →
+          </button>
+        </div>
+        <div>
+          {candidature.comments.slice(0, 2).map((c: any, i: number) => (
+            <div class={`px-5 py-3 border-b border-neutral-100 last:border-0 dark:border-neutral-800 ${i % 2 === 0 ? 'bg-white dark:bg-neutral-900' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}>
+              <div class="flex items-center gap-2 mb-2">
+                <div class="h-6 w-6 rounded-full bg-gold-100 flex items-center justify-center shrink-0 dark:bg-gold-900/40">
+                  <span class="text-[10px] font-bold text-gold-700 dark:text-gold-400">{c.authorName?.charAt(0)?.toUpperCase()}</span>
+                </div>
+                <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300">{c.authorName}</span>
+                <span class="ml-auto text-xs text-neutral-400">{new Date(c.createdAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' })}</span>
+              </div>
+              <p class="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed pl-8 line-clamp-2">{c.content}</p>
+            </div>
+          ))}
+          {candidature.comments.length > 2 && (
+            <div class="px-5 py-3">
+              <button data-open-discussion class="text-xs text-neutral-400 hover:text-primary-500 transition-colors">
+                + {candidature.comments.length - 2} autre{candidature.comments.length > 3 ? 's' : ''} commentaire{candidature.comments.length > 3 ? 's' : ''} →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
   </div>
 
-  <script>
-    const statusForm = document.getElementById('status-form')
-    statusForm?.addEventListener('submit', (e) => {
-      e.preventDefault()
-      // TODO: appeler l'API backend pour changer le statut
-      alert('Fonctionnalité disponible après intégration du backend Laravel.')
-    })
+  <script is:inline define:vars={{ candidatureId: candidature.id, STATUS_LABELS, STATUS_COLORS }}>
+    document.addEventListener('astro:page-load', function () {
+      var form   = document.getElementById('status-form')
+      var select = document.getElementById('status-select')
+      var badge  = document.getElementById('status-badge')
 
-    const commentBtn = document.getElementById('add-comment-btn')
-    commentBtn?.addEventListener('click', () => {
-      const textarea = document.getElementById('new-comment') as HTMLTextAreaElement
-      if (!textarea.value.trim()) return
-      // TODO: appeler l'API backend pour ajouter le commentaire
-      alert('Fonctionnalité disponible après intégration du backend Laravel.')
-    })
+      form && form.addEventListener('submit', async function (e) {
+        e.preventDefault()
+        var newStatus = select && select.value
+        if (!newStatus) return
 
-    const sendBtn = document.getElementById('send-message-btn')
-    sendBtn?.addEventListener('click', () => {
-      const input = document.getElementById('message-input') as HTMLInputElement
-      if (!input.value.trim()) return
-      // TODO: appeler l'API backend pour envoyer le message
-      alert('Fonctionnalité disponible après intégration du backend Laravel.')
+        var resp = await fetch('/api/candidatures/' + candidatureId, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ status: newStatus }),
+        })
+
+        if (resp.ok && badge) {
+          badge.textContent = STATUS_LABELS[newStatus] || newStatus
+          var colCls = STATUS_COLORS[newStatus] || 'bg-neutral-100 text-neutral-600'
+          badge.className = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + colCls
+        }
+      })
     })
   </script>
 </DashboardLayout>

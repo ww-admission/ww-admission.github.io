@@ -1,150 +1,771 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro'
-import {
-  MOCK_CONVERSATIONS,
-  MOCK_MESSAGES,
-  formatDateTime,
-} from '../../lib/mock-data'
-
-
-
-// Conversation active gérée côté client (window.location.search)
-const activeId = MOCK_CONVERSATIONS[0]?.id
-const activeConv = MOCK_CONVERSATIONS[0]
-const messages = activeId ? (MOCK_MESSAGES[activeId] ?? []) : []
+import DoodleBackground from '../../components/DoodleBackground.astro'
 ---
 
 <DashboardLayout title="Messages" activeNav="messages">
-  <div class="flex h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
+  <div class="flex h-full overflow-hidden" id="messages-page">
 
-    <!-- Liste des conversations -->
-    <aside class="w-72 bg-white border-r border-neutral-100 flex flex-col shrink-0 hidden sm:flex">
-      <div class="p-4 border-b border-neutral-50">
-        <h2 class="text-sm font-semibold text-neutral-700">Conversations</h2>
+    <!-- ── Liste des conversations ────────────────────────────────── -->
+    <aside class="hidden sm:flex w-72 shrink-0 flex-col bg-white border-r border-neutral-100 dark:bg-neutral-900 dark:border-neutral-800">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-50 dark:border-neutral-800">
+        <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Conversations</h2>
+        <span id="conv-count" class="text-xs text-neutral-400"></span>
       </div>
-      <div class="flex-1 overflow-y-auto divide-y divide-neutral-50">
-        {MOCK_CONVERSATIONS.map(conv => (
-          <a
-            href={`/admin/messages?conv=${conv.id}`}
-            class={`flex items-start gap-3 p-4 hover:bg-neutral-50 transition ${conv.id === activeId ? 'bg-primary-50/50' : ''}`}
-          >
-            <div class="h-9 w-9 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 text-sm font-semibold text-neutral-600">
-              {conv.candidateName.charAt(0)}
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center justify-between">
-                <p class={`text-sm font-medium truncate ${conv.id === activeId ? 'text-primary-600' : 'text-neutral-700'}`}>
-                  {conv.candidateName}
-                </p>
-                {conv.unreadCount > 0 && (
-                  <span class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-xs font-bold text-white shrink-0">
-                    {conv.unreadCount}
-                  </span>
-                )}
-              </div>
-              {conv.lastMessage && (
-                <p class="text-xs text-neutral-400 truncate mt-0.5">{conv.lastMessage.content}</p>
-              )}
-              {conv.lastMessage && (
-                <p class="text-xs text-neutral-300 mt-0.5">{formatDateTime(conv.lastMessage.createdAt)}</p>
-              )}
-            </div>
-          </a>
-        ))}
+      <div class="flex-1 overflow-y-auto" id="conv-list">
+        <!-- Loading -->
+        <div class="flex items-center justify-center py-10" id="conv-loading">
+          <div class="h-5 w-5 border-2 border-primary-100 border-t-primary-500 rounded-full animate-spin"></div>
+        </div>
       </div>
     </aside>
 
-    <!-- Zone de conversation -->
-    <div class="flex-1 flex flex-col min-w-0">
-      {!activeConv ? (
-        <div class="flex-1 flex items-center justify-center text-neutral-400">
-          <div class="text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-            </svg>
-            <p class="text-sm">Sélectionnez une conversation</p>
-          </div>
+    <!-- ── Zone de conversation ────────────────────────────────────── -->
+    <div class="flex flex-1 flex-col min-w-0 bg-neutral-50 dark:bg-neutral-950">
+
+      <!-- État vide -->
+      <div id="conv-empty" class="flex-1 flex flex-col items-center justify-center text-center p-8">
+        <div class="h-14 w-14 rounded-full bg-white border border-neutral-100 flex items-center justify-center mb-4 shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
         </div>
-      ) : (
-        <>
-          <!-- En-tête conversation -->
-          <div class="flex items-center gap-3 px-5 h-14 bg-white border-b border-neutral-100 shrink-0">
-            <div class="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-sm font-semibold text-neutral-600 shrink-0">
-              {activeConv.candidateName.charAt(0)}
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-neutral-700">{activeConv.candidateName}</p>
-              <p class="text-xs text-neutral-400">{activeConv.candidateEmail}</p>
-            </div>
-            {activeConv.candidatureId && (
-              <a
-                href={`/admin/candidatures/${activeConv.candidatureId}`}
-                class="ml-auto text-xs font-medium text-primary-500 hover:text-primary-600 transition whitespace-nowrap"
-              >
-                Voir la candidature →
-              </a>
-            )}
-          </div>
+        <p class="text-sm font-medium text-neutral-500">Sélectionnez une conversation</p>
+        <p class="text-xs text-neutral-400 mt-1">Les messages apparaîtront ici</p>
+      </div>
 
-          <!-- Messages -->
-          <div class="flex-1 overflow-y-auto p-5 space-y-3" id="messages-container">
-            {messages.map(msg => (
-              <div class={`flex ${msg.senderRole === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                <div class={`max-w-[70%] rounded-xl px-4 py-2.5 ${
-                  msg.senderRole === 'admin'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-white border border-neutral-100 text-neutral-700'
-                }`}>
-                  <p class="text-sm leading-relaxed">{msg.content}</p>
-                  <p class={`text-xs mt-1.5 ${msg.senderRole === 'admin' ? 'text-primary-200' : 'text-neutral-400'}`}>
-                    {formatDateTime(msg.createdAt)}
-                  </p>
-                </div>
+      <!-- Conversation active -->
+      <div id="conv-active" class="hidden flex-col flex-1 min-h-0">
+
+        <!-- Header -->
+        <div class="flex items-center gap-3 px-5 h-14 bg-white border-b border-neutral-100 shrink-0 dark:bg-neutral-900 dark:border-neutral-800">
+          <div id="conv-avatar" class="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+            <span class="text-sm font-bold text-white" id="conv-avatar-letter"></span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p id="conv-name"  class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate"></p>
+            <p id="conv-email" class="text-xs text-neutral-400 truncate"></p>
+          </div>
+          <a id="conv-cand-link" href="#" class="hidden items-center gap-1 text-xs font-semibold text-primary-500 hover:text-primary-600 transition-colors whitespace-nowrap">
+            Voir le dossier
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </div>
+
+        <!-- Wrapper contenu -->
+        <div id="conv-content" class="relative flex flex-col flex-1 min-h-0">
+          <DoodleBackground />
+
+          <!-- Zone vide : spacers 36/64 → hint + compose centrés à 36 % = 14 % au-dessus du centre -->
+          <div id="conv-empty-area" class="hidden flex-1 flex-col items-center z-10">
+            <div class="flex-[36]"></div>
+            <div id="conv-start-hint" class="flex flex-col items-center gap-3 p-7 mx-5 text-center bg-white dark:bg-neutral-950 rounded-2xl border border-neutral-100 dark:border-neutral-800 shadow-sm w-full max-w-md">
+              <div class="h-12 w-12 rounded-full bg-primary-50 dark:bg-primary-950 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 9h8M8 13h6M9 18H6a3 3 0 01-3-3V7a3 3 0 013-3h12a3 3 0 013 3v8a3 3 0 01-3 3h-3l-3 3-3-3z"/>
+                </svg>
               </div>
-            ))}
+              <div>
+                <p class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Aucun message pour l'instant</p>
+                <p class="text-xs text-neutral-400 mt-1">Envoyez un premier message pour démarrer la conversation avec <span id="hint-name" class="font-medium text-neutral-500 dark:text-neutral-300"></span>.</p>
+              </div>
+            </div>
+
+            <!-- Saisie (positionnée ici en état vide, déplacée en bas par setConvLayout quand messages) -->
+            <div id="compose-area" class="relative z-10 shrink-0 w-full max-w-md px-4 pb-4 mt-3">
+
+            <!-- Chips fichiers sélectionnés -->
+            <div id="file-preview" class="hidden flex-wrap gap-2 mb-2"></div>
+
+            <div id="compose-inner" class="relative flex items-end gap-2 rounded-xl border border-neutral-200 bg-white dark:bg-neutral-900 dark:border-neutral-700 shadow-sm overflow-visible">
+
+              <!-- Dropdown pièces jointes -->
+              <div id="attach-menu" class="hidden absolute bottom-full left-0 mb-2 w-52 bg-white dark:bg-neutral-800 rounded-xl shadow-lg border border-neutral-100 dark:border-neutral-700 overflow-hidden z-20">
+                <label for="file-input" class="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 cursor-pointer transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                  </svg>
+                  Pièce jointe
+                </label>
+                <label for="image-input" class="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 cursor-pointer transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  Image
+                </label>
+                <input id="file-input"  type="file" class="hidden" multiple/>
+                <input id="image-input" type="file" class="hidden" accept="image/*" multiple/>
+              </div>
+
+              <!-- Bouton + -->
+              <div class="shrink-0 self-end px-2 pb-2">
+                <button id="attach-btn" type="button" class="h-8 w-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                  </svg>
+                </button>
+              </div>
+
+              <textarea
+                id="message-input"
+                rows={1}
+                placeholder="Écrire un message…"
+                class="flex-1 resize-none bg-transparent py-3 text-sm text-neutral-700 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-200 dark:placeholder:text-neutral-500 max-h-32"
+              ></textarea>
+
+              <div class="shrink-0 self-end px-2 pb-2">
+                <button
+                  id="send-btn"
+                  disabled
+                  class="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center text-white hover:bg-primary-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            </div><!-- /compose-area -->
+            <div class="flex-[64]"></div>
+          </div><!-- /conv-empty-area -->
+
+          <!-- Zone messages (cachée quand vide) -->
+          <div id="messages-zone" class="hidden flex-col flex-1 min-h-0 w-full">
+            <div class="flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5 space-y-4" id="messages-container"></div>
           </div>
 
-          <!-- Zone de saisie -->
-          <div class="border-t border-neutral-100 bg-white p-4">
-            <div class="flex gap-2">
-              <input
-                id="message-input"
-                type="text"
-                placeholder="Écrire un message…"
-                class="flex-1 rounded-lg border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition"
-              />
-              <button
-                id="send-btn"
-                class="rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 transition"
-              >
-                Envoyer
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Overlay prévisualisation plein écran ───────────────────────── -->
+  <div id="preview-overlay" class="hidden fixed inset-0 z-[9999] bg-black/90" role="dialog" aria-modal="true">
+
+    <!-- Spinner chargement -->
+    <div id="preview-loading" class="absolute inset-0 hidden items-center justify-center z-20">
+      <div class="h-9 w-9 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+    </div>
+
+    <!-- Barre supérieure -->
+    <div class="absolute top-0 inset-x-0 z-10 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
+      <p id="preview-name" class="flex-1 text-sm font-medium text-white truncate"></p>
+      <p id="preview-size-top" class="shrink-0 text-xs text-white/50"></p>
+      <button id="preview-download" title="Télécharger"
+        class="pointer-events-auto h-9 w-9 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+      </button>
+      <button id="preview-close" title="Fermer (Échap)"
+        class="pointer-events-auto h-9 w-9 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Zone de contenu (cliquable à l'extérieur pour fermer) -->
+    <div id="preview-body" class="absolute inset-0 flex items-center justify-center pt-16 pb-4 px-4">
+
+      <!-- Image -->
+      <img id="preview-img" class="hidden max-w-full max-h-full object-contain rounded-md shadow-2xl select-none" alt=""/>
+
+      <!-- PDF -->
+      <iframe id="preview-pdf" class="hidden rounded-md shadow-2xl bg-white" title="Aperçu PDF"
+        style="width:min(92vw,900px);height:min(88vh,900px)"></iframe>
+
+      <!-- Vidéo -->
+      <video id="preview-video" class="hidden max-w-full max-h-full rounded-md shadow-2xl" controls preload="metadata"></video>
+
+      <!-- Audio -->
+      <div id="preview-audio-wrap" class="hidden flex-col items-center gap-5 p-10 rounded-2xl bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+        </svg>
+        <audio id="preview-audio" controls class="w-72"></audio>
+      </div>
+
+      <!-- Générique (doc, zip, xlsx…) -->
+      <div id="preview-generic" class="hidden flex-col items-center gap-4 p-10 rounded-2xl bg-white/10 text-center">
+        <div class="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <p id="preview-generic-name" class="text-white font-semibold text-sm max-w-xs break-all"></p>
+        <p id="preview-generic-size" class="text-white/50 text-xs"></p>
+        <button id="preview-generic-dl"
+          class="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-5 py-2.5 text-sm font-semibold text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Télécharger
+        </button>
+      </div>
+
     </div>
   </div>
 
   <script>
-    const sendBtn = document.getElementById('send-btn')
-    const input = document.getElementById('message-input') as HTMLInputElement
+    document.addEventListener('astro:page-load', async () => {
+      const convListEl  = document.getElementById('conv-list')
+      const emptyEl     = document.getElementById('conv-empty')
+      const activeEl    = document.getElementById('conv-active')
+      const countEl     = document.getElementById('conv-count')
+      const loadingEl   = document.getElementById('conv-loading')
+      if (!convListEl) return
 
-    sendBtn?.addEventListener('click', () => {
-      if (!input?.value.trim()) return
-      // TODO: appeler l'API backend
-      alert('Messagerie disponible après intégration du backend Laravel.')
-    })
+      let activeConvId: number | null = null
+      let conversations: any[]        = []
+      let echoChannel: any            = null
 
-    input?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        sendBtn?.click()
+      // ── Charger les conversations ──────────────────────────────────
+      async function loadConversations() {
+        try {
+          const resp = await fetch('/api/conversations')
+          if (!resp.ok) return
+          conversations = await resp.json()
+          loadingEl?.remove()
+          if (countEl) countEl.textContent = `${conversations.length}`
+          renderConvList()
+          const urlConvId = parseInt(new URLSearchParams(location.search).get('conv') ?? '0')
+          const firstId   = urlConvId || conversations[0]?.id
+          if (firstId) selectConversation(firstId)
+        } catch {}
       }
-    })
 
-    // Scroll en bas
-    const container = document.getElementById('messages-container')
-    if (container) container.scrollTop = container.scrollHeight
+      function renderConvList() {
+        if (conversations.length === 0) {
+          convListEl!.innerHTML = '<p class="px-5 py-8 text-xs text-center text-neutral-400">Aucune conversation</p>'
+          return
+        }
+        convListEl!.innerHTML = conversations.map(c => `
+          <button
+            class="conv-item w-full flex items-start gap-3 px-4 py-3.5 border-b border-l-2 border-neutral-50 border-l-transparent hover:bg-neutral-50 hover:border-l-neutral-200 transition-colors text-left dark:border-neutral-800 dark:hover:bg-neutral-800 dark:hover:border-l-neutral-700"
+            data-id="${c.id}"
+          >
+            <div class="h-9 w-9 rounded-full bg-primary-50 flex items-center justify-center shrink-0 mt-0.5 dark:bg-primary-950">
+              <span class="text-sm font-bold text-primary-500 dark:text-primary-400">${escHtml(c.candidateName.charAt(0))}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate">${escHtml(c.candidateName)}</p>
+                ${c.unreadCount > 0 ? `<span class="shrink-0 h-5 min-w-[20px] rounded-full bg-primary-500 flex items-center justify-center px-1.5 text-[10px] font-bold text-white">${c.unreadCount}</span>` : ''}
+              </div>
+              ${c.lastMessage ? `<p class="text-xs text-neutral-400 truncate mt-0.5">${escHtml(c.lastMessage.content)}</p>` : ''}
+              ${c.lastMessage ? `<p class="text-[10px] text-neutral-300 dark:text-neutral-600 mt-0.5">${fmtDate(c.lastMessage.createdAt)}</p>` : ''}
+            </div>
+          </button>
+        `).join('')
+
+        document.querySelectorAll<HTMLButtonElement>('.conv-item').forEach(btn => {
+          btn.addEventListener('click', () => selectConversation(parseInt(btn.dataset.id!)))
+        })
+      }
+
+      // ── Sélectionner une conversation ──────────────────────────────
+      async function selectConversation(id: number) {
+        activeConvId = id
+        const conv   = conversations.find(c => c.id === id)
+        if (!conv) return
+
+        document.querySelectorAll('.conv-item').forEach(el => {
+          const active = parseInt((el as HTMLElement).dataset.id!) === id
+          el.classList.toggle('bg-primary-50', active)
+          el.classList.toggle('dark:bg-primary-950', active)
+          el.classList.toggle('border-l-transparent', !active)
+          el.classList.toggle('border-l-primary-500', active)
+          el.classList.toggle('hover:border-l-neutral-200', !active)
+          el.classList.toggle('dark:hover:border-l-neutral-700', !active)
+        })
+
+        const avatarLetter = document.getElementById('conv-avatar-letter')!
+        avatarLetter.textContent = conv.candidateName.charAt(0)
+        document.getElementById('conv-name')!.textContent  = conv.candidateName
+        document.getElementById('conv-email')!.textContent = conv.candidateEmail
+        const hintName = document.getElementById('hint-name')
+        if (hintName) hintName.textContent = conv.candidateName
+        const candLink = document.getElementById('conv-cand-link') as HTMLAnchorElement
+        if (conv.candidatureId) {
+          candLink.href = `/admin/candidatures/${conv.candidatureId}`
+          candLink.classList.remove('hidden')
+          candLink.classList.add('flex')
+        } else {
+          candLink.classList.add('hidden')
+        }
+
+        emptyEl!.classList.remove('flex')
+        emptyEl!.classList.add('hidden')
+        activeEl!.classList.remove('hidden')
+        activeEl!.classList.add('flex')
+
+        await loadMessages(id)
+        history.replaceState(null, '', `?conv=${id}`)
+        subscribeToConversation(id)
+      }
+
+      // ── Layout vide / actif ─────────────────────────────────────────
+      function setConvLayout(hasMessages: boolean) {
+        const content   = document.getElementById('conv-content')!
+        const emptyArea = document.getElementById('conv-empty-area')!
+        const hint      = document.getElementById('conv-start-hint')!
+        const zone      = document.getElementById('messages-zone')!
+        const compose   = document.getElementById('compose-area')!
+
+        if (hasMessages) {
+          emptyArea.classList.add('hidden'); emptyArea.classList.remove('flex')
+          zone.classList.remove('hidden'); zone.classList.add('flex')
+          // Déplacer compose en bas de conv-content (après messages-zone)
+          content.appendChild(compose)
+          compose.classList.remove('max-w-md', 'px-4', 'pb-4', 'mt-3')
+          compose.classList.add('px-5', 'pb-3')
+        } else {
+          emptyArea.classList.remove('hidden'); emptyArea.classList.add('flex')
+          zone.classList.add('hidden'); zone.classList.remove('flex')
+          // Remettre compose directement après le hint (à l'intérieur de conv-empty-area)
+          hint.insertAdjacentElement('afterend', compose)
+          compose.classList.remove('px-5', 'pb-3')
+          compose.classList.add('max-w-md', 'px-4', 'pb-4', 'mt-3')
+        }
+      }
+
+      // ── Charger les messages ────────────────────────────────────────
+      async function loadMessages(convId: number) {
+        const container = document.getElementById('messages-container')!
+        container.innerHTML = `<div class="flex justify-center py-6"><div class="h-5 w-5 border-2 border-primary-100 border-t-primary-500 rounded-full animate-spin"></div></div>`
+        setConvLayout(true)
+        try {
+          const resp = await fetch(`/api/conversations/${convId}/messages`)
+          if (!resp.ok) { setConvLayout(false); return }
+          const messages: any[] = await resp.json()
+          if (messages.length === 0) {
+            container.innerHTML = ''
+            setConvLayout(false)
+          } else {
+            container.innerHTML = messages.map(renderMessage).join('')
+            setConvLayout(true)
+            loadAuthImages()
+          }
+          container.scrollTop = container.scrollHeight
+        } catch {}
+      }
+
+      // ── Rendu attachments ────────────────────────────────────────────
+      function renderAttachments(attachments: any[], isAdmin: boolean): string {
+        if (!attachments?.length) return ''
+        return attachments.map((a: any) => {
+          const pAttrs = `data-preview-url="${a.previewUrl}" data-preview-download="${a.downloadUrl}" data-preview-filename="${escHtml(a.originalName)}" data-preview-mime="${escHtml(a.mimeType ?? '')}" data-preview-is-image="${a.isImage}" data-preview-size="${escHtml(a.humanSize ?? '')}"`
+          if (a.isImage) {
+            return `
+              <div class="mt-1.5 rounded-xl overflow-hidden cursor-pointer group relative max-w-[78vw] sm:max-w-xs" ${pAttrs}>
+                <img data-auth-src="${a.previewUrl}"
+                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+                     class="w-full max-h-60 object-cover bg-neutral-100 dark:bg-neutral-800 group-hover:opacity-75 transition-opacity"
+                     alt="${escHtml(a.originalName)}"/>
+                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div class="h-10 w-10 rounded-full bg-black/50 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-black/20 dark:bg-black/40 text-[10px] text-white">
+                  <span class="truncate">${escHtml(a.originalName)}</span>
+                  <span class="shrink-0 opacity-70">${a.humanSize}</span>
+                </div>
+              </div>`
+          }
+          return `
+            <div class="flex items-center gap-3 mt-1.5 px-3 py-2.5 rounded-xl border
+                        ${isAdmin ? 'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800/60 dark:bg-primary-950 dark:text-primary-200' : 'border-neutral-200 bg-white dark:bg-neutral-800 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200'}
+                        cursor-pointer hover:opacity-80 transition-opacity max-w-[78vw] sm:max-w-xs" ${pAttrs}>
+              <div class="h-9 w-9 rounded-lg ${isAdmin ? 'bg-primary-100 dark:bg-primary-900' : 'bg-primary-50 dark:bg-primary-950'} flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary-500 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-medium truncate">${escHtml(a.originalName)}</p>
+                <p class="text-[10px] opacity-60 mt-0.5">${a.humanSize}</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </div>`
+        }).join('')
+      }
+
+      function renderMessage(msg: any): string {
+        const isAdmin      = msg.senderRole === 'admin'
+        const hasContent   = msg.content?.trim().length > 0
+        const attachments  = msg.attachments || []
+        const bubbleBg     = isAdmin
+          ? 'bg-primary-500 text-white'
+          : 'bg-white border border-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200'
+
+        return `
+          <div class="flex ${isAdmin ? 'justify-end' : 'justify-start'} gap-2.5 items-end" data-msg-id="${msg.id}">
+            ${!isAdmin ? `<div class="h-7 w-7 rounded-full bg-neutral-200 flex items-center justify-center shrink-0 mb-0.5 dark:bg-neutral-700"><span class="text-xs font-bold text-neutral-500 dark:text-neutral-300">${escHtml(msg.senderName.charAt(0))}</span></div>` : ''}
+            <div class="max-w-[85%] sm:max-w-[68%]">
+              ${!isAdmin ? `<p class="text-[10px] text-neutral-400 mb-1 ml-0.5">${escHtml(msg.senderName)}</p>` : ''}
+              ${hasContent ? `<div class="rounded-xl px-3.5 py-2.5 ${bubbleBg}"><p class="text-sm leading-relaxed whitespace-pre-wrap">${escHtml(msg.content)}</p></div>` : ''}
+              ${renderAttachments(attachments, isAdmin)}
+              <div class="flex items-center gap-1.5 mt-1 ${isAdmin ? 'justify-end' : ''}">
+                <p class="text-[10px] text-neutral-400">${fmtDate(msg.createdAt)}</p>
+                ${isAdmin ? `<span class="text-[10px] ${msg.read ? 'text-primary-400' : 'text-neutral-300'}">${msg.read ? '✓✓' : '✓'}</span>` : ''}
+              </div>
+            </div>
+          </div>`
+      }
+
+      // Charge les images avec auth token
+      async function loadAuthImages() {
+        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        if (!s?.token) return
+        document.querySelectorAll<HTMLImageElement>('[data-auth-src]:not([data-auth-loaded])').forEach(async img => {
+          img.dataset.authLoaded = '1'
+          try {
+            const r = await fetch(img.dataset.authSrc!, { headers: { Authorization: `Bearer ${s.token}` } })
+            if (r.ok) img.src = URL.createObjectURL(await r.blob())
+          } catch {}
+        })
+      }
+
+      // Télécharger un fichier avec auth
+      async function downloadWithAuth(url: string, filename: string) {
+        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        if (!s?.token) return
+        try {
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${s.token}` } })
+          if (!r.ok) return
+          const blob = await r.blob()
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(blob)
+          a.download = filename
+          a.click()
+        } catch {}
+      }
+
+      // ── Overlay prévisualisation ──────────────────────────────────────
+      interface AttachmentRef {
+        previewUrl: string; downloadUrl: string; filename: string
+        mimeType: string; isImage: boolean; humanSize: string
+      }
+      let currentPreview: AttachmentRef | null = null
+      let previewBlobUrl = ''
+
+      const OVERLAY_PANELS = ['preview-img', 'preview-pdf', 'preview-video', 'preview-audio-wrap', 'preview-generic']
+
+      function hidePanels() {
+        OVERLAY_PANELS.forEach(id => {
+          const el = document.getElementById(id)!
+          el.classList.add('hidden'); el.classList.remove('flex')
+        })
+      }
+      function showPanel(id: string) {
+        const el = document.getElementById(id)!
+        el.classList.remove('hidden')
+        if (id === 'preview-audio-wrap' || id === 'preview-generic') el.classList.add('flex')
+      }
+
+      function openPreview(att: AttachmentRef) {
+        currentPreview = att
+        const overlay   = document.getElementById('preview-overlay')!
+        const loadingEl = document.getElementById('preview-loading')!
+        document.getElementById('preview-name')!.textContent        = att.filename
+        document.getElementById('preview-size-top')!.textContent    = att.humanSize
+        document.getElementById('preview-generic-name')!.textContent= att.filename
+        document.getElementById('preview-generic-size')!.textContent= att.humanSize
+
+        hidePanels()
+        loadingEl.classList.remove('hidden'); loadingEl.classList.add('flex')
+        overlay.classList.remove('hidden')
+        document.body.style.overflow = 'hidden'
+
+        if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); previewBlobUrl = '' }
+
+        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        const headers: Record<string, string> = s?.token ? { Authorization: `Bearer ${s.token}` } : {}
+
+        fetch(att.previewUrl, { headers })
+          .then(async r => {
+            loadingEl.classList.add('hidden'); loadingEl.classList.remove('flex')
+            if (!r.ok) { showPanel('preview-generic'); return }
+            const blob = await r.blob()
+            previewBlobUrl = URL.createObjectURL(blob)
+            const mime = (att.mimeType ?? '').toLowerCase()
+            if (att.isImage) {
+              ;(document.getElementById('preview-img') as HTMLImageElement).src = previewBlobUrl
+              showPanel('preview-img')
+            } else if (mime === 'application/pdf') {
+              ;(document.getElementById('preview-pdf') as HTMLIFrameElement).src = previewBlobUrl
+              showPanel('preview-pdf')
+            } else if (mime.startsWith('video/')) {
+              ;(document.getElementById('preview-video') as HTMLVideoElement).src = previewBlobUrl
+              showPanel('preview-video')
+            } else if (mime.startsWith('audio/')) {
+              ;(document.getElementById('preview-audio') as HTMLAudioElement).src = previewBlobUrl
+              showPanel('preview-audio-wrap')
+            } else {
+              showPanel('preview-generic')
+            }
+          })
+          .catch(() => {
+            loadingEl.classList.add('hidden'); loadingEl.classList.remove('flex')
+            showPanel('preview-generic')
+          })
+      }
+
+      function closePreview() {
+        document.getElementById('preview-overlay')!.classList.add('hidden')
+        document.body.style.overflow = ''
+        try { (document.getElementById('preview-video') as HTMLVideoElement).pause() } catch {}
+        try { (document.getElementById('preview-audio') as HTMLAudioElement).pause() } catch {}
+        if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); previewBlobUrl = '' }
+      }
+
+      document.getElementById('preview-close')?.addEventListener('click', closePreview)
+      document.getElementById('preview-download')?.addEventListener('click', () => {
+        if (currentPreview) downloadWithAuth(currentPreview.downloadUrl, currentPreview.filename)
+      })
+      document.getElementById('preview-generic-dl')?.addEventListener('click', () => {
+        if (currentPreview) downloadWithAuth(currentPreview.downloadUrl, currentPreview.filename)
+      })
+      document.getElementById('preview-body')?.addEventListener('click', e => {
+        if (e.target === e.currentTarget) closePreview()
+      })
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !document.getElementById('preview-overlay')!.classList.contains('hidden')) closePreview()
+      })
+
+      // Clic sur pièce jointe → ouvrir prévisualisation
+      document.getElementById('messages-container')?.addEventListener('click', e => {
+        const el = (e.target as Element).closest('[data-preview-url]') as HTMLElement | null
+        if (!el) return
+        openPreview({
+          previewUrl:  el.dataset.previewUrl!,
+          downloadUrl: el.dataset.previewDownload!,
+          filename:    el.dataset.previewFilename!,
+          mimeType:    el.dataset.previewMime ?? '',
+          isImage:     el.dataset.previewIsImage === 'true',
+          humanSize:   el.dataset.previewSize ?? '',
+        })
+      })
+
+      function appendMessage(msg: any) {
+        const container = document.getElementById('messages-container')!
+        const isFirst   = container.children.length === 0
+        if (isFirst) setConvLayout(true)
+        const div = document.createElement('div')
+        div.innerHTML = renderMessage(msg)
+        container.appendChild(div.firstElementChild!)
+        container.scrollTop = container.scrollHeight
+        loadAuthImages()
+      }
+
+      // ── Fichiers sélectionnés ────────────────────────────────────────
+      let selectedFiles: File[] = []
+      const filePreviewEl  = document.getElementById('file-preview')    as HTMLDivElement
+      const fileInput      = document.getElementById('file-input')      as HTMLInputElement
+      const imageInput     = document.getElementById('image-input')     as HTMLInputElement
+
+      function addFiles(list: FileList) {
+        selectedFiles = [...selectedFiles, ...Array.from(list)].slice(0, 5)
+        renderFilePreview()
+        updateSendState()
+        attachMenu?.classList.add('hidden')
+      }
+
+      function removeFile(idx: number) {
+        selectedFiles.splice(idx, 1)
+        renderFilePreview()
+        updateSendState()
+      }
+
+      function renderFilePreview() {
+        if (!selectedFiles.length) { filePreviewEl.classList.add('hidden'); filePreviewEl.innerHTML = ''; return }
+        filePreviewEl.classList.remove('hidden')
+        filePreviewEl.classList.add('flex')
+        filePreviewEl.innerHTML = selectedFiles.map((f, i) => {
+          const isImg = f.type.startsWith('image/')
+          const thumb = isImg
+            ? `<img src="${URL.createObjectURL(f)}" class="h-8 w-8 rounded object-cover shrink-0" alt=""/>`
+            : `<div class="h-8 w-8 rounded bg-primary-50 dark:bg-primary-950 flex items-center justify-center shrink-0">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+               </div>`
+          return `<div class="flex items-center gap-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1 text-xs text-neutral-600 dark:text-neutral-300">
+            ${thumb}
+            <span class="max-w-[100px] truncate">${escHtml(f.name)}</span>
+            <button data-remove="${i}" class="ml-0.5 text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors font-medium">×</button>
+          </div>`
+        }).join('')
+      }
+
+      filePreviewEl?.addEventListener('click', e => {
+        const btn = (e.target as Element).closest('[data-remove]') as HTMLElement | null
+        if (btn) removeFile(parseInt(btn.dataset.remove!))
+      })
+
+      fileInput?.addEventListener('change',  () => fileInput.files  && addFiles(fileInput.files))
+      imageInput?.addEventListener('change', () => imageInput.files && addFiles(imageInput.files))
+
+      function updateSendState() {
+        if (!sendBtn) return
+        sendBtn.disabled = input.value.trim() === '' && selectedFiles.length === 0
+      }
+
+      // ── Envoyer ─────────────────────────────────────────────────────
+      const input      = document.getElementById('message-input') as HTMLTextAreaElement
+      const sendBtn    = document.getElementById('send-btn')      as HTMLButtonElement
+      const attachBtn  = document.getElementById('attach-btn')    as HTMLButtonElement
+      const attachMenu = document.getElementById('attach-menu')   as HTMLDivElement
+
+      // Auto-grow textarea
+      input?.addEventListener('input', () => {
+        updateSendState()
+        input.style.height = 'auto'
+        input.style.height = Math.min(input.scrollHeight, 128) + 'px'
+      })
+      input?.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click() }
+      })
+
+      // Dropdown pièces jointes
+      attachBtn?.addEventListener('click', e => {
+        e.stopPropagation()
+        attachMenu?.classList.toggle('hidden')
+      })
+      document.addEventListener('click', () => attachMenu?.classList.add('hidden'))
+
+      sendBtn?.addEventListener('click', async () => {
+        const text = input.value.trim()
+        if ((!text && selectedFiles.length === 0) || !activeConvId) return
+
+        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        if (!s?.token) return
+
+        // Snapshot + reset immédiat pour l'UX
+        const snapshot  = [...selectedFiles]
+        const snapshotText = text
+        input.value      = ''
+        input.style.height = 'auto'
+        selectedFiles    = []
+        renderFilePreview()
+        updateSendState()
+        sendBtn.disabled = true
+        const icon = sendBtn.innerHTML
+        sendBtn.innerHTML = `<div class="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>`
+
+        try {
+          let body: FormData | string
+          const headers: Record<string, string> = { Authorization: `Bearer ${s.token}` }
+
+          if (snapshot.length > 0) {
+            const fd = new FormData()
+            if (snapshotText) fd.append('content', snapshotText)
+            snapshot.forEach(f => fd.append('files[]', f))
+            body = fd
+          } else {
+            body = JSON.stringify({ content: snapshotText })
+            headers['Content-Type'] = 'application/json'
+          }
+
+          const resp = await fetch(`/api/conversations/${activeConvId}/messages`, {
+            method: 'POST', headers, body,
+          })
+
+          if (resp.ok) {
+            const msg = await resp.json()
+            appendMessage(msg)
+            const conv = conversations.find(c => c.id === activeConvId)
+            if (conv) {
+              const preview = snapshotText || (snapshot[0] ? `[${snapshot[0].name}]` : '[Pièce jointe]')
+              conv.lastMessage = { content: preview, createdAt: new Date().toISOString(), senderRole: 'admin' }
+              renderConvList()
+            }
+          } else {
+            // Restaurer en cas d'erreur
+            input.value = snapshotText
+            selectedFiles = snapshot
+            renderFilePreview()
+          }
+        } catch {
+          input.value = snapshotText
+          selectedFiles = snapshot
+          renderFilePreview()
+        } finally {
+          sendBtn.innerHTML = icon
+          updateSendState()
+          input.focus()
+        }
+      })
+
+      // ── Echo ─────────────────────────────────────────────────────────
+      function subscribeToConversation(convId: number) {
+        echoChannel?.stopListening('.message.sent')
+        const echo = (window as any).__echoInstance
+        if (!echo) return
+        echoChannel = echo.private(`conversation.${convId}`)
+          .listen('.message.sent', (data: any) => {
+            if (data.senderRole !== 'admin') {
+              appendMessage(data)
+              fetch(`/api/conversations/${convId}/messages`) // marquer lus
+              document.dispatchEvent(new CustomEvent('wwa:new-notification'))
+            }
+          })
+          .listen('.message.read', (data: any) => {
+            data.messageIds?.forEach((id: number) => {
+              const el = document.querySelector(`[data-msg-id="${id}"] span.text-neutral-300`)
+              if (el) el.textContent = '✓✓'
+            })
+          })
+      }
+      document.addEventListener('wwa:echo-ready', () => { if (activeConvId) subscribeToConversation(activeConvId) })
+
+      // ── Polling fallback (si Echo/Reverb non connecté) ────────────────
+      // Vérifie les nouveaux messages toutes les 8 s uniquement quand Echo est absent
+      let lastPollAt   = new Date().toISOString()
+      let pollInterval: ReturnType<typeof setInterval> | null = null
+
+      function startPolling() {
+        if (pollInterval) return
+        pollInterval = setInterval(async () => {
+          const echo = (window as any).__echoInstance
+          if (echo?.connector?.pusher?.connection?.state === 'connected') return
+          if (!activeConvId) return
+          try {
+            const resp = await fetch(`/api/conversations/${activeConvId}/poll?since=${encodeURIComponent(lastPollAt)}`)
+            if (!resp.ok) return
+            const { newMessages } = await resp.json()
+            newMessages?.forEach((msg: any) => {
+              if (msg.senderRole !== 'admin' && !document.querySelector(`[data-msg-id="${msg.id}"]`)) {
+                appendMessage(msg)
+                document.dispatchEvent(new CustomEvent('wwa:new-notification'))
+              }
+            })
+            if (newMessages?.length) lastPollAt = new Date().toISOString()
+          } catch {}
+        }, 8000)
+      }
+
+      // ── Utils ─────────────────────────────────────────────────────────
+      function escHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+      function fmtDate(iso: string) {
+        const d = new Date(iso)
+        return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })
+      }
+
+      document.addEventListener('astro:before-swap', () => {
+        echoChannel?.stopListening('.message.sent')
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+      })
+      await loadConversations()
+      startPolling()
+    })
   </script>
 </DashboardLayout>

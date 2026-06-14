@@ -41,6 +41,10 @@
 		// Modals
 		function openModal(modal) {
 			if (modal && modal.classList.contains('modal')) {
+				// Ferme toutes les autres modals avant d'ouvrir la nouvelle
+				document.querySelectorAll('.modal.open').forEach(function (m) {
+					if (m !== modal) m.classList.remove('open')
+				})
 				modal.classList.add('open')
 			}
 		}

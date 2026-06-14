@@ -1,5 +1,6 @@
 export interface Session {
   sub: string              // email
+  uid: number              // ID numérique Laravel (pour canal Echo user.{uid})
   name: string
   role: 'admin' | 'candidate'
   exp: number              // unix timestamp (seconds)

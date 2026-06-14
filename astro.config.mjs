@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import vercel from "@astrojs/vercel";
 import partytown from "@astrojs/partytown";
 import tailwind from "@astrojs/tailwind";
 import icon from "astro-icon";
@@ -9,7 +10,8 @@ export default defineConfig({
   site: 'https://worldwise-admission.com',
   base: '/',
   outDir: 'dist',
-  output: 'static',
+  output: 'server',
+  adapter: vercel(),
   integrations: [
     tailwind(),
     icon(),

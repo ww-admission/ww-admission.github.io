@@ -21,6 +21,7 @@ declare namespace App {
   interface Locals {
     session: {
       sub: string
+      uid: number
       name: string
       role: 'admin' | 'candidate'
       exp: number

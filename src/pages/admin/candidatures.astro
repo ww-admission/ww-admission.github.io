@@ -1,136 +1,450 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro'
-import {
-  MOCK_CANDIDATURES,
-  STATUS_LABELS,
-  STATUS_COLORS,
-  formatDate,
-  type CandidatureStatus,
-} from '../../lib/mock-data'
+import Pagination from '../../components/ui/Pagination.astro'
+import { STATUS_LABELS, STATUS_COLORS, type CandidatureStatus } from '../../lib/mock-data'
+import { backendFetch } from '../../lib/auth'
 
-const filtered = MOCK_CANDIDATURES
+const session   = Astro.locals.session!
+const urlStatus = Astro.url.searchParams.get('status') ?? 'all'
+const page      = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10))
+const perPage   = (() => {
+  const v = parseInt(Astro.url.searchParams.get('per_page') ?? '30', 10)
+  return [30, 50, 100].includes(v) ? v : 30
+})()
+
+let candidatures: any[] = []
+let meta = { total: 0, current_page: page, last_page: 1, per_page: perPage }
+
+try {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+  if (urlStatus !== 'all') qs.set('status', urlStatus)
+  const resp = await backendFetch(`/candidatures?${qs}`, session)
+  if (resp.ok) {
+    const d = await resp.json()
+    candidatures = d.data ?? d
+    meta = {
+      total:        d.total        ?? candidatures.length,
+      current_page: d.current_page ?? page,
+      last_page:    d.last_page    ?? 1,
+      per_page:     d.per_page     ?? perPage,
+    }
+  }
+} catch {}
+
+const FILTERS = [
+  { key: 'all',       label: 'Toutes'     },
+  { key: 'pending',   label: 'En attente' },
+  { key: 'reviewing', label: 'En examen'  },
+  { key: 'accepted',  label: 'Acceptées'  },
+  { key: 'on_hold',   label: 'En suspens' },
+  { key: 'rejected',  label: 'Refusées'   },
+]
+
+function fmtDate(iso: string) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function searchVal(c: any): string {
+  return [c.candidateName, c.candidateEmail, c.destination, c.programme, c.status, STATUS_LABELS[c.status as CandidatureStatus] ?? ''].join(' ').toLowerCase()
+}
+
+const STATUS_ORDER: Record<string, number> = { pending: 0, reviewing: 1, accepted: 2, on_hold: 3, rejected: 4 }
 ---
 
 <DashboardLayout title="Candidatures" activeNav="candidatures">
-  <div class="p-6 max-w-7xl mx-auto space-y-5">
+  <div class="p-6 lg:p-8 max-w-6xl mx-auto space-y-5">
 
-    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+    <!-- En-tête -->
+    <div class="flex flex-col sm:flex-row sm:items-end gap-4">
       <div>
-        <h1 class="text-2xl font-headings font-semibold text-neutral-700">Candidatures</h1>
-        <p id="count-label" class="text-sm text-neutral-400 mt-0.5">{filtered.length} candidature{filtered.length !== 1 ? 's' : ''}</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Gestion</p>
+        <h1 class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">Candidatures</h1>
       </div>
+      <p class="text-sm text-neutral-400 sm:ml-auto">
+        <span class="font-semibold text-neutral-700 dark:text-neutral-200" id="cand-total">{meta.total}</span> dossier{meta.total !== 1 ? 's' : ''}
+      </p>
     </div>
 
-    <!-- Filtres statut -->
-    <div id="filter-bar" class="flex flex-wrap gap-2">
-      {(['all', 'pending', 'reviewing', 'accepted', 'rejected', 'on_hold'] as const).map(s => (
-        <button
-          type="button"
-          data-filter={s}
-          class="filter-btn rounded-full px-3.5 py-1.5 text-xs font-medium border transition bg-white text-neutral-600 border-neutral-200 hover:border-primary-300 hover:text-primary-600"
+    <!-- Barre de recherche avec suggestions -->
+    <div class="relative" id="cand-search-wrapper">
+      <div class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center z-10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1010 17.5a7.5 7.5 0 006.65-.85z"/>
+        </svg>
+      </div>
+      <input
+        id="cand-search"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Rechercher un candidat, une école, une université, une destination…"
+        class="h-10 w-full rounded border border-neutral-200 bg-white pl-9 pr-20 text-sm text-neutral-700 placeholder-neutral-400 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder-neutral-500 dark:focus:border-amber-500"
+      />
+      <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1.5">
+        <span id="cand-search-count" class="text-xs text-neutral-400 tabular-nums"></span>
+        <kbd class="hidden sm:flex h-5 items-center rounded border border-neutral-200 bg-neutral-50 px-1.5 font-mono text-[10px] text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500">/</kbd>
+      </div>
+
+      <!-- Dropdown suggestions -->
+      <div
+        id="cand-suggestions"
+        class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded border border-neutral-100 bg-white shadow-xl shadow-neutral-900/8 py-1 dark:bg-neutral-900 dark:border-neutral-800 dark:shadow-neutral-950/50"
+        role="listbox"
+        aria-label="Suggestions de recherche"
+      ></div>
+    </div>
+
+    <!-- Filtres par statut -->
+    <div class="flex flex-wrap gap-2">
+      {FILTERS.map(f => (
+        <a
+          href={`/admin/candidatures${f.key !== 'all' ? `?status=${f.key}` : ''}`}
+          class={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold border transition-all duration-200 ${
+            urlStatus === f.key
+              ? 'bg-primary-500 border-primary-500 text-white hover:text-white shadow-sm shadow-primary-200'
+              : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary-300 hover:text-primary-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400'
+          }`}
         >
-          {s === 'all' ? 'Toutes' : STATUS_LABELS[s as CandidatureStatus]}
-        </button>
+          {f.label}
+        </a>
       ))}
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-xl border border-neutral-100 overflow-hidden">
-      {filtered.length === 0 ? (
-        <div class="flex flex-col items-center justify-center py-16 text-neutral-400">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          <p class="text-sm">Aucune candidature pour ce filtre</p>
+    <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+      {candidatures.length === 0 ? (
+        <div class="flex flex-col items-center justify-center py-20 text-center">
+          <div class="h-12 w-12 rounded-full bg-neutral-50 flex items-center justify-center mb-4 dark:bg-neutral-800">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <p class="text-sm font-medium text-neutral-500">Aucun dossier pour ce filtre</p>
+          <p class="text-xs text-neutral-400 mt-1">Essayez un autre statut</p>
         </div>
       ) : (
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full">
             <thead>
-              <tr class="border-b border-neutral-50">
-                <th class="text-left text-xs font-semibold text-neutral-400 uppercase tracking-wide px-5 py-3.5">Candidat</th>
-                <th class="text-left text-xs font-semibold text-neutral-400 uppercase tracking-wide px-4 py-3.5 hidden sm:table-cell">Destination</th>
-                <th class="text-left text-xs font-semibold text-neutral-400 uppercase tracking-wide px-4 py-3.5 hidden md:table-cell">Programme</th>
-                <th class="text-left text-xs font-semibold text-neutral-400 uppercase tracking-wide px-4 py-3.5">Statut</th>
-                <th class="text-left text-xs font-semibold text-neutral-400 uppercase tracking-wide px-4 py-3.5 hidden lg:table-cell">Date</th>
-                <th class="px-4 py-3.5"></th>
+              <tr class="border-b border-neutral-100 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-800/30">
+                <th class="cand-sort-th cursor-pointer select-none px-5 py-3" data-col="name">
+                  <div class="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 hover:text-neutral-600 transition-colors group">
+                    Candidat <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="name">↕</span>
+                  </div>
+                </th>
+                <th class="cand-sort-th cursor-pointer select-none px-4 py-3 hidden sm:table-cell" data-col="destination">
+                  <div class="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 hover:text-neutral-600 transition-colors group">
+                    Destination <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="destination">↕</span>
+                  </div>
+                </th>
+                <th class="cand-sort-th cursor-pointer select-none px-4 py-3 hidden md:table-cell" data-col="programme">
+                  <div class="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 hover:text-neutral-600 transition-colors group">
+                    Programme <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="programme">↕</span>
+                  </div>
+                </th>
+                <th class="cand-sort-th cursor-pointer select-none px-4 py-3" data-col="status">
+                  <div class="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 hover:text-neutral-600 transition-colors group">
+                    Statut <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="status">↕</span>
+                  </div>
+                </th>
+                <th class="cand-sort-th cursor-pointer select-none px-4 py-3 hidden lg:table-cell" data-col="date">
+                  <div class="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 hover:text-neutral-600 transition-colors group">
+                    Date <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="date">↕</span>
+                  </div>
+                </th>
+                <th class="px-4 py-3 w-16"></th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-neutral-50">
-              {filtered.map(c => (
-                <tr data-status={c.status} class="hover:bg-neutral-50/60 transition">
-                  <td class="px-5 py-4">
+            <tbody id="cand-tbody">
+              {candidatures.map((c: any) => (
+                <tr
+                  class="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors group cand-row dark:border-neutral-800 dark:hover:bg-neutral-800"
+                  data-search={searchVal(c)}
+                  data-sort-name={(c.candidateName ?? '').toLowerCase()}
+                  data-sort-email={(c.candidateEmail ?? '').toLowerCase()}
+                  data-sort-destination={(c.destination ?? '').toLowerCase()}
+                  data-sort-programme={(c.programme ?? '').toLowerCase()}
+                  data-sort-status={String(STATUS_ORDER[c.status] ?? 99)}
+                  data-sort-date={c.submittedAt ?? ''}
+                  data-display-name={c.candidateName ?? ''}
+                  data-display-email={c.candidateEmail ?? ''}
+                  data-display-destination={c.destination ?? ''}
+                  data-display-programme={c.programme ?? ''}
+                >
+                  <td class="px-5 py-2.5">
                     <div class="flex items-center gap-3">
-                      <div class="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 text-xs font-semibold text-neutral-600">
-                        {c.candidateName.charAt(0)}
+                      <div class="h-7 w-7 rounded-full bg-primary-50 flex items-center justify-center shrink-0 dark:bg-primary-950">
+                        <span class="text-xs font-bold text-primary-500 dark:text-primary-400">{(c.candidateName ?? '?').charAt(0)}</span>
                       </div>
                       <div>
-                        <p class="font-medium text-neutral-700">{c.candidateName}</p>
+                        <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{c.candidateName}</p>
                         <p class="text-xs text-neutral-400">{c.candidateEmail}</p>
                       </div>
                     </div>
                   </td>
-                  <td class="px-4 py-4 hidden sm:table-cell text-neutral-600">{c.destination}</td>
-                  <td class="px-4 py-4 hidden md:table-cell text-neutral-600 max-w-[200px] truncate">{c.programme}</td>
-                  <td class="px-4 py-4">
-                    <span class={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[c.status as CandidatureStatus]}`}>
-                      {STATUS_LABELS[c.status as CandidatureStatus]}
+                  <td class="px-4 py-2.5 text-sm text-neutral-600 dark:text-neutral-300 hidden sm:table-cell">{c.destination}</td>
+                  <td class="px-4 py-2.5 text-sm text-neutral-400 dark:text-neutral-500 hidden md:table-cell">{c.programme}</td>
+                  <td class="px-4 py-2.5">
+                    <span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[c.status as CandidatureStatus] ?? 'bg-neutral-100 text-neutral-600'}`}>
+                      {STATUS_LABELS[c.status as CandidatureStatus] ?? c.status}
                     </span>
                   </td>
-                  <td class="px-4 py-4 hidden lg:table-cell text-neutral-400 text-xs">{formatDate(c.submittedAt)}</td>
-                  <td class="px-4 py-4">
+                  <td class="px-4 py-2.5 text-xs text-neutral-400 dark:text-neutral-500 hidden lg:table-cell">{fmtDate(c.submittedAt)}</td>
+                  <td class="px-4 py-2.5">
                     <a
                       href={`/admin/candidatures/${c.id}`}
-                      class="text-xs font-medium text-primary-500 hover:text-primary-600 transition whitespace-nowrap"
+                      class="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-primary-600 transition-colors"
                     >
-                      Voir →
+                      Voir
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                      </svg>
                     </a>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          <!-- Aucun résultat de recherche -->
+          <div id="cand-no-results" class="hidden py-16 text-center">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-neutral-50 mb-3 dark:bg-neutral-800">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1010 17.5a7.5 7.5 0 006.65-.85z"/>
+              </svg>
+            </div>
+            <p class="text-sm font-medium text-neutral-500">Aucun résultat</p>
+            <p class="text-xs text-neutral-400 mt-1">Essayez d'autres mots-clés</p>
+          </div>
         </div>
       )}
     </div>
+
+    <!-- Pagination -->
+    <Pagination
+      currentPage={meta.current_page}
+      lastPage={meta.last_page}
+      total={meta.total}
+      perPage={meta.per_page}
+      baseUrl={Astro.url}
+    />
+
   </div>
-</DashboardLayout>
 
-<script is:inline>
-  (function () {
-    const ACTIVE = 'bg-primary-500 text-white border-primary-500'
-    const INACTIVE = 'bg-white text-neutral-600 border-neutral-200 hover:border-primary-300 hover:text-primary-600'
+  <script>
+    document.addEventListener('astro:page-load', () => {
+      const input    = document.getElementById('cand-search')    as HTMLInputElement | null
+      const dropdown = document.getElementById('cand-suggestions') as HTMLElement | null
+      const countEl  = document.getElementById('cand-search-count')
+      const noRes    = document.getElementById('cand-no-results')
+      const totalEl  = document.getElementById('cand-total')
+      const tbody    = document.getElementById('cand-tbody')
+      const rows     = Array.from(document.querySelectorAll<HTMLTableRowElement>('.cand-row'))
+      if (!input || !rows.length) return
 
-    const rows = Array.from(document.querySelectorAll('tbody tr[data-status]'))
-    const countLabel = document.getElementById('count-label')
+      const totalCount = rows.length
 
-    function applyFilter(filter) {
-      let visible = 0
-      rows.forEach(function (row) {
-        const show = filter === 'all' || row.dataset.status === filter
-        row.style.display = show ? '' : 'none'
-        if (show) visible++
-      })
-      if (countLabel) {
-        countLabel.textContent = visible + ' candidature' + (visible !== 1 ? 's' : '')
+      // ── XSS guard ─────────────────────────────────────────────
+      function esc(s: string) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
       }
-      document.querySelectorAll('.filter-btn').forEach(function (btn) {
-        const isActive = btn.dataset.filter === filter
-        btn.className = 'filter-btn rounded-full px-3.5 py-1.5 text-xs font-medium border transition ' + (isActive ? ACTIVE : INACTIVE)
+
+      // ── Suggestion index ──────────────────────────────────────
+      type SuggestItem = { text: string; sub?: string; value: string }
+      type SuggestGroup = { label: string; icon: string; items: SuggestItem[] }
+
+      const namesMap   = new Map<string, string>()
+      const destSet    = new Set<string>()
+      const progSet    = new Set<string>()
+
+      rows.forEach(row => {
+        const name = row.dataset.displayName || ''
+        const email = row.dataset.displayEmail || ''
+        const dest = row.dataset.displayDestination || ''
+        const prog = row.dataset.displayProgramme || ''
+        if (name) namesMap.set(name, email)
+        if (dest) destSet.add(dest)
+        if (prog) progSet.add(prog)
       })
-    }
 
-    const params = new URLSearchParams(window.location.search)
-    const initial = params.get('status') || 'all'
-    applyFilter(initial)
+      function getSuggestions(q: string): SuggestGroup[] {
+        if (!q) return []
+        const ql = q.toLowerCase()
+        const groups: SuggestGroup[] = []
 
-    document.querySelectorAll('.filter-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const filter = btn.dataset.filter
-        const url = filter === 'all' ? window.location.pathname : window.location.pathname + '?status=' + filter
-        history.replaceState(null, '', url)
-        applyFilter(filter)
+        const matchCandidates = [...namesMap.entries()]
+          .filter(([n, e]) => n.toLowerCase().includes(ql) || e.toLowerCase().includes(ql))
+          .slice(0, 5)
+          .map(([n, e]) => ({ text: n, sub: e, value: n }))
+        if (matchCandidates.length) groups.push({ label: 'Candidats', icon: '👤', items: matchCandidates })
+
+        const matchDests = [...destSet]
+          .filter(d => d.toLowerCase().includes(ql))
+          .slice(0, 4)
+          .map(d => ({ text: d, value: d }))
+        if (matchDests.length) groups.push({ label: 'Destinations', icon: '🌍', items: matchDests })
+
+        const matchProgs = [...progSet]
+          .filter(p => p.toLowerCase().includes(ql))
+          .slice(0, 4)
+          .map(p => ({ text: p, value: p }))
+        if (matchProgs.length) groups.push({ label: 'Programmes', icon: '📚', items: matchProgs })
+
+        return groups
+      }
+
+      // ── Render suggestions ────────────────────────────────────
+      function renderSuggestions(groups: SuggestGroup[]) {
+        if (!dropdown) return
+        if (!groups.length) { dropdown.classList.add('hidden'); return }
+
+        let html = ''
+        groups.forEach((g, gi) => {
+          if (gi > 0) html += '<div class="mx-3 my-0.5 border-t border-neutral-50"></div>'
+          html += `<div class="px-3 pt-2.5 pb-0.5">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-neutral-400">${g.icon} ${esc(g.label)}</p>
+          </div>`
+          g.items.forEach(item => {
+            html += `<button type="button" class="suggestion-item w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 focus:bg-neutral-50 transition-colors outline-none dark:hover:bg-neutral-800 dark:focus:bg-neutral-800" data-value="${esc(item.value)}">
+              <span class="flex-1 text-sm text-neutral-700 dark:text-neutral-200 truncate">${esc(item.text)}</span>
+              ${item.sub ? `<span class="text-xs text-neutral-400 dark:text-neutral-500 truncate max-w-[160px]">${esc(item.sub)}</span>` : ''}
+            </button>`
+          })
+        })
+        html += '<div class="mx-3 mt-0.5 mb-1 border-t border-neutral-50"></div><div class="px-3 py-1.5"><p class="text-[10px] text-neutral-400">Cliquer pour filtrer · <kbd class="px-1 rounded border border-neutral-200 font-mono">Esc</kbd> pour fermer</p></div>'
+
+        dropdown.innerHTML = html
+        dropdown.classList.remove('hidden')
+
+        dropdown.querySelectorAll<HTMLButtonElement>('.suggestion-item').forEach(btn => {
+          btn.addEventListener('mousedown', e => {
+            e.preventDefault()
+            input!.value = btn.dataset.value || ''
+            dropdown.classList.add('hidden')
+            refresh()
+          })
+        })
+      }
+
+      // ── Sort state ────────────────────────────────────────────
+      let sortCol = ''
+      let sortDir = '' // 'asc' | 'desc' | ''
+
+      function updateSortIcons() {
+        document.querySelectorAll<HTMLElement>('[data-icon]').forEach(icon => {
+          const col = icon.dataset.icon!
+          if (col === sortCol && sortDir) {
+            icon.textContent = sortDir === 'asc' ? '↑' : '↓'
+            icon.className   = 'sort-icon text-primary-500 transition-colors'
+          } else {
+            icon.textContent = '↕'
+            icon.className   = 'sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors'
+          }
+        })
+      }
+
+      // ── Refresh: filter + sort ────────────────────────────────
+      function refresh() {
+        const raw   = input!.value.trim().toLowerCase()
+        const terms = raw.split(/\s+/).filter(Boolean)
+
+        // 1. Sort rows in DOM (sort all, visibility applied after)
+        if (sortCol && sortDir && tbody) {
+          const sorted = [...rows].sort((a, b) => {
+            const av = a.dataset[`sort${sortCol.charAt(0).toUpperCase()}${sortCol.slice(1)}`] ?? ''
+            const bv = b.dataset[`sort${sortCol.charAt(0).toUpperCase()}${sortCol.slice(1)}`] ?? ''
+            const cmp = av.localeCompare(bv, 'fr', { sensitivity: 'base', numeric: sortCol === 'date' || sortCol === 'status' })
+            return sortDir === 'asc' ? cmp : -cmp
+          })
+          sorted.forEach(r => tbody.appendChild(r))
+        }
+
+        // 2. Filter visibility
+        let visible = 0
+        rows.forEach(row => {
+          const show = terms.length === 0 || terms.every(t => (row.dataset.search ?? '').includes(t))
+          row.classList.toggle('hidden', !show)
+          if (show) visible++
+        })
+
+        // 3. Update UI
+        if (terms.length > 0) {
+          if (countEl) countEl.textContent = `${visible} résultat${visible !== 1 ? 's' : ''}`
+          if (totalEl) totalEl.textContent  = String(visible)
+          noRes?.classList.toggle('hidden', visible > 0)
+        } else {
+          if (countEl) countEl.textContent = ''
+          if (totalEl) totalEl.textContent  = String(totalCount)
+          noRes?.classList.add('hidden')
+        }
+      }
+
+      // ── Sort on column header click ───────────────────────────
+      document.querySelectorAll<HTMLElement>('.cand-sort-th').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col!
+          if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : sortDir === 'desc' ? '' : 'asc'
+            if (!sortDir) sortCol = ''
+          } else {
+            sortCol = col
+            sortDir = 'asc'
+          }
+          updateSortIcons()
+          refresh()
+        })
+      })
+
+      // ── Search input events ───────────────────────────────────
+      input.addEventListener('input', () => {
+        refresh()
+        renderSuggestions(getSuggestions(input.value.trim()))
+      })
+
+      input.addEventListener('focus', () => {
+        if (input.value.trim()) renderSuggestions(getSuggestions(input.value.trim()))
+      })
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => dropdown?.classList.add('hidden'), 150)
+      })
+
+      input.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          if (dropdown && !dropdown.classList.contains('hidden')) {
+            dropdown.classList.add('hidden')
+          } else {
+            input.value = ''
+            refresh()
+            input.blur()
+          }
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          const first = dropdown?.querySelector<HTMLButtonElement>('.suggestion-item')
+          first?.focus()
+        }
+      })
+
+      // Keyboard nav inside suggestions
+      dropdown?.addEventListener('keydown', (e: KeyboardEvent) => {
+        const items = Array.from(dropdown.querySelectorAll<HTMLButtonElement>('.suggestion-item'))
+        const idx   = items.indexOf(document.activeElement as HTMLButtonElement)
+        if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus() }
+        if (e.key === 'ArrowUp')   { e.preventDefault(); idx <= 0 ? input.focus() : items[idx - 1]?.focus() }
+        if (e.key === 'Escape')    { dropdown.classList.add('hidden'); input.focus() }
+      })
+
+      // Raccourci "/" pour focaliser
+      document.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key !== '/') return
+        const tag = (document.activeElement as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        e.preventDefault()
+        input.focus()
+        input.select()
       })
     })
-  })()
-</script>
+  </script>
+</DashboardLayout>

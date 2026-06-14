@@ -1,129 +1,667 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro'
-import { STATUS_LABELS, STATUS_COLORS, formatDate, formatDateTime, type CandidatureStatus } from '../../lib/mock-data'
-
-
-
-// En prod: récupérer via API backend avec session.sub
-const hasCandidature = true  // Mettre à false si pas encore de candidature
-// eslint-disable-next-line prefer-const
-let MOCK_STATUS: CandidatureStatus = 'reviewing'
-const MOCK_CANDIDATURE = {
-  destination: 'Chine',
-  programme: 'Médecine générale',
-  niveauVise: 'BAC+5 / Master',
-  submittedAt: '2026-05-20T10:30:00Z',
-  documents: [
-    { originalName: 'Passeport', name: 'passeport.pdf' },
-    { originalName: 'Relevés de notes', name: 'releves.pdf' },
-    { originalName: 'Diplôme BAC', name: 'bac.pdf' },
-  ],
-}
+import ApplicationForm from '../../components/blocks/candidature/ApplicationForm.astro'
 ---
 
-<DashboardLayout title="Ma candidature" activeNav="candidature">
-  <div class="p-6 max-w-4xl mx-auto space-y-6">
+<DashboardLayout title="Mes candidatures" activeNav="candidature">
+  <div class="p-6 max-w-5xl mx-auto">
 
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-headings font-semibold text-neutral-700">Ma candidature</h1>
-        <p class="text-sm text-neutral-400 mt-0.5">Gérez et suivez votre dossier de candidature</p>
+    <!-- ── Header dynamique ──────────────────────────────────── -->
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          id="btn-back"
+          class="hidden p-2 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-50 transition dark:border-neutral-700 dark:hover:bg-neutral-800"
+          aria-label="Retour"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <div>
+          <h1 id="page-title" class="text-2xl font-headings font-semibold text-neutral-700 dark:text-neutral-100">Mes candidatures</h1>
+          <p id="page-subtitle" class="mt-0.5 text-sm text-neutral-400"></p>
+        </div>
       </div>
-      {hasCandidature && (
-        <a
-          href="/candidature"
-          class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition whitespace-nowrap"
+      <div id="btn-new-wrapper" class="hidden">
+      <button
+        type="button"
+        id="btn-new"
+        class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition whitespace-nowrap"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Nouvelle candidature
+      </button>
+      </div>
+    </div>
+
+    <!-- ── Vue : Chargement ──────────────────────────────────── -->
+    <div id="view-loading" class="flex justify-center py-24">
+      <div class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+    </div>
+
+    <!-- ── Vue : Aucune candidature ─────────────────────────── -->
+    <div id="view-empty" class="hidden">
+      <div class="flex flex-col items-center rounded-xl border border-neutral-100 bg-white px-6 py-20 text-center dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-neutral-50 dark:bg-neutral-800">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-neutral-300 dark:text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <h2 class="mb-2 text-lg font-semibold text-neutral-700 dark:text-neutral-100">Aucune candidature</h2>
+        <p class="mb-8 max-w-sm text-sm text-neutral-400">
+          Vous n'avez pas encore soumis de candidature. Remplissez le formulaire en ligne pour commencer votre parcours avec WWA.
+        </p>
+        <button
+          type="button"
+          id="btn-start-form"
+          class="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700 transition"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
           </svg>
-          Nouvelle candidature
-        </a>
-      )}
+          Déposer ma candidature
+        </button>
+      </div>
     </div>
 
-    {!hasCandidature ? (
-      <!-- Aucune candidature -->
-      <div class="bg-white rounded-xl border border-neutral-100 p-12 flex flex-col items-center text-center">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-neutral-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-        </svg>
-        <h2 class="text-lg font-semibold text-neutral-700 mb-2">Aucune candidature</h2>
-        <p class="text-sm text-neutral-400 mb-6 max-w-sm">
-          Vous n'avez pas encore soumis de candidature. Remplissez le formulaire pour commencer votre parcours.
-        </p>
-        <a
-          href="/candidature"
-          class="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 transition"
-        >
-          Déposer ma candidature
-        </a>
-      </div>
-    ) : (
-      <!-- Récapitulatif candidature -->
-      <div class="space-y-4">
-        <!-- Statut -->
-        <div class="bg-white rounded-xl border border-neutral-100 p-5">
-          <div class="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium mb-1">Destination · Programme</p>
-              <p class="text-lg font-semibold text-neutral-700">
-                {MOCK_CANDIDATURE.destination} — {MOCK_CANDIDATURE.programme}
-              </p>
-              <p class="text-sm text-neutral-500 mt-0.5">Niveau visé : {MOCK_CANDIDATURE.niveauVise}</p>
-            </div>
-            <div class="text-right">
-              <span class={`inline-block rounded-full px-3 py-1.5 text-sm font-semibold ${STATUS_COLORS[MOCK_STATUS]}`}>
-                {STATUS_LABELS[MOCK_STATUS]}
-              </span>
-              <p class="text-xs text-neutral-400 mt-1">
-                Soumise le {formatDateTime(MOCK_CANDIDATURE.submittedAt)}
-              </p>
-            </div>
-          </div>
-        </div>
+    <!-- ── Vue : Formulaire ─────────────────────────────────── -->
+    <div id="view-form" class="hidden">
+      <ApplicationForm successHref="/dashboard/candidature" />
+    </div>
 
-        <!-- Documents -->
-        <div class="bg-white rounded-xl border border-neutral-100 p-5">
-          <h2 class="text-sm font-semibold text-neutral-700 mb-4">Documents soumis</h2>
-          <ul class="space-y-2">
-            {MOCK_CANDIDATURE.documents.map(doc => (
-              <li class="flex items-center gap-3">
-                <div class="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                  </svg>
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-neutral-700">{doc.originalName}</p>
-                  <p class="text-xs text-neutral-400">{doc.name}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <p class="text-xs text-neutral-400 mt-4 italic">
-            La visualisation des fichiers sera disponible après l'intégration du backend.
-          </p>
-        </div>
+    <!-- ── Vue : Liste ──────────────────────────────────────── -->
+    <div id="view-list" class="hidden">
+      <div id="candidature-cards-grid" class="flex flex-col gap-3"></div>
+    </div>
 
-        <!-- Message d'information selon le statut -->
-        {MOCK_STATUS === 'reviewing' && (
-          <div class="bg-blue-50 rounded-xl border border-blue-100 p-4">
-            <p class="text-sm font-semibold text-blue-800">📋 Dossier en cours d'examen</p>
-            <p class="text-xs text-blue-700 mt-1 leading-relaxed">
-              Votre dossier est actuellement analysé par l'équipe WWA. Vous recevrez une notification dès qu'une décision est prise.
-            </p>
-          </div>
-        )}
-        {MOCK_STATUS === 'accepted' && (
-          <div class="bg-green-50 rounded-xl border border-green-100 p-4">
-            <p class="text-sm font-semibold text-green-800">🎉 Candidature acceptée !</p>
-            <p class="text-xs text-green-700 mt-1 leading-relaxed">
-              Félicitations ! Votre candidature a été acceptée. L'équipe WWA vous contactera prochainement pour la suite.
-            </p>
-          </div>
-        )}
-      </div>
-    )}
+    <!-- ── Vue : Détail ─────────────────────────────────────── -->
+    <div id="view-detail" class="hidden">
+      <div id="detail-content"></div>
+    </div>
+
   </div>
+
+  <!-- ── Modal : Nouvelle candidature ────────────────────────── -->
+  <div
+    id="modal-new-choice"
+    class="hidden fixed inset-0 z-50 items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-neutral-950/70"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-new-title"
+  >
+    <div class="m-6 w-full max-w-sm overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-xl shadow-neutral-700/10 dark:border-neutral-800 dark:bg-neutral-900">
+      <div class="flex items-center justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+        <h2 id="modal-new-title" class="text-base font-semibold text-neutral-700 dark:text-neutral-100">Nouvelle candidature</h2>
+        <button
+          type="button"
+          id="btn-close-new-choice"
+          class="inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 transition dark:text-neutral-500 dark:hover:text-neutral-300"
+          aria-label="Fermer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="flex flex-col gap-3 p-6">
+        <button
+          type="button"
+          id="btn-choice-fresh"
+          class="group flex flex-col items-start gap-1 rounded-xl border-2 border-neutral-100 p-4 text-left transition hover:border-primary-300 hover:bg-primary-50 dark:border-neutral-800 dark:hover:border-primary-700 dark:hover:bg-primary-950/20"
+        >
+          <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 group-hover:text-primary-500 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span class="text-sm font-semibold text-neutral-700 group-hover:text-primary-600 transition dark:text-neutral-100">Nouveau dossier vierge</span>
+          </div>
+          <span class="pl-6 text-xs text-neutral-400">Repartir de zéro, sans données préenregistrées.</span>
+        </button>
+        <button
+          type="button"
+          id="btn-choice-prefill"
+          class="group flex flex-col items-start gap-1 rounded-xl border-2 border-neutral-100 p-4 text-left transition hover:border-primary-300 hover:bg-primary-50 dark:border-neutral-800 dark:hover:border-primary-700 dark:hover:bg-primary-950/20"
+        >
+          <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 group-hover:text-primary-500 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span class="text-sm font-semibold text-neutral-700 group-hover:text-primary-600 transition dark:text-neutral-100">Préremplir depuis le dernier dossier</span>
+          </div>
+          <span class="pl-6 text-xs text-neutral-400">Reprendre les informations du dernier dossier soumis pour accélérer la saisie.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+  // ════════════════════════════════════════════════════════════
+  // Dashboard Candidature — Machine à états
+  // ════════════════════════════════════════════════════════════
+
+  var KEY_LIST   = 'wwa_candidatures'
+  var KEY_RESULT = 'wwa_candidature_result'
+  var KEY_DRAFT  = 'wwa_candidature_v2'
+
+  var VIEWS = ['loading', 'empty', 'form', 'list', 'detail']
+
+  var _candidatures = []
+  var _selectedId   = null
+
+  // ── Utilitaires ─────────────────────────────────────────────
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+  }
+
+  function uid() {
+    try { return crypto.randomUUID() } catch {}
+    return Date.now().toString(36) + Math.random().toString(36).slice(2)
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—'
+    try { return new Date(iso).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) } catch { return iso }
+  }
+
+  function fmtDateTime(iso) {
+    if (!iso) return '—'
+    try { return new Date(iso).toLocaleString('fr-FR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) } catch { return iso }
+  }
+
+  var DEST_LABELS   = { chine:'🇨🇳 Chine', ghana:'🇬🇭 Ghana', russie:'🇷🇺 Russie', autre:'🌍 Autre' }
+  var STATUS_COLORS = {
+    pending:   'border-amber-200 bg-amber-50 text-amber-700 dark:border-gold-800 dark:bg-gold-900/40 dark:text-gold-300',
+    reviewing: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-300',
+    accepted:  'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400',
+    rejected:  'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400',
+    on_hold:   'border-neutral-200 bg-neutral-100 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400',
+  }
+  var STATUS_LABELS = {
+    pending:   'En attente',
+    reviewing: 'En examen',
+    accepted:  'Acceptée',
+    rejected:  'Rejetée',
+    on_hold:   "En attente d'info",
+  }
+
+  // ── Gestion des vues ─────────────────────────────────────────
+  function setView(view) {
+    VIEWS.forEach(function(v) {
+      var el = document.getElementById('view-' + v)
+      if (el) el.classList.toggle('hidden', v !== view)
+    })
+    updateHeader(view)
+  }
+
+  function updateHeader(view) {
+    var elTitle    = document.getElementById('page-title')
+    var elSubtitle = document.getElementById('page-subtitle')
+    var elBack       = document.getElementById('btn-back')
+    var elNewWrapper = document.getElementById('btn-new-wrapper')
+
+    if (view === 'list') {
+      if (elTitle)      elTitle.textContent      = 'Mes candidatures'
+      if (elSubtitle)   elSubtitle.textContent   = _candidatures.length + ' candidature' + (_candidatures.length > 1 ? 's' : '')
+      if (elBack)       elBack.classList.add('hidden')
+      if (elNewWrapper) elNewWrapper.classList.remove('hidden')
+
+    } else if (view === 'empty') {
+      if (elTitle)      elTitle.textContent      = 'Mes candidatures'
+      if (elSubtitle)   elSubtitle.textContent   = ''
+      if (elBack)       elBack.classList.add('hidden')
+      if (elNewWrapper) elNewWrapper.classList.add('hidden')
+
+    } else if (view === 'form') {
+      if (elTitle)      elTitle.textContent      = 'Nouvelle candidature'
+      if (elSubtitle)   elSubtitle.textContent   = 'Remplissez tous les champs, puis cliquez sur Envoyer.'
+      if (elBack)       elBack.classList.remove('hidden')
+      if (elNewWrapper) elNewWrapper.classList.add('hidden')
+
+    } else if (view === 'detail') {
+      var c = _candidatures.find(function(x) { return x.id === _selectedId })
+      var fullName = c ? (((c.prenom||'') + ' ' + (c.nom||'')).trim() || 'Candidature') : 'Candidature'
+      if (elTitle)      elTitle.textContent      = fullName
+      if (elSubtitle)   elSubtitle.textContent   = 'Détail et suivi du dossier'
+      if (elBack)       elBack.classList.remove('hidden')
+      if (elNewWrapper) elNewWrapper.classList.add('hidden')
+    }
+  }
+
+  // ── localStorage ─────────────────────────────────────────────
+  function loadCandidatures() {
+    try { return JSON.parse(localStorage.getItem(KEY_LIST) || '[]') } catch { return [] }
+  }
+
+  function saveCandidatures() {
+    try { localStorage.setItem(KEY_LIST, JSON.stringify(_candidatures)) } catch {}
+  }
+
+  // Migre wwa_candidature_result (soumis par ApplicationForm) vers le tableau wwa_candidatures
+  function migrateResult() {
+    try {
+      var raw = localStorage.getItem(KEY_RESULT)
+      if (!raw) return
+      var data = JSON.parse(raw)
+      var entry = Object.assign({ id: uid(), status: 'pending', synced: false }, data)
+      if (!entry.submittedAt) entry.submittedAt = new Date().toISOString()
+      // Si l'API a déjà persisté la candidature (serverId présent), ne pas re-soumettre
+      if (data._serverId) {
+        entry.synced    = true
+        entry._serverId = data._serverId
+        entry.id        = String(data._serverId)
+      }
+      _candidatures.unshift(entry)
+      saveCandidatures()
+      localStorage.removeItem(KEY_RESULT)
+    } catch {}
+  }
+
+  // ── Rendu de la liste ────────────────────────────────────────
+  function renderList() {
+    var grid = document.getElementById('candidature-cards-grid')
+    if (!grid) return
+
+    grid.innerHTML = _candidatures.map(function(c) {
+      var fn  = (((c.prenom||'') + ' ' + (c.nom||'')).trim()) || 'Candidature sans nom'
+      var ini = fn.charAt(0).toUpperCase()
+      var dest   = DEST_LABELS[c.destination] || esc(c.destination || '—')
+      var prog   = esc(c.programme || '—')
+      var status = c.status || 'pending'
+      var sc     = STATUS_COLORS[status] || STATUS_COLORS.pending
+      var sl     = STATUS_LABELS[status] || status
+      var date   = fmtDate(c.submittedAt)
+
+      return ''
+        + '<button type="button" data-id="' + esc(c.id) + '" class="candidature-card group w-full cursor-pointer text-left flex items-center gap-4 p-5 bg-white rounded-xl border border-neutral-100 hover:border-primary-200 hover:shadow-sm transition-all dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-primary-700">'
+        +   '<div class="h-11 w-11 shrink-0 rounded-full bg-primary-100 flex items-center justify-center font-semibold text-primary-600 dark:bg-primary-950/40 dark:text-primary-400">' + esc(ini) + '</div>'
+        +   '<div class="min-w-0 flex-1">'
+        +     '<p class="text-sm font-semibold text-neutral-700 truncate group-hover:text-primary-600 transition dark:text-neutral-100">' + esc(fn) + '</p>'
+        +     '<p class="mt-0.5 text-xs text-neutral-400 truncate">' + dest + ' · ' + prog + '</p>'
+        +   '</div>'
+        +   '<div class="shrink-0 text-right">'
+        +     '<span class="inline-block rounded-full border px-2.5 py-1 text-xs font-medium ' + sc + '">' + esc(sl) + '</span>'
+        +     '<p class="mt-1 text-xs text-neutral-400">' + date + '</p>'
+        +   '</div>'
+        +   '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-neutral-300 group-hover:text-primary-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>'
+        + '</button>'
+    }).join('')
+
+    grid.querySelectorAll('.candidature-card').forEach(function(card) {
+      card.addEventListener('click', function() { showDetail(this.dataset.id) })
+    })
+  }
+
+  // ── Rendu du détail ──────────────────────────────────────────
+  function showDetail(id) {
+    _selectedId = id
+    var c = _candidatures.find(function(x) { return x.id === id })
+    if (!c) return
+    renderDetail(c)
+    setView('detail')
+  }
+
+  function tlStep(done, label, desc, color, pulse) {
+    var pulse   = pulse || false
+    var circle  = done
+      ? ({ green:'border-green-500 bg-green-500 text-white', amber:'border-amber-400 bg-amber-400 text-white', red:'border-red-400 bg-red-400 text-white' }[color] || 'border-green-500 bg-green-500 text-white')
+      : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900'
+    var icon    = done
+      ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+      : '<div class="h-2 w-2 rounded-full bg-neutral-300 dark:bg-neutral-600"></div>'
+    var lc      = done
+      ? ({ green:'text-green-700 dark:text-green-400', amber:'text-amber-600 dark:text-amber-400', red:'text-red-600 dark:text-red-400' }[color] || 'text-neutral-700')
+      : 'text-neutral-400 dark:text-neutral-500'
+    return ''
+      + '<div class="relative flex items-start gap-4 pb-6">'
+      +   '<div class="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ' + circle + (pulse ? ' animate-pulse' : '') + '">' + icon + '</div>'
+      +   '<div class="pt-1">'
+      +     '<p class="text-sm font-semibold ' + lc + '">' + esc(label) + '</p>'
+      +     '<p class="text-xs text-neutral-400">' + esc(desc) + '</p>'
+      +   '</div>'
+      + '</div>'
+  }
+
+  function renderDetail(c) {
+    var container = document.getElementById('detail-content')
+    if (!container) return
+
+    var dest   = DEST_LABELS[c.destination] || (c.destination || '—')
+    var status = c.status || 'pending'
+    var sc     = STATUS_COLORS[status] || STATUS_COLORS.pending
+    var sl     = STATUS_LABELS[status] || status
+    var dt     = fmtDateTime(c.submittedAt)
+    var sexeL  = { masculin:'Masculin', feminin:'Féminin' }
+
+    var html = '<div class="space-y-5">'
+
+    // ── Card de statut ──
+    html += '<div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-neutral-100 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">'
+      + '<div>'
+      +   '<p class="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">Destination · Programme</p>'
+      +   '<p class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">' + esc(dest) + ' — ' + esc(c.programme||'—') + '</p>'
+      +   (c.niveauVise ? '<p class="mt-0.5 text-sm text-neutral-500">Niveau visé : ' + esc(c.niveauVise) + '</p>' : '')
+      + '</div>'
+      + '<div class="text-right">'
+      +   '<span class="inline-block rounded-full border px-3 py-1.5 text-sm font-semibold ' + sc + '">' + esc(sl) + '</span>'
+      +   '<p class="mt-1 text-xs text-neutral-400">Soumise le ' + dt + '</p>'
+      + '</div>'
+    + '</div>'
+
+    // ── Timeline ──
+    var isReviewing = status === 'reviewing'
+    var isDone      = status === 'accepted' || status === 'rejected'
+    html += '<div class="rounded-xl border border-neutral-100 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">'
+      + '<h3 class="mb-5 text-sm font-semibold text-neutral-700 dark:text-neutral-100">Suivi de traitement</h3>'
+      + '<div class="relative flex flex-col">'
+      + '<div class="absolute left-4 top-8 h-[calc(100%-2rem)] w-px bg-neutral-100 dark:bg-neutral-800" aria-hidden="true"></div>'
+      + tlStep(true,                        'Candidature envoyée',         "Votre dossier a bien été reçu par l'équipe WWA.",  'green', false)
+      + tlStep(isReviewing || isDone,        'Dossier en cours d\'examen', "L'équipe analyse votre dossier et vos documents.", isReviewing ? 'amber' : 'green', isReviewing)
+      + tlStep(isDone,                       'Décision de l\'équipe WWA',  status === 'accepted' ? 'Votre candidature a été acceptée ! 🎉' : status === 'rejected' ? "Votre candidature n'a pas été retenue." : 'Vous serez contacté(e) dès qu\'une décision est prise.', status === 'accepted' ? 'green' : 'red', false)
+      + '</div>'
+      + '<div class="mt-4 rounded border border-neutral-100 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">'
+      +   '<p class="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Rappel important</p>'
+      +   '<p class="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">Envoyez vos <strong>pièces jointes</strong> par email à <a href="mailto:info@worldwise-admission.com" class="font-medium text-primary-500 hover:underline">info@worldwise-admission.com</a> en mentionnant votre nom complet.</p>'
+      + '</div>'
+    + '</div>'
+
+    // ── Tableau des informations ──
+    var rows = [
+      ['Nom & Prénom',   (((c.prenom||'') + ' ' + (c.nom||'')).trim()) || '—'],
+      ['Email',          c.email||'—'],
+      ['Téléphone',      c.telephone||'—'],
+      ['Nationalité(s)', c.nationalites||'—'],
+      ['Sexe',           sexeL[c.sexe||''] || c.sexe||'—'],
+      ['Date naissance', c.dateNaissance||'—'],
+      ['Lieu naissance', c.lieuNaissance||'—'],
+      ['Situation mat.', c.situationMatrimoniale||'—'],
+      ['N° Passeport',   c.numPasseport||'—'],
+      ['Adresse',        [c.adresse, c.ville, c.pays].filter(Boolean).join(', ')||'—'],
+      null,
+      ['Niveau d\'étude',c.niveauEtude||'—'],
+      ['Établissement',  c.etablissement||'—'],
+      ['Spécialité',     c.specialite||'—'],
+      ['Moyenne',        c.moyenne ? c.moyenne + ' / 20' : '—'],
+      null,
+      ['Destination',    dest],
+      ['Niveau visé',    c.niveauVise||'—'],
+      ['Programme',      c.programme||'—'],
+      ['Faculté',        c.faculte||'—'],
+    ]
+    if (c.sourceFinancement) rows.push(['Financement', c.sourceFinancement])
+
+    html += '<div class="overflow-hidden rounded-xl border border-neutral-100 bg-white dark:border-neutral-800 dark:bg-neutral-900">'
+      + '<div class="border-b border-neutral-100 px-5 py-3 dark:border-neutral-800">'
+      +   '<h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-100">Informations du dossier</h3>'
+      + '</div>'
+      + '<div class="divide-y divide-neutral-50 dark:divide-neutral-800">'
+
+    rows.forEach(function(row) {
+      if (!row) {
+        html += '<div class="h-px bg-neutral-100 dark:bg-neutral-700"></div>'
+        return
+      }
+      html += '<div class="flex items-baseline gap-4 px-5 py-2.5">'
+        + '<span class="w-36 shrink-0 text-xs text-neutral-400">' + esc(row[0]) + '</span>'
+        + '<span class="flex-1 text-sm text-neutral-700 dark:text-neutral-200">' + esc(row[1]) + '</span>'
+        + '</div>'
+    })
+
+    html += '</div></div>'
+
+    // ── Bouton nouvelle candidature ──
+    html += '<button type="button" id="btn-detail-new" class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary-500 px-5 py-3 text-sm font-semibold text-white hover:bg-primary-700 transition">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>'
+      + 'Nouvelle candidature'
+    + '</button>'
+
+    html += '</div>'
+    container.innerHTML = html
+
+    document.getElementById('btn-detail-new')
+      && document.getElementById('btn-detail-new').addEventListener('click', openNewChoiceModal)
+  }
+
+  // ── Modal "Nouvelle candidature" ─────────────────────────────
+  function openNewChoiceModal() {
+    var m = document.getElementById('modal-new-choice')
+    if (!m) return
+    m.classList.remove('hidden')
+    m.classList.add('flex')
+  }
+
+  function closeNewChoiceModal() {
+    var m = document.getElementById('modal-new-choice')
+    if (!m) return
+    m.classList.add('hidden')
+    m.classList.remove('flex')
+  }
+
+  function scrollMain() {
+    var main = document.querySelector('main')
+    if (main) { main.scrollTo({ top: 0, behavior: 'smooth' }) }
+    else { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  }
+
+  function startFresh() {
+    closeNewChoiceModal()
+    localStorage.removeItem(KEY_DRAFT)
+    localStorage.removeItem(KEY_RESULT)
+    document.dispatchEvent(new CustomEvent('wwa:form-reset'))
+    setView('form')
+    scrollMain()
+  }
+
+  function startPrefill() {
+    closeNewChoiceModal()
+    if (_candidatures.length > 0) {
+      var last = _candidatures[0]  // newest first
+      var prefill = Object.assign({}, last)
+      delete prefill.id
+      delete prefill.submittedAt
+      delete prefill.status
+      delete prefill.synced
+      prefill.currentPanel = '1'
+      try { localStorage.setItem(KEY_DRAFT, JSON.stringify(prefill)) } catch {}
+    }
+    localStorage.removeItem(KEY_RESULT)
+    document.dispatchEvent(new CustomEvent('wwa:form-reset'))
+    setView('form')
+    scrollMain()
+  }
+
+  // ── Background sync ──────────────────────────────────────────
+  async function syncUnsynced() {
+    var unsynced = _candidatures.filter(function(c) { return !c.synced })
+    if (!unsynced.length) return
+    for (var i = 0; i < unsynced.length; i++) {
+      var c = unsynced[i]
+      try {
+        // Construire le payload structuré attendu par le backend Laravel
+        var payload = {
+          destination:  c.destination  || '',
+          programme:    c.programme    || '',
+          niveau_vise:  c.niveauVise   || c.niveau_vise || '',
+          personal_info: {
+            nom:                   c.nom                   || '',
+            prenom:                c.prenom                || '',
+            email:                 c.email                 || '',
+            telephone:             c.telephone             || '',
+            nationalites:          c.nationalites          || '',
+            sexe:                  c.sexe                  || '',
+            dateNaissance:         c.dateNaissance         || '',
+            lieuNaissance:         c.lieuNaissance         || '',
+            situationMatrimoniale: c.situationMatrimoniale || '',
+            numPasseport:          c.numPasseport          || '',
+            adresse:               c.adresse               || '',
+            ville:                 c.ville                 || '',
+            pays:                  c.pays                  || '',
+          },
+          academic_info: {
+            niveauEtude:    c.niveauEtude    || '',
+            etablissement:  c.etablissement  || '',
+            specialite:     c.specialite     || '',
+            moyenne:        c.moyenne        || '',
+          },
+          complementary_info: {
+            sourceFinancement: c.sourceFinancement || '',
+            faculte:           c.faculte           || '',
+          },
+        }
+        var resp = await fetch('/api/candidatures', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (resp.ok) {
+          var saved = await resp.json()
+          c.synced    = true
+          c._serverId = saved.id
+          saveCandidatures()
+        }
+      } catch { /* retry at next page load */ }
+    }
+  }
+
+  // ── Normaliser un enregistrement serveur vers le format local ─
+  function serverToLocal(s) {
+    var p = s.personalInfo || {}
+    var a = s.academicInfo  || {}
+    return Object.assign({}, p, a, {
+      id:          String(s.id),
+      submittedAt: s.submittedAt,
+      status:      s.status,
+      destination: s.destination,
+      programme:   s.programme,
+      niveauVise:  s.niveauVise,
+      synced:      true,
+      _serverId:   s.id,
+    })
+  }
+
+  // ── Fusionner données serveur + localStorage ─────────────────
+  async function loadAndMerge() {
+    migrateResult()
+    _candidatures = loadCandidatures()
+
+    try {
+      var resp = await fetch('/api/candidatures')
+      if (!resp.ok) return
+      var data = await resp.json()
+      var serverList = (data.data || data).map(serverToLocal)
+
+      if (serverList.length === 0 && _candidatures.length > 0) {
+        // Données locales non encore synced → les garder
+        return
+      }
+
+      // Mettre à jour les statuts des enregistrements locaux depuis le serveur
+      serverList.forEach(function(sv) {
+        var local = _candidatures.find(function(l) { return String(l._serverId) === String(sv._serverId) || l.email === sv.email })
+        if (local) {
+          local.status  = sv.status
+          local.synced  = true
+          local._serverId = sv._serverId
+        } else {
+          // Candidature créée depuis un autre appareil — l'ajouter
+          _candidatures.push(sv)
+        }
+      })
+
+      // Trier par date desc
+      _candidatures.sort(function(a, b) {
+        return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+      })
+
+      saveCandidatures()
+    } catch { /* serveur indisponible — on garde localStorage */ }
+  }
+
+  // ── Initialisation ───────────────────────────────────────────
+  document.addEventListener('astro:page-load', async function() {
+
+    setView('loading')
+
+    // 1. Charger + fusionner local et serveur
+    await loadAndMerge()
+
+    // 2. Vue initiale
+    if (_candidatures.length === 0) {
+      setView('empty')
+    } else {
+      renderList()
+      setView('list')
+    }
+
+    // 3. Écouter l'événement de soumission d'ApplicationForm
+    document.addEventListener('wwa:candidature-submitted', function onSubmitted() {
+      migrateResult()
+      _candidatures = loadCandidatures()
+      renderList()
+      setView('list')
+      syncUnsynced()
+    })
+
+    // 4. Bouton retour
+    var btnBack = document.getElementById('btn-back')
+    btnBack && btnBack.addEventListener('click', function() {
+      if (_selectedId) {
+        _selectedId = null
+        renderList()
+        setView('list')
+      } else if (_candidatures.length === 0) {
+        setView('empty')
+      } else {
+        renderList()
+        setView('list')
+      }
+    })
+
+    // 5. Bouton "Nouvelle candidature" (header)
+    var btnNew = document.getElementById('btn-new')
+    btnNew && btnNew.addEventListener('click', openNewChoiceModal)
+
+    // 6. CTA état vide
+    var btnStart = document.getElementById('btn-start-form')
+    btnStart && btnStart.addEventListener('click', startFresh)
+
+    // 7. Modal close
+    var btnClose = document.getElementById('btn-close-new-choice')
+    btnClose && btnClose.addEventListener('click', closeNewChoiceModal)
+
+    var modal = document.getElementById('modal-new-choice')
+    modal && modal.addEventListener('click', function(e) {
+      if (e.target === this) closeNewChoiceModal()
+    })
+
+    var btnFresh   = document.getElementById('btn-choice-fresh')
+    var btnPrefill = document.getElementById('btn-choice-prefill')
+    btnFresh   && btnFresh.addEventListener('click', startFresh)
+    btnPrefill && btnPrefill.addEventListener('click', startPrefill)
+
+    // 8. Background sync des entrées non synced
+    syncUnsynced()
+
+    // 9. Écouter les mises à jour de statut en temps réel (Reverb)
+    document.addEventListener('wwa:echo-ready', function(e) {
+      var echo = e.detail.echo
+      _candidatures.forEach(function(c) {
+        if (!c._serverId) return
+        echo.private('user.' + c._serverId).listen('.candidature.status_changed', function(data) {
+          if (String(data.candidatureId) === String(c._serverId)) {
+            c.status = data.newStatus
+            saveCandidatures()
+            renderList()
+            if (_selectedId === c.id) renderDetail(c)
+          }
+        })
+      })
+    })
+  })
+  </script>
 </DashboardLayout>

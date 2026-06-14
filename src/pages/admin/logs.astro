@@ -1,82 +1,605 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro'
-import { MOCK_LOGS, formatDateTime } from '../../lib/mock-data'
+import Pagination from '../../components/ui/Pagination.astro'
+import { backendFetch } from '../../lib/auth'
 
+const session  = Astro.locals.session!
+const page     = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10))
+const perPage  = (() => {
+  const v = parseInt(Astro.url.searchParams.get('per_page') ?? '30', 10)
+  return [30, 50, 100].includes(v) ? v : 30
+})()
+const category = Astro.url.searchParams.get('category') ?? 'all'
 
+let logs: any[] = []
+let meta = { total: 0, current_page: page, last_page: 1, per_page: perPage }
+try {
+  const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+  if (category !== 'all') qs.set('category', category)
+  const resp = await backendFetch(`/logs?${qs}`, session)
+  if (resp.ok) {
+    const d = await resp.json()
+    logs = d.data ?? d
+    meta = {
+      total:        d.total        ?? logs.length,
+      current_page: d.current_page ?? page,
+      last_page:    d.last_page    ?? 1,
+      per_page:     d.per_page     ?? perPage,
+    }
+  }
+} catch {}
 
-const logs = MOCK_LOGS.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-
-const ACTION_ICONS: Record<string, string> = {
-  'candidature.submitted': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-  'candidature.status_changed': 'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4',
-  'candidature.comment_added': 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
-  'message.sent': 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
-  'user.login': 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1',
+// ── Config par action ────────────────────────────────────────────────────────
+type ActionCfg = {
+  label:    string
+  short:    string
+  icon:     string
+  color:    string    // texte icône
+  bg:       string    // bg icône
+  level:    'info' | 'notice' | 'warning' | 'success'
+  category: string
 }
 
-const ACTION_COLORS: Record<string, string> = {
-  'candidature.submitted': 'bg-blue-50 text-blue-600',
-  'candidature.status_changed': 'bg-amber-50 text-amber-600',
-  'candidature.comment_added': 'bg-purple-50 text-purple-600',
-  'message.sent': 'bg-green-50 text-green-600',
-  'user.login': 'bg-neutral-50 text-neutral-600',
+const ACTION_CFG: Record<string, ActionCfg> = {
+  'candidature.submitted': {
+    label: 'Candidature soumise', short: 'SUBMIT',
+    icon:  'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    color: 'text-primary-500 dark:text-primary-400', bg: 'bg-primary-50 dark:bg-primary-950', level: 'info', category: 'candidature',
+  },
+  'candidature.status_changed': {
+    label: 'Statut modifié', short: 'STATUS',
+    icon:  'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+    color: 'text-gold-700 dark:text-gold-400', bg: 'bg-gold-50 dark:bg-gold-900/30', level: 'notice', category: 'candidature',
+  },
+  'candidature.comment_added': {
+    label: 'Commentaire ajouté', short: 'COMMENT',
+    icon:  'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
+    color: 'text-primary-500 dark:text-primary-400', bg: 'bg-primary-50 dark:bg-primary-950', level: 'info', category: 'candidature',
+  },
+  'message.sent': {
+    label: 'Message envoyé', short: 'MSG',
+    icon:  'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+    color: 'text-neutral-500 dark:text-neutral-400', bg: 'bg-neutral-50 dark:bg-neutral-800', level: 'info', category: 'message',
+  },
+  'user.login': {
+    label: 'Connexion', short: 'LOGIN',
+    icon:  'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1',
+    color: 'text-neutral-400 dark:text-neutral-500', bg: 'bg-neutral-50 dark:bg-neutral-800', level: 'info', category: 'user',
+  },
+  'user.register': {
+    label: 'Nouveau compte', short: 'REGISTER',
+    icon:  'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
+    color: 'text-primary-500 dark:text-primary-400', bg: 'bg-primary-50 dark:bg-primary-950', level: 'success', category: 'user',
+  },
+  'contact.submitted': {
+    label: 'Contact reçu', short: 'CONTACT',
+    icon:  'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    color: 'text-neutral-500 dark:text-neutral-400', bg: 'bg-neutral-50 dark:bg-neutral-800', level: 'info', category: 'contact',
+  },
 }
 
-const ROLE_BADGE: Record<string, string> = {
-  admin: 'bg-primary-50 text-primary-600',
-  candidate: 'bg-amber-50 text-amber-700',
-  system: 'bg-neutral-100 text-neutral-500',
+const LEVEL_STYLE: Record<string, string> = {
+  info:    'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
+  notice:  'bg-gold-100    text-gold-700    dark:bg-gold-900/40 dark:text-gold-300',
+  warning: 'bg-red-50      text-red-500     dark:bg-red-950     dark:text-red-400',
+  success: 'bg-primary-50  text-primary-600 dark:bg-primary-950 dark:text-primary-400',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending:   'En attente',
+  reviewing: 'En examen',
+  on_hold:   'En suspens',
+  accepted:  'Acceptée',
+  rejected:  'Refusée',
+}
+
+const ROLE_STYLE: Record<string, string> = {
+  admin:     'bg-primary-50 text-primary-600 border border-primary-100 dark:bg-primary-950 dark:text-primary-400 dark:border-primary-900',
+  candidate: 'bg-gold-50    text-gold-700    border border-gold-100   dark:bg-gold-900/30 dark:text-gold-300   dark:border-gold-800',
+  system:    'bg-neutral-100 text-neutral-500 border border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700',
+}
+
+// Catégories distinctes pour les filtres
+const categories = ['all', ...new Set(logs.map(l => ACTION_CFG[l.action]?.category ?? 'other'))]
+
+function fmtDate(iso: string) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+function fmtTime(iso: string) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+function fmtMeta(log: any): string | null {
+  if (!log.meta) return null
+  const m = log.meta
+  if (m.from && m.to) {
+    return `${STATUS_LABELS[m.from] ?? m.from} → ${STATUS_LABELS[m.to] ?? m.to}`
+  }
+  return Object.entries(m).map(([k, v]) => `${k}: ${v}`).join(' · ')
 }
 ---
 
-<DashboardLayout title="Logs" activeNav="logs">
-  <div class="p-6 max-w-5xl mx-auto space-y-5">
+<DashboardLayout title="Logs d'activité" activeNav="logs">
+  <div class="p-6 lg:p-8 space-y-5">
 
-    <div>
-      <h1 class="text-2xl font-headings font-semibold text-neutral-700">Logs d'activité</h1>
-      <p class="text-sm text-neutral-400 mt-0.5">{logs.length} événements enregistrés</p>
-    </div>
+    <!-- ── En-tête ───────────────────────────────────────────────── -->
+    <div class="flex flex-col sm:flex-row sm:items-end gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Monitoring</p>
+        <h1 class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">Logs d'activité</h1>
+      </div>
 
-    <div class="bg-white rounded-xl border border-neutral-100 overflow-hidden">
-      <div class="divide-y divide-neutral-50">
-        {logs.map(log => {
-          const iconPath = ACTION_ICONS[log.action] ?? 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-          const colorClass = ACTION_COLORS[log.action] ?? 'bg-neutral-50 text-neutral-600'
-          const roleBadge = ROLE_BADGE[log.actorRole] ?? 'bg-neutral-100 text-neutral-500'
-
-          return (
-            <div class="flex items-start gap-4 p-4 hover:bg-neutral-50/40 transition">
-              <div class={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${colorClass}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d={iconPath} />
-                </svg>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <p class="text-sm font-medium text-neutral-700">{log.description}</p>
-                  <span class={`rounded-full px-2 py-0.5 text-xs font-medium ${roleBadge}`}>
-                    {log.actorRole}
-                  </span>
-                </div>
-                <p class="text-xs text-neutral-500 mt-0.5">
-                  Par <span class="font-medium">{log.actorName}</span>
-                  {log.targetId && log.targetType === 'candidature' && (
-                    <> · <a href={`/admin/candidatures/${log.targetId}`} class="text-primary-500 hover:underline">Voir la candidature</a></>
-                  )}
-                </p>
-                {log.meta && (
-                  <p class="text-xs text-neutral-400 mt-1">
-                    {Object.entries(log.meta).map(([k, v]) => `${k}: ${v}`).join(' · ')}
-                  </p>
-                )}
-              </div>
-              <div class="shrink-0 text-right">
-                <p class="text-xs text-neutral-400">{formatDateTime(log.createdAt)}</p>
-              </div>
-            </div>
-          )
-        })}
+      <!-- Compteurs rapides -->
+      <div class="sm:ml-auto flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-1.5 text-xs text-neutral-400">
+          <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></span>
+          Système opérationnel
+        </div>
+        <div class="h-4 w-px bg-neutral-200"></div>
+        <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300 tabular-nums">
+          {logs.length} événement{logs.length !== 1 ? 's' : ''}
+        </span>
+        {logs[0] && (
+          <span class="text-xs text-neutral-400">
+            Dernier : {fmtDate(logs[0].createdAt)} à {fmtTime(logs[0].createdAt)}
+          </span>
+        )}
       </div>
     </div>
+
+    <!-- ── Barre de recherche avec suggestions ──────────────────── -->
+    <div class="relative" id="log-search-wrapper">
+      <div class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center z-10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1010 17.5a7.5 7.5 0 006.65-.85z"/>
+        </svg>
+      </div>
+      <input
+        id="log-search"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Rechercher par action, utilisateur, description, dossier…"
+        class="h-10 w-full rounded border border-neutral-200 bg-white pl-9 pr-20 text-sm text-neutral-700 placeholder-neutral-400 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder-neutral-500 dark:focus:border-amber-500"
+      />
+      <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1.5">
+        <span id="log-search-count" class="text-xs text-neutral-400 tabular-nums"></span>
+        <kbd class="hidden sm:flex h-5 items-center rounded border border-neutral-200 bg-neutral-50 px-1.5 font-mono text-[10px] text-neutral-400">/</kbd>
+      </div>
+      <!-- Dropdown suggestions -->
+      <div
+        id="log-suggestions"
+        class="hidden absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded border border-neutral-100 bg-white shadow-xl shadow-neutral-900/8 py-1 dark:bg-neutral-900 dark:border-neutral-800 dark:shadow-neutral-950/50"
+        role="listbox"
+      ></div>
+    </div>
+
+    <!-- ── Filtres ────────────────────────────────────────────────── -->
+    <div class="flex flex-wrap gap-2" id="log-filters">
+      {categories.map(cat => (
+        <button
+          data-filter={cat}
+          class={`log-filter-btn inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
+            cat === 'all'
+              ? 'bg-primary-500 border-primary-500 text-white'
+              : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary-300 hover:text-primary-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400'
+          }`}
+        >
+          {cat === 'all' ? 'Tous les événements' :
+           cat === 'candidature' ? '📄 Candidatures' :
+           cat === 'message'     ? '💬 Messages'     :
+           cat === 'user'        ? '👤 Utilisateurs'  :
+           cat === 'contact'     ? '📧 Contacts'      : cat}
+        </button>
+      ))}
+    </div>
+
+    <!-- ── Table logs ─────────────────────────────────────────────── -->
+    <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800" id="log-table">
+
+      {logs.length === 0 ? (
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="h-12 w-12 rounded-full bg-neutral-50 flex items-center justify-center mb-4 dark:bg-neutral-800">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <p class="text-sm font-medium text-neutral-500">Aucune activité enregistrée</p>
+        </div>
+      ) : (
+        <>
+          <!-- En-têtes colonnes -->
+          <div class="hidden md:grid grid-cols-[32px_140px_1fr_160px_140px_180px] gap-4 items-center px-5 py-3 border-b border-neutral-100 bg-neutral-50/80 dark:border-neutral-800 dark:bg-neutral-800/40">
+            <div></div>
+            <button class="log-sort-btn group flex items-center gap-1 text-left text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer" data-col="event">
+              Événement <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="event">↕</span>
+            </button>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Description</p>
+            <button class="log-sort-btn group flex items-center gap-1 text-left text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer" data-col="actor">
+              Acteur <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="actor">↕</span>
+            </button>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Cible</p>
+            <button class="log-sort-btn group flex items-center gap-1 justify-end w-full text-[10px] font-bold uppercase tracking-widest text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer" data-col="date">
+              Horodatage <span class="sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors" data-icon="date">↕</span>
+            </button>
+          </div>
+
+          <!-- Lignes -->
+          <ul id="log-rows">
+            {logs.map((log: any) => {
+              const cfg  = ACTION_CFG[log.action] ?? { ...ACTION_CFG['user.login'], short: 'EVENT', label: log.action, category: 'other', level: 'info' }
+              const meta = fmtMeta(log)
+
+              return (
+                <li
+                  class="log-row group bg-white border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors dark:bg-neutral-900 dark:border-neutral-800 dark:hover:bg-neutral-800"
+                  data-category={cfg.category}
+                  data-search={[log.description, log.action, cfg.short, log.actorName, log.actorRole, log.targetType, log.targetId ? `#${log.targetId}` : ''].join(' ').toLowerCase()}
+                  data-sort-date={log.createdAt ?? ''}
+                  data-sort-event={cfg.short ?? ''}
+                  data-sort-actor={(log.actorName ?? '').toLowerCase()}
+                  data-sort-level={String(['info','notice','warning','success'].indexOf(cfg.level))}
+                  data-display-action={cfg.label ?? log.action ?? ''}
+                  data-display-actor={log.actorName ?? ''}
+                >
+                  <!-- Layout mobile : bloc -->
+                  <div class="flex flex-col md:hidden gap-2 px-4 py-2.5">
+                    <div class="flex items-start gap-3">
+                      <div class={`mt-0.5 h-8 w-8 rounded flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" class={`w-4 h-4 ${cfg.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                          <path stroke-linecap="round" stroke-linejoin="round" d={cfg.icon} />
+                        </svg>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                          <span class="font-mono text-[10px] font-bold text-neutral-500 bg-neutral-100 rounded px-1.5 py-0.5 uppercase tracking-wide dark:bg-neutral-800 dark:text-neutral-400">{cfg.short}</span>
+                          <span class={`text-[10px] font-bold rounded px-1.5 py-0.5 uppercase tracking-wide ${LEVEL_STYLE[cfg.level]}`}>{cfg.level}</span>
+                        </div>
+                        <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">{log.description}</p>
+                        {meta && <p class="text-xs text-neutral-400 font-mono mt-0.5">{meta}</p>}
+                      </div>
+                      <time class="text-[10px] text-neutral-400 tabular-nums font-mono shrink-0 text-right leading-relaxed">
+                        {fmtDate(log.createdAt)}<br/>{fmtTime(log.createdAt)}
+                      </time>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap pl-11">
+                      <span class={`text-[10px] font-semibold rounded-full px-2 py-0.5 uppercase tracking-wide ${ROLE_STYLE[log.actorRole] ?? ROLE_STYLE['system']}`}>
+                        {log.actorRole}
+                      </span>
+                      <span class="text-xs text-neutral-600 font-medium">{log.actorName}</span>
+                      {log.targetType === 'candidature' && log.targetId && (
+                        <a href={`/admin/candidatures/${log.targetId}`} class="text-xs font-semibold text-primary-500 hover:text-primary-600 transition-colors">
+                          Dossier #{log.targetId} →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <!-- Layout desktop : grille -->
+                  <div class="hidden md:grid grid-cols-[32px_140px_1fr_160px_140px_180px] gap-4 items-start px-5 py-2.5">
+
+                    <!-- Icône -->
+                    <div class={`mt-0.5 h-7 w-7 rounded flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" class={`w-3.5 h-3.5 ${cfg.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                        <path stroke-linecap="round" stroke-linejoin="round" d={cfg.icon} />
+                      </svg>
+                    </div>
+
+                    <!-- Événement -->
+                    <div class="min-w-0">
+                      <div class="flex flex-col gap-1">
+                        <span class="font-mono text-[10px] font-bold text-neutral-500 bg-neutral-100 rounded px-1.5 py-0.5 w-fit uppercase tracking-wide leading-tight dark:bg-neutral-800 dark:text-neutral-400">
+                          {cfg.short}
+                        </span>
+                        <span class={`text-[10px] font-bold rounded px-1.5 py-0.5 w-fit uppercase tracking-wide leading-tight ${LEVEL_STYLE[cfg.level]}`}>
+                          {cfg.level}
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Description + méta -->
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200 leading-snug">{log.description}</p>
+                      {meta && (
+                        <p class="text-xs text-neutral-400 font-mono mt-1 leading-snug">
+                          {meta}
+                        </p>
+                      )}
+                      <p class="text-[10px] text-neutral-400 font-mono mt-1 leading-snug break-all opacity-0 group-hover:opacity-100 transition-opacity">
+                        {log.action}
+                      </p>
+                    </div>
+
+                    <!-- Acteur -->
+                    <div class="min-w-0">
+                      <span class={`inline-flex text-[10px] font-semibold rounded-full px-2 py-0.5 uppercase tracking-wide ${ROLE_STYLE[log.actorRole] ?? ROLE_STYLE['system']}`}>
+                        {log.actorRole}
+                      </span>
+                      <p class="text-xs font-medium text-neutral-600 dark:text-neutral-300 mt-1 truncate">{log.actorName}</p>
+                    </div>
+
+                    <!-- Cible -->
+                    <div class="min-w-0">
+                      {log.targetType && log.targetId ? (
+                        <>
+                          <p class="text-[10px] text-neutral-400 font-mono uppercase tracking-wide">{log.targetType}</p>
+                          {log.targetType === 'candidature' ? (
+                            <a
+                              href={`/admin/candidatures/${log.targetId}`}
+                              class="text-xs font-semibold text-primary-500 hover:text-primary-600 transition-colors mt-0.5 inline-flex items-center gap-1"
+                            >
+                              Dossier #{log.targetId}
+                              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                              </svg>
+                            </a>
+                          ) : (
+                            <p class="text-xs text-neutral-500 font-mono mt-0.5">#{log.targetId}</p>
+                          )}
+                        </>
+                      ) : (
+                        <span class="text-xs text-neutral-300">—</span>
+                      )}
+                    </div>
+
+                    <!-- Timestamp -->
+                    <div class="text-right">
+                      <p class="text-xs text-neutral-600 dark:text-neutral-300 font-mono tabular-nums">{fmtDate(log.createdAt)}</p>
+                      <p class="text-xs text-neutral-400 font-mono tabular-nums mt-0.5">{fmtTime(log.createdAt)}</p>
+                      <p class="text-[10px] text-neutral-300 dark:text-neutral-600 font-mono tabular-nums mt-0.5">#{log.id}</p>
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+    </div>
+
+    <!-- Légende des niveaux -->
+    {logs.length > 0 && (
+      <div class="flex flex-wrap items-center gap-4 pt-1">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400">Niveaux :</p>
+        {Object.entries(LEVEL_STYLE).map(([level, cls]) => (
+          <div class="flex items-center gap-1.5">
+            <span class={`text-[9px] font-bold rounded px-1.5 py-0.5 uppercase tracking-wide ${cls}`}>{level}</span>
+          </div>
+        ))}
+        <p class="text-[10px] text-neutral-400 ml-auto">Survoler une ligne pour voir le code d'action</p>
+      </div>
+    )}
+
+    <!-- Pagination -->
+    <Pagination
+      currentPage={meta.current_page}
+      lastPage={meta.last_page}
+      total={meta.total}
+      perPage={meta.per_page}
+      baseUrl={Astro.url}
+    />
+
   </div>
+
+  <script>
+    document.addEventListener('astro:page-load', () => {
+      const input      = document.getElementById('log-search')      as HTMLInputElement | null
+      const dropdown   = document.getElementById('log-suggestions') as HTMLElement | null
+      const filterBtns = document.querySelectorAll<HTMLButtonElement>('.log-filter-btn')
+      const rows       = Array.from(document.querySelectorAll<HTMLLIElement>('.log-row'))
+      const countEl    = document.getElementById('log-search-count')
+      const logRowsEl  = document.getElementById('log-rows')
+      if (!rows.length) return
+
+      let activeCategory = 'all'
+      let sortCol = ''
+      let sortDir = ''
+
+      // ── XSS guard ─────────────────────────────────────────────
+      function esc(s: string) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+      }
+
+      // ── Suggestion index ──────────────────────────────────────
+      const actionsMap = new Map<string, string>() // short code -> label
+      const actorsSet  = new Set<string>()
+
+      rows.forEach(row => {
+        const label  = row.dataset.displayAction || ''
+        const event  = row.dataset.sortEvent || ''
+        const actor  = row.dataset.displayActor || ''
+        if (event && label) actionsMap.set(event, label)
+        if (actor) actorsSet.add(actor)
+      })
+
+      type SuggestItem  = { text: string; sub?: string; value: string }
+      type SuggestGroup = { label: string; icon: string; items: SuggestItem[] }
+
+      function getSuggestions(q: string): SuggestGroup[] {
+        if (!q) return []
+        const ql = q.toLowerCase()
+        const groups: SuggestGroup[] = []
+
+        const matchActions = [...actionsMap.entries()]
+          .filter(([code, label]) => code.toLowerCase().includes(ql) || label.toLowerCase().includes(ql))
+          .slice(0, 5)
+          .map(([code, label]) => ({ text: label, sub: code, value: label }))
+        if (matchActions.length) groups.push({ label: 'Types d\'action', icon: '⚡', items: matchActions })
+
+        const matchActors = [...actorsSet]
+          .filter(a => a.toLowerCase().includes(ql))
+          .slice(0, 4)
+          .map(a => ({ text: a, value: a }))
+        if (matchActors.length) groups.push({ label: 'Utilisateurs', icon: '👤', items: matchActors })
+
+        return groups
+      }
+
+      function renderSuggestions(groups: SuggestGroup[]) {
+        if (!dropdown) return
+        if (!groups.length) { dropdown.classList.add('hidden'); return }
+
+        let html = ''
+        groups.forEach((g, gi) => {
+          if (gi > 0) html += '<div class="mx-3 my-0.5 border-t border-neutral-50"></div>'
+          html += `<div class="px-3 pt-2.5 pb-0.5"><p class="text-[10px] font-bold uppercase tracking-wider text-neutral-400">${g.icon} ${esc(g.label)}</p></div>`
+          g.items.forEach(item => {
+            html += `<button type="button" class="log-suggest-item w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 focus:bg-neutral-50 transition-colors outline-none dark:hover:bg-neutral-800 dark:focus:bg-neutral-800" data-value="${esc(item.value)}">
+              <span class="flex-1 text-sm text-neutral-700 dark:text-neutral-200 truncate">${esc(item.text)}</span>
+              ${item.sub ? `<span class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate max-w-[160px]">${esc(item.sub)}</span>` : ''}
+            </button>`
+          })
+        })
+        html += '<div class="mx-3 mt-0.5 mb-1 border-t border-neutral-50"></div><div class="px-3 py-1.5"><p class="text-[10px] text-neutral-400">Cliquer pour filtrer · <kbd class="px-1 rounded border border-neutral-200 font-mono">Esc</kbd> pour fermer</p></div>'
+
+        dropdown.innerHTML = html
+        dropdown.classList.remove('hidden')
+
+        dropdown.querySelectorAll<HTMLButtonElement>('.log-suggest-item').forEach(btn => {
+          btn.addEventListener('mousedown', e => {
+            e.preventDefault()
+            if (input) input.value = btn.dataset.value || ''
+            dropdown.classList.add('hidden')
+            refresh()
+          })
+        })
+      }
+
+      // ── Update sort icons ─────────────────────────────────────
+      function updateSortIcons() {
+        document.querySelectorAll<HTMLElement>('[data-icon]').forEach(icon => {
+          const col = icon.dataset.icon!
+          if (col === sortCol && sortDir) {
+            icon.textContent = sortDir === 'asc' ? '↑' : '↓'
+            icon.className   = 'sort-icon text-primary-500 transition-colors'
+          } else {
+            icon.textContent = '↕'
+            icon.className   = 'sort-icon text-neutral-300 group-hover:text-neutral-400 transition-colors'
+          }
+        })
+      }
+
+      // ── Refresh: filter + sort ────────────────────────────────
+      function refresh() {
+        const raw   = input?.value.trim().toLowerCase() ?? ''
+        const terms = raw.split(/\s+/).filter(Boolean)
+
+        // 1. Sort
+        if (sortCol && sortDir && logRowsEl) {
+          const sorted = [...rows].sort((a, b) => {
+            const av = a.dataset[`sort${sortCol.charAt(0).toUpperCase()}${sortCol.slice(1)}`] ?? ''
+            const bv = b.dataset[`sort${sortCol.charAt(0).toUpperCase()}${sortCol.slice(1)}`] ?? ''
+            const cmp = av.localeCompare(bv, 'fr', { sensitivity: 'base', numeric: sortCol === 'date' || sortCol === 'level' })
+            return sortDir === 'asc' ? cmp : -cmp
+          })
+          sorted.forEach(r => logRowsEl.appendChild(r))
+        }
+
+        // 2. Filter
+        let visible = 0
+        rows.forEach(row => {
+          const catMatch    = activeCategory === 'all' || row.dataset.category === activeCategory
+          const searchMatch = terms.length === 0 || terms.every(t => (row.dataset.search ?? '').includes(t))
+          const show        = catMatch && searchMatch
+          row.classList.toggle('hidden', !show)
+          if (show) visible++
+        })
+
+        if (terms.length > 0 || activeCategory !== 'all') {
+          if (countEl) countEl.textContent = `${visible} résultat${visible !== 1 ? 's' : ''}`
+        } else {
+          if (countEl) countEl.textContent = ''
+        }
+      }
+
+      // ── Sort on header click ───────────────────────────────────
+      document.querySelectorAll<HTMLButtonElement>('.log-sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const col = btn.dataset.col!
+          if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : sortDir === 'desc' ? '' : 'asc'
+            if (!sortDir) sortCol = ''
+          } else {
+            sortCol = col
+            sortDir = col === 'date' ? 'desc' : 'asc'
+          }
+          updateSortIcons()
+          refresh()
+        })
+      })
+
+      // ── Category filter ───────────────────────────────────────
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeCategory = btn.dataset.filter!
+          filterBtns.forEach(b => {
+            const active = b.dataset.filter === activeCategory
+            b.classList.toggle('bg-primary-500',          active)
+            b.classList.toggle('border-primary-500',       active)
+            b.classList.toggle('text-white',               active)
+            b.classList.toggle('bg-white',                    !active)
+            b.classList.toggle('border-neutral-200',          !active)
+            b.classList.toggle('text-neutral-500',            !active)
+            b.classList.toggle('hover:text-primary-600',      !active)
+            b.classList.toggle('hover:border-primary-300',    !active)
+            b.classList.toggle('dark:bg-neutral-900',         !active)
+            b.classList.toggle('dark:border-neutral-700',     !active)
+            b.classList.toggle('dark:text-neutral-400',       !active)
+            b.classList.toggle('dark:hover:text-primary-400', !active)
+          })
+          refresh()
+        })
+      })
+
+      // ── Search input events ───────────────────────────────────
+      input?.addEventListener('input', () => {
+        refresh()
+        renderSuggestions(getSuggestions(input.value.trim()))
+      })
+
+      input?.addEventListener('focus', () => {
+        if (input.value.trim()) renderSuggestions(getSuggestions(input.value.trim()))
+      })
+
+      input?.addEventListener('blur', () => {
+        setTimeout(() => dropdown?.classList.add('hidden'), 150)
+      })
+
+      input?.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          if (dropdown && !dropdown.classList.contains('hidden')) {
+            dropdown.classList.add('hidden')
+          } else {
+            input.value = ''
+            refresh()
+            input.blur()
+          }
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          dropdown?.querySelector<HTMLButtonElement>('.log-suggest-item')?.focus()
+        }
+      })
+
+      dropdown?.addEventListener('keydown', (e: KeyboardEvent) => {
+        const items = Array.from(dropdown.querySelectorAll<HTMLButtonElement>('.log-suggest-item'))
+        const idx   = items.indexOf(document.activeElement as HTMLButtonElement)
+        if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus() }
+        if (e.key === 'ArrowUp')   { e.preventDefault(); idx <= 0 ? input?.focus() : items[idx - 1]?.focus() }
+        if (e.key === 'Escape')    { dropdown.classList.add('hidden'); input?.focus() }
+      })
+
+      // Raccourci "/"
+      document.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key !== '/') return
+        const tag = (document.activeElement as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return
+        e.preventDefault()
+        input?.focus()
+        input?.select()
+      })
+    })
+  </script>
 </DashboardLayout>

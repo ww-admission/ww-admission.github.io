@@ -399,11 +399,11 @@ export const STATUS_LABELS: Record<CandidatureStatus, string> = {
 }
 
 export const STATUS_COLORS: Record<CandidatureStatus, string> = {
-  pending: 'bg-amber-100 text-amber-700',
-  reviewing: 'bg-blue-100 text-blue-700',
-  accepted: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  on_hold: 'bg-neutral-100 text-neutral-600',
+  pending:   'bg-gold-100 text-gold-800 dark:bg-gold-900/40 dark:text-gold-300',
+  reviewing: 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300',
+  accepted:  'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+  rejected:  'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400',
+  on_hold:   'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
 }
 
 export function formatDate(iso: string): string {

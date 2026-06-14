@@ -1,0 +1,770 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro'
+import Pagination from '../../components/ui/Pagination.astro'
+import {
+  ROLE_LABELS, ROLE_COLORS,
+  STATUS_LABELS_ACCOUNT, STATUS_COLORS_ACCOUNT,
+  timeAgo,
+  type AccountRole, type AccountStatus,
+} from '../../lib/contacts-data'
+import { backendFetch } from '../../lib/auth'
+
+const session = Astro.locals.session!
+const page    = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10))
+const perPage = (() => {
+  const v = parseInt(Astro.url.searchParams.get('per_page') ?? '30', 10)
+  return [30, 50, 100].includes(v) ? v : 30
+})()
+
+type Account = {
+  id: number
+  name: string
+  email: string
+  role: 'admin' | 'candidate'
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+const AVATAR_COLORS = [
+  'bg-primary-500', 'bg-primary-700', 'bg-gold-600',
+  'bg-neutral-500', 'bg-neutral-600', 'bg-neutral-700',
+]
+
+type AccountFull = Account & {
+  initials: string
+  avatarColor: string
+  lastActiveAt: string
+  location: string | null
+}
+
+function toFull(a: Account, i: number): AccountFull {
+  const parts = a.name.trim().split(' ')
+  const initials = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
+  return {
+    ...a,
+    initials:     initials.toUpperCase() || '?',
+    avatarColor:  AVATAR_COLORS[i % AVATAR_COLORS.length],
+    lastActiveAt: a.updatedAt ?? a.createdAt,
+    location:     null,
+  }
+}
+
+let accounts: AccountFull[] = []
+let meta = { total: 0, current_page: page, last_page: 1, per_page: perPage }
+try {
+  const qs   = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+  const resp = await backendFetch(`/users?${qs}`, session)
+  if (resp.ok) {
+    const d    = await resp.json()
+    const raw: Account[] = d.data ?? d
+    accounts = raw.map(toFull)
+    meta = {
+      total:        d.total        ?? accounts.length,
+      current_page: d.current_page ?? page,
+      last_page:    d.last_page    ?? 1,
+      per_page:     d.per_page     ?? perPage,
+    }
+  }
+} catch {}
+
+const stats = {
+  total:      meta.total,
+  admins:     accounts.filter(a => a.role === 'admin').length,
+  candidates: accounts.filter(a => a.role === 'candidate').length,
+  suspended:  accounts.filter(a => a.status === 'suspended').length,
+}
+const roles = ['all', 'admin', 'candidate'] as ('all' | AccountRole)[]
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+---
+
+<DashboardLayout title="Comptes & Accès" activeNav="accounts">
+  <div class="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+
+    <!-- En-tête -->
+    <div class="flex flex-col sm:flex-row sm:items-end gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Administration</p>
+        <h1 class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">Comptes &amp; Accès</h1>
+      </div>
+      <button
+        id="btn-invite"
+        class="sm:ml-auto inline-flex items-center gap-2 rounded bg-primary-500 px-4 py-2 text-sm font-bold text-white hover:bg-primary-600 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+        </svg>
+        Inviter un compte
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {[
+        { label: 'Comptes totaux',    value: stats.total,      color: 'text-neutral-700', bg: 'bg-neutral-50 dark:bg-neutral-800',  dot: 'bg-neutral-400' },
+        { label: 'Admins',            value: stats.admins,     color: 'text-primary-600', bg: 'bg-primary-50 dark:bg-primary-950',  dot: 'bg-primary-500' },
+        { label: 'Candidats',         value: stats.candidates, color: 'text-gold-700',    bg: 'bg-gold-50 dark:bg-gold-900/30',     dot: 'bg-gold-500' },
+        { label: 'Suspendus',          value: stats.suspended,  color: 'text-red-600',     bg: 'bg-red-50 dark:bg-red-950',          dot: 'bg-red-400' },
+      ].map(s => (
+        <div class="bg-white border border-neutral-100 rounded p-4 flex items-center gap-3 dark:bg-neutral-900 dark:border-neutral-800">
+          <div class={`h-9 w-9 rounded-full ${s.bg} flex items-center justify-center shrink-0`}>
+            <span class={`text-sm font-bold ${s.color}`}>{s.value}</span>
+          </div>
+          <div>
+            <p class="text-xs text-neutral-400">{s.label}</p>
+            <div class={`h-1.5 w-1.5 rounded-full ${s.dot} mt-1`}></div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Barre de recherche -->
+    <div class="flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <div class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1010 17.5a7.5 7.5 0 006.65-.85z"/>
+          </svg>
+        </div>
+        <input
+          id="account-search"
+          type="text"
+          autocomplete="off"
+          placeholder="Rechercher un compte par nom, email, rôle…"
+          class="h-10 w-full rounded border border-neutral-200 bg-white pl-9 pr-4 text-sm text-neutral-700 placeholder-neutral-400 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder-neutral-500"
+        />
+      </div>
+      <!-- Tri rapide -->
+      <select id="account-sort" class="h-10 rounded border border-neutral-200 bg-white px-3 text-sm text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300">
+        <option value="lastActive">Dernière activité</option>
+        <option value="name">Nom A–Z</option>
+        <option value="created">Date de création</option>
+        <option value="role">Rôle</option>
+      </select>
+    </div>
+
+    <!-- Filtres rôle -->
+    <div class="flex flex-wrap gap-2">
+      {roles.map(r => (
+        <button
+          data-filter={r}
+          class={`account-filter-btn inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
+            r === 'all'
+              ? 'bg-primary-500 border-primary-500 text-white'
+              : 'bg-white border-neutral-200 text-neutral-500 hover:border-primary-300 hover:text-primary-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400'
+          }`}
+        >
+          {r === 'all' ? 'Tous les comptes' : ROLE_LABELS[r as AccountRole]}
+        </button>
+      ))}
+    </div>
+
+    <!-- Table comptes -->
+    <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-neutral-100 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-800/40">
+              <th class="text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 px-5 py-3">Utilisateur</th>
+              <th class="text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 px-4 py-3 hidden sm:table-cell">Rôle</th>
+              <th class="text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 px-4 py-3 hidden md:table-cell">Localisation</th>
+              <th class="text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 px-4 py-3 hidden lg:table-cell">Activité</th>
+              <th class="text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 px-4 py-3">Statut</th>
+              <th class="px-4 py-3 w-24"></th>
+            </tr>
+          </thead>
+          <tbody id="accounts-tbody">
+            {accounts.map((a) => (
+              <tr
+                class="account-row border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors group cursor-pointer dark:border-neutral-800 dark:hover:bg-neutral-800"
+                data-id={a.id}
+                data-role={a.role}
+                data-sort-name={a.name.toLowerCase()}
+                data-sort-last={a.lastActiveAt}
+                data-sort-created={a.createdAt}
+                data-sort-role={a.role}
+                data-search={[a.name, a.email, a.role, ROLE_LABELS[a.role as AccountRole] ?? a.role, a.status].join(' ').toLowerCase()}
+              >
+                <!-- Utilisateur -->
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-3">
+                    <div class={`h-9 w-9 rounded-full ${a.avatarColor} flex items-center justify-center shrink-0 shadow-sm`}>
+                      <span class="text-xs font-bold text-white">{a.initials}</span>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{a.name}</p>
+                      <p class="text-xs text-neutral-400 truncate">{a.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <!-- Rôle -->
+                <td class="px-4 py-3 hidden sm:table-cell">
+                  <span class={`inline-flex items-center text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 ${ROLE_COLORS[a.role as AccountRole] ?? 'bg-neutral-100 text-neutral-600'}`}>
+                    {ROLE_LABELS[a.role as AccountRole] ?? a.role}
+                  </span>
+                </td>
+                <!-- Localisation -->
+                <td class="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400 hidden md:table-cell">{a.location ?? '—'}</td>
+                <!-- Activité -->
+                <td class="px-4 py-3 hidden lg:table-cell">
+                  <div class="flex flex-col gap-0.5">
+                    <p class="text-xs font-medium text-neutral-600 dark:text-neutral-300">{timeAgo(a.lastActiveAt)}</p>
+                    <p class="text-[10px] text-neutral-400">Créé le {fmtDate(a.createdAt)}</p>
+                  </div>
+                </td>
+                <!-- Statut -->
+                <td class="px-4 py-3">
+                  <span class={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS_ACCOUNT[a.status as AccountStatus] ?? 'bg-neutral-100 text-neutral-600'}`}>
+                    {STATUS_LABELS_ACCOUNT[a.status as AccountStatus] ?? a.status}
+                  </span>
+                </td>
+                <!-- Actions -->
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="account-view-btn h-7 px-2.5 rounded border border-neutral-200 text-[10px] font-semibold text-neutral-500 hover:border-primary-300 hover:text-primary-600 transition-all dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400" data-id={a.id}>
+                      Détail
+                    </button>
+                    {a.status === 'active' && a.role !== 'admin' && (
+                      <button class="account-suspend-btn h-7 px-2.5 rounded border border-neutral-200 text-[10px] font-semibold text-neutral-500 hover:border-red-300 hover:text-red-500 transition-all dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-red-800 dark:hover:text-red-400" data-id={a.id} data-name={a.name}>
+                        Suspendre
+                      </button>
+                    )}
+                    {a.status === 'suspended' && (
+                      <button class="account-validate-btn h-7 px-2.5 rounded bg-primary-500 text-[10px] font-semibold text-white hover:bg-primary-700 transition-all" data-id={a.id} data-name={a.name}>
+                        Réactiver
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div id="no-accounts" class="hidden py-16 text-center">
+          <p class="text-sm font-medium text-neutral-500">Aucun compte trouvé</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <Pagination
+      currentPage={meta.current_page}
+      lastPage={meta.last_page}
+      total={meta.total}
+      perPage={meta.per_page}
+      baseUrl={Astro.url}
+    />
+
+  </div>
+
+  <!-- ── Panel détail compte ─────────────────────────────────────────── -->
+  <div
+    id="account-panel"
+    class="hidden fixed inset-y-0 right-0 z-40 flex-col w-full max-w-lg bg-white border-l border-neutral-100 shadow-2xl transform translate-x-full transition-transform duration-300 dark:bg-neutral-900 dark:border-neutral-800"
+  >
+    <div class="shrink-0 flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+      <h2 class="font-headings font-semibold text-sm text-neutral-700 dark:text-neutral-200">Détail du compte</h2>
+      <div class="flex items-center gap-2">
+        <button id="btn-edit-account" class="h-8 px-3 rounded border border-neutral-200 text-xs font-semibold text-neutral-500 hover:border-primary-300 hover:text-primary-600 transition-all dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-400">Modifier les permissions</button>
+        <button id="panel-close" class="h-8 w-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition-all dark:hover:text-neutral-200 dark:hover:bg-neutral-800">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="panel-content" class="flex-1 overflow-y-auto"></div>
+  </div>
+  <div id="panel-overlay" class="hidden fixed inset-0 z-30 bg-neutral-900/20 backdrop-blur-[2px]"></div>
+
+  <!-- ── Modale invitation — 3 onglets ──────────────────────────────────── -->
+  <div
+    id="modal-invite"
+    class="hidden fixed inset-0 z-50 items-center justify-center bg-neutral-900/50 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-invite-title"
+  >
+    <div class="m-4 w-full max-w-lg overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-2xl shadow-neutral-900/20 dark:bg-neutral-900 dark:border-neutral-800">
+
+      <!-- Header modale -->
+      <div class="flex items-center justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+        <div>
+          <h2 id="modal-invite-title" class="font-headings font-bold text-sm text-neutral-800 dark:text-neutral-100">Inviter / Créer un compte</h2>
+          <p class="text-xs text-neutral-400 mt-0.5">Ajoutez un nouveau membre à la plateforme WWA.</p>
+        </div>
+        <button id="modal-invite-close" class="h-8 w-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition-all dark:hover:text-neutral-200 dark:hover:bg-neutral-800">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Onglets -->
+      <div class="flex border-b border-neutral-100 dark:border-neutral-800">
+        {[
+          { id: 'tab-email', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', label: 'Par email' },
+          { id: 'tab-link',  icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',  label: 'Par lien'  },
+          { id: 'tab-manual', icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z', label: 'Créer manuellement' },
+        ].map((t, i) => (
+          <button
+            class={`invite-tab flex-1 flex items-center justify-center gap-1.5 px-4 py-3 text-xs font-semibold transition-all border-b-2 ${
+              i === 0
+                ? 'text-primary-600 border-primary-500 bg-primary-50/50'
+                : 'text-neutral-500 border-transparent hover:text-neutral-700 hover:border-neutral-200'
+            }`}
+            data-tab={t.id}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d={t.icon}/>
+            </svg>
+            <span class="hidden sm:inline">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <!-- Corps onglet 1 : Par email -->
+      <div id="tab-email" class="invite-panel p-6 space-y-4">
+        <p class="text-xs text-neutral-500">Une invitation par email sera envoyée avec un lien d'activation valable 48h.</p>
+        <div>
+          <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Adresse email *</label>
+          <input type="email" id="invite-email" placeholder="utilisateur@exemple.com"
+            class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"/>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Rôle *</label>
+            <select id="invite-role-email" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+              <option value="candidate">Candidat</option>
+              <option value="admin">Admin</option>
+              <option value="advisor">Conseiller</option>
+              <option value="school">École / Institution</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Langue</label>
+            <select class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+              <option>Français</option>
+              <option>Anglais</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Message personnalisé <span class="font-normal text-neutral-400">(optionnel)</span></label>
+          <textarea rows={3} placeholder="Ex : Bienvenue sur la plateforme WorldWise Admission. Votre compte candidat est prêt !"
+            class="w-full rounded border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition resize-none"></textarea>
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-neutral-100">
+          <button id="modal-invite-cancel" class="h-9 rounded border border-neutral-200 px-4 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition">Annuler</button>
+          <button id="btn-send-invite" class="h-9 rounded bg-primary-500 px-5 text-sm font-bold text-white hover:bg-primary-600 transition flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            Envoyer l'invitation
+          </button>
+        </div>
+      </div>
+
+      <!-- Corps onglet 2 : Par lien -->
+      <div id="tab-link" class="invite-panel hidden p-6 space-y-4">
+        <p class="text-xs text-neutral-500">Partagez ce lien d'inscription. Il expire automatiquement selon la durée choisie.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Rôle du lien</label>
+            <select id="link-role" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+              <option value="candidate">Candidat</option>
+              <option value="advisor">Conseiller</option>
+              <option value="school">École / Institution</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Expiration</label>
+            <select id="link-expiry" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+              <option value="24">24 heures</option>
+              <option value="72" selected>72 heures</option>
+              <option value="168">7 jours</option>
+              <option value="720">30 jours</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Nombre max d'utilisations <span class="font-normal text-neutral-400">(0 = illimité)</span></label>
+          <input type="number" value="1" min="0" max="100"
+            class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-700 outline-none focus:border-amber-400 transition"/>
+        </div>
+        <!-- Lien généré -->
+        <div id="generated-link-wrapper" class="hidden">
+          <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Lien d'invitation</label>
+          <div class="flex gap-2">
+            <input id="generated-link" readonly type="text"
+              class="flex-1 h-10 rounded border border-neutral-200 bg-neutral-50 px-3 text-xs font-mono text-neutral-600 outline-none select-all"/>
+            <button id="btn-copy-link" class="h-10 px-3 rounded border border-neutral-200 text-xs font-semibold text-neutral-600 hover:border-primary-300 hover:text-primary-600 transition-all flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Copier
+            </button>
+          </div>
+          <p id="copy-feedback" class="text-xs text-green-600 mt-1.5 hidden">✓ Lien copié dans le presse-papiers</p>
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-neutral-100">
+          <button id="modal-invite-cancel-2" class="h-9 rounded border border-neutral-200 px-4 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition">Fermer</button>
+          <button id="btn-generate-link" class="h-9 rounded bg-primary-500 px-5 text-sm font-bold text-white hover:bg-primary-600 transition flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            Générer le lien
+          </button>
+        </div>
+      </div>
+
+      <!-- Corps onglet 3 : Création manuelle (Super Admin uniquement) -->
+      <div id="tab-manual" class="invite-panel hidden p-6 space-y-4">
+        <div class="rounded bg-amber-50 border border-amber-200 px-4 py-2.5 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <p class="text-xs text-amber-700 font-medium">Réservé au Super Admin — le compte sera actif immédiatement sans vérification email.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Prénom *</label>
+            <input type="text" id="manual-firstname" placeholder="Jean" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-700 outline-none focus:border-amber-400 transition"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Nom *</label>
+            <input type="text" id="manual-lastname" placeholder="Dupont" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-700 outline-none focus:border-amber-400 transition"/>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Email *</label>
+          <input type="email" id="manual-email" placeholder="jean.dupont@exemple.com" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-700 outline-none focus:border-amber-400 transition"/>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Rôle *</label>
+            <select id="manual-role" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-600 outline-none focus:border-amber-400 transition cursor-pointer dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+              <option value="candidate">Candidat</option>
+              <option value="admin">Admin</option>
+              <option value="advisor">Conseiller</option>
+              <option value="school">École / Institution</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Mot de passe provisoire *</label>
+            <div class="relative">
+              <input type="text" id="manual-password" placeholder="Généré automatiquement"
+                class="h-10 w-full rounded border border-neutral-200 px-3 pr-9 text-sm text-neutral-700 font-mono outline-none focus:border-amber-400 transition"/>
+              <button id="btn-gen-password" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-primary-500 transition-colors" title="Générer un mot de passe">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-neutral-500 mb-1.5">Notes internes <span class="font-normal text-neutral-400">(optionnel)</span></label>
+          <input type="text" placeholder="Ex: Référent pour les candidats China 2025" class="h-10 w-full rounded border border-neutral-200 px-3 text-sm text-neutral-700 placeholder-neutral-400 outline-none focus:border-amber-400 transition"/>
+        </div>
+        <div class="flex items-center gap-2 py-2 border-t border-neutral-100">
+          <input type="checkbox" id="send-credentials" class="h-4 w-4 accent-primary-500" checked/>
+          <label for="send-credentials" class="text-xs text-neutral-600 cursor-pointer">Envoyer les identifiants par email à l'utilisateur</label>
+        </div>
+        <div class="flex items-center justify-end gap-3">
+          <button id="modal-invite-cancel-3" class="h-9 rounded border border-neutral-200 px-4 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition">Annuler</button>
+          <button id="btn-create-account" class="h-9 rounded bg-neutral-800 px-5 text-sm font-bold text-white hover:bg-neutral-900 transition flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+            Créer le compte
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script is:inline define:vars={{ accountsData: accounts }}>
+    window.__ACCOUNTS_DATA__ = accountsData
+  </script>
+
+  <script>
+    import type { Account } from '../../lib/contacts-data'
+
+    const ALL_ACCOUNTS: Account[] = (window as any).__ACCOUNTS_DATA__ ?? []
+
+    const ROLE_L: Record<string,string> = { super_admin:'Super Admin', admin:'Admin', candidate:'Candidat', advisor:'Conseiller', school:'École / Institution' }
+    const ROLE_C: Record<string,string> = {
+      super_admin: 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300',
+      admin:       'bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-400',
+      candidate:   'bg-gold-100 text-gold-800 dark:bg-gold-900/40 dark:text-gold-300',
+      advisor:     'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+      school:      'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300',
+    }
+    const STATUS_L: Record<string,string> = { active:'Actif', suspended:'Suspendu', pending_verification:'En attente' }
+    const STATUS_C: Record<string,string> = {
+      active:               'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+      suspended:            'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400',
+      pending_verification: 'bg-gold-100 text-gold-800 dark:bg-gold-900/40 dark:text-gold-300',
+    }
+
+    function esc(s: string) { return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+    function timeAgo(iso: string) {
+      const d = Date.now() - new Date(iso).getTime(), m = Math.floor(d/60000)
+      if (m < 1) return 'À l\'instant'; if (m < 60) return `Il y a ${m} min`
+      const h = Math.floor(m/60); if (h < 24) return `Il y a ${h}h`
+      const dy = Math.floor(h/24); if (dy < 7) return `Il y a ${dy}j`
+      return new Date(iso).toLocaleDateString('fr-FR', { day:'2-digit', month:'short' })
+    }
+    function fmtDate(iso: string) { return new Date(iso).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) }
+
+    document.addEventListener('astro:page-load', () => {
+      const searchInput = document.getElementById('account-search') as HTMLInputElement | null
+      const sortSelect  = document.getElementById('account-sort')  as HTMLSelectElement | null
+      const filterBtns  = document.querySelectorAll<HTMLButtonElement>('.account-filter-btn')
+      const rows        = Array.from(document.querySelectorAll<HTMLTableRowElement>('.account-row'))
+      const tbody       = document.getElementById('accounts-tbody')
+      const noResults   = document.getElementById('no-accounts')
+      let activeFilter  = 'all'
+
+      function refresh() {
+        const q     = searchInput?.value.trim().toLowerCase() ?? ''
+        const terms = q.split(/\s+/).filter(Boolean)
+        const sortKey = sortSelect?.value ?? 'lastActive'
+
+        // Sort
+        const colMap: Record<string,string> = { name:'sortName', lastActive:'sortLast', created:'sortCreated', role:'sortRole' }
+        const sortedRows = [...rows].sort((a, b) => {
+          const av = a.dataset[colMap[sortKey]] ?? ''
+          const bv = b.dataset[colMap[sortKey]] ?? ''
+          const cmp = av.localeCompare(bv, 'fr', { sensitivity:'base' })
+          return sortKey === 'lastActive' ? -cmp : cmp
+        })
+        sortedRows.forEach(r => tbody?.appendChild(r))
+
+        // Filter
+        let visible = 0
+        rows.forEach(row => {
+          const show = (activeFilter === 'all' || row.dataset.role === activeFilter)
+            && (terms.length === 0 || terms.every(t => (row.dataset.search ?? '').includes(t)))
+          row.classList.toggle('hidden', !show)
+          if (show) visible++
+        })
+        noResults?.classList.toggle('hidden', visible > 0)
+      }
+
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeFilter = btn.dataset.filter!
+          filterBtns.forEach(b => {
+            const on = b.dataset.filter === activeFilter
+            b.classList.toggle('bg-primary-500', on); b.classList.toggle('border-primary-500', on); b.classList.toggle('text-white', on)
+            b.classList.toggle('bg-white', !on); b.classList.toggle('border-neutral-200', !on); b.classList.toggle('text-neutral-500', !on)
+            b.classList.toggle('hover:text-primary-600', !on); b.classList.toggle('hover:border-primary-300', !on)
+          })
+          refresh()
+        })
+      })
+      searchInput?.addEventListener('input', refresh)
+      sortSelect?.addEventListener('change', refresh)
+
+      // ── Panel détail ─────────────────────────────────────────────
+      const panel    = document.getElementById('account-panel')!
+      const overlay  = document.getElementById('panel-overlay')!
+      const content  = document.getElementById('panel-content')!
+      const closeBtn = document.getElementById('panel-close')!
+
+      function openPanel(id: string) {
+        const a = ALL_ACCOUNTS.find(x => x.id === id)
+        if (!a) return
+        content.innerHTML = buildDetail(a)
+        panel.classList.remove('hidden')
+        panel.classList.add('flex')
+        overlay.classList.remove('hidden')
+        requestAnimationFrame(() => panel.classList.remove('translate-x-full'))
+        document.body.style.overflow = 'hidden'
+      }
+      function closePanel() {
+        panel.classList.add('translate-x-full')
+        setTimeout(() => {
+          panel.classList.add('hidden')
+          panel.classList.remove('flex')
+          overlay.classList.add('hidden')
+          document.body.style.overflow = ''
+        }, 300)
+      }
+
+      document.querySelectorAll<HTMLButtonElement>('.account-view-btn').forEach(btn => {
+        btn.addEventListener('click', e => { e.stopPropagation(); openPanel(btn.dataset.id!) })
+      })
+      document.querySelectorAll<HTMLButtonElement>('.account-suspend-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation()
+          if (confirm(`Suspendre le compte de ${btn.dataset.name} ?`)) {
+            alert('Suspension envoyée.\n(Nécessite le backend Laravel pour l\'action réelle)')
+          }
+        })
+      })
+      document.querySelectorAll<HTMLButtonElement>('.account-validate-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation()
+          if (confirm(`Valider et activer le compte de ${btn.dataset.name} ?`)) {
+            alert('Validation envoyée.\n(Nécessite le backend Laravel pour l\'action réelle)')
+          }
+        })
+      })
+      rows.forEach(row => { row.addEventListener('click', () => openPanel(row.dataset.id!)) })
+
+      closeBtn.addEventListener('click', closePanel)
+      overlay.addEventListener('click', closePanel)
+      document.getElementById('btn-edit-account')?.addEventListener('click', () => {
+        alert('Gestion des permissions disponible avec le backend Laravel connecté.')
+      })
+      document.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Escape') closePanel() })
+
+      // ── Modal invitation — 3 onglets ────────────────────────────
+      const modalInvite = document.getElementById('modal-invite')!
+      const inviteTabs  = modalInvite.querySelectorAll<HTMLButtonElement>('.invite-tab')
+      const invitePanels = modalInvite.querySelectorAll<HTMLElement>('.invite-panel')
+
+      function openInviteModal() {
+        modalInvite.classList.remove('hidden')
+        modalInvite.classList.add('flex')
+        // Reset to first tab
+        switchTab('tab-email')
+      }
+
+      function closeInvite() {
+        modalInvite.classList.add('hidden')
+        modalInvite.classList.remove('flex')
+      }
+
+      function switchTab(targetId: string) {
+        inviteTabs.forEach(t => {
+          const on = t.dataset.tab === targetId
+          t.classList.toggle('text-primary-600',   on)
+          t.classList.toggle('border-primary-500', on)
+          t.classList.toggle('bg-primary-50/50',   on)
+          t.classList.toggle('text-neutral-500',    !on)
+          t.classList.toggle('border-transparent',  !on)
+        })
+        invitePanels.forEach(p => p.classList.toggle('hidden', p.id !== targetId))
+      }
+
+      inviteTabs.forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab!))
+      })
+
+      document.getElementById('btn-invite')?.addEventListener('click', openInviteModal)
+      document.getElementById('modal-invite-close')?.addEventListener('click', closeInvite)
+      ;['modal-invite-cancel', 'modal-invite-cancel-2', 'modal-invite-cancel-3'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', closeInvite)
+      })
+      modalInvite.addEventListener('click', e => { if (e.target === modalInvite) closeInvite() })
+
+      // Envoyer invitation par email
+      document.getElementById('btn-send-invite')?.addEventListener('click', () => {
+        const email = (document.getElementById('invite-email') as HTMLInputElement)?.value.trim()
+        if (!email) { alert('Veuillez saisir une adresse email.'); return }
+        alert(`Invitation envoyée à ${email}.\n\n(Nécessite le backend Laravel pour l'envoi réel)`)
+        closeInvite()
+      })
+
+      // Générer le lien d'invitation
+      document.getElementById('btn-generate-link')?.addEventListener('click', () => {
+        const role   = (document.getElementById('link-role') as HTMLSelectElement)?.value ?? 'candidate'
+        const expiry = (document.getElementById('link-expiry') as HTMLSelectElement)?.value ?? '72'
+        const token  = Math.random().toString(36).slice(2, 18)
+        const link   = `${window.location.origin}/register?invite=${token}&role=${role}&exp=${expiry}h`
+        const input  = document.getElementById('generated-link') as HTMLInputElement
+        if (input) input.value = link
+        document.getElementById('generated-link-wrapper')?.classList.remove('hidden')
+      })
+
+      // Copier le lien
+      document.getElementById('btn-copy-link')?.addEventListener('click', async () => {
+        const input = document.getElementById('generated-link') as HTMLInputElement
+        if (!input?.value) return
+        try {
+          await navigator.clipboard.writeText(input.value)
+          const fb = document.getElementById('copy-feedback')
+          if (fb) { fb.classList.remove('hidden'); setTimeout(() => fb.classList.add('hidden'), 2500) }
+        } catch { input.select(); document.execCommand('copy') }
+      })
+
+      // Générer mot de passe
+      document.getElementById('btn-gen-password')?.addEventListener('click', () => {
+        const chars  = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!'
+        const pwd    = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+        const input  = document.getElementById('manual-password') as HTMLInputElement
+        if (input) input.value = pwd
+      })
+
+      // Créer le compte manuellement
+      document.getElementById('btn-create-account')?.addEventListener('click', () => {
+        const email = (document.getElementById('manual-email') as HTMLInputElement)?.value.trim()
+        const pwd   = (document.getElementById('manual-password') as HTMLInputElement)?.value.trim()
+        if (!email || !pwd) { alert('Email et mot de passe obligatoires.'); return }
+        alert(`Compte créé pour ${email}.\n\n(Nécessite le backend Laravel pour la création réelle)`)
+        closeInvite()
+      })
+    })
+
+    function buildDetail(a: Account): string {
+      const perms = a.permissions.map(p => `<span class="text-[10px] rounded bg-neutral-50 border border-neutral-100 px-2 py-1 font-mono text-neutral-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400">${esc(p)}</span>`).join('')
+      const mockLogs = [
+        { action: 'Connexion', time: a.lastActiveAt, role: a.role },
+        { action: 'Consultation candidatures', time: new Date(new Date(a.lastActiveAt).getTime() - 3600000).toISOString(), role: a.role },
+        { action: 'Création de compte', time: a.createdAt, role: a.role },
+      ]
+      const logsHtml = mockLogs.map(l => `
+        <div class="flex items-start gap-3 py-2">
+          <div class="h-1.5 w-1.5 rounded-full bg-neutral-300 dark:bg-neutral-600 mt-2 shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium text-neutral-600 dark:text-neutral-300">${esc(l.action)}</p>
+          </div>
+          <p class="text-[10px] text-neutral-400 tabular-nums shrink-0">${timeAgo(l.time)}</p>
+        </div>
+      `).join('')
+
+      return `
+        <!-- En-tête profil -->
+        <div class="p-6 border-b border-neutral-50 dark:border-neutral-800">
+          <div class="flex items-center gap-4 mb-4">
+            <div class="${a.avatarColor} h-16 w-16 rounded-full flex items-center justify-center shrink-0 shadow-md">
+              <span class="text-xl font-bold text-white">${esc(a.initials)}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h3 class="font-headings font-bold text-neutral-800 dark:text-neutral-100 text-base mb-1">${esc(a.name)}</h3>
+              <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-2">${esc(a.email)}</p>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-0.5 ${ROLE_C[a.role]??''}">${ROLE_L[a.role]??a.role}</span>
+                <span class="text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-0.5 ${STATUS_C[a.status]??''}">${STATUS_L[a.status]??a.status}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coordonnées -->
+        <div class="p-6 border-b border-neutral-50 dark:border-neutral-800 space-y-2">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-3">Informations</h4>
+          ${a.phone ? `<div class="flex items-center gap-2.5 text-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg><span class="text-neutral-600 dark:text-neutral-300">${esc(a.phone)}</span></div>` : ''}
+          ${a.location ? `<div class="flex items-center gap-2.5 text-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="text-neutral-600 dark:text-neutral-300">${esc(a.location)}</span></div>` : ''}
+          <div class="flex items-center gap-2.5 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span class="text-neutral-600 dark:text-neutral-300">Créé le ${fmtDate(a.createdAt)}</span>
+          </div>
+          <div class="flex items-center gap-2.5 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="text-neutral-600 dark:text-neutral-300">Dernière activité : ${timeAgo(a.lastActiveAt)}</span>
+          </div>
+          ${a.candidatureCount !== undefined ? `<div class="flex items-center gap-2.5 text-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span class="text-neutral-600 dark:text-neutral-300">${a.candidatureCount} candidature${(a.candidatureCount??0) > 1 ? 's' : ''} · ${a.conversationCount ?? 0} conversation${(a.conversationCount??0) > 1 ? 's' : ''}</span></div>` : ''}
+          ${a.notes ? `<div class="mt-3 rounded bg-amber-50 border border-amber-100 px-3 py-2.5 dark:bg-amber-950 dark:border-amber-900"><p class="text-xs text-amber-700 dark:text-amber-300">${esc(a.notes)}</p></div>` : ''}
+        </div>
+
+        <!-- Permissions -->
+        <div class="p-6 border-b border-neutral-50 dark:border-neutral-800 space-y-3">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Permissions</h4>
+          <div class="flex flex-wrap gap-1.5">${perms}</div>
+        </div>
+
+        <!-- Log d'activité récent -->
+        <div class="p-6 space-y-1">
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Activité récente</h4>
+          ${logsHtml}
+          <a href="/admin/logs" class="text-xs text-primary-500 hover:text-primary-600 transition-colors mt-2 inline-block">Voir tous les logs →</a>
+        </div>
+      `
+    }
+  </script>
+
+</DashboardLayout>

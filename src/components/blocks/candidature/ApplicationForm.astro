@@ -48,8 +48,8 @@ const staticDocs        = DOCUMENTS_REQUIS.filter((d) => d.id !== 'releve_notes'
 
 const todayStr = new Date().toISOString().split('T')[0]
 
-type Props = { classes?: string }
-const { classes } = Astro.props
+type Props = { classes?: string; successHref?: string }
+const { classes, successHref = '/' } = Astro.props
 
 const inputClass       = 'peer relative h-12 w-full rounded border border-neutral-200 bg-transparent px-4 text-sm text-neutral-500 placeholder-transparent outline-none transition-all focus:border-amber-400 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400'
 const labelClass       = 'absolute -top-2 left-2 z-[1] cursor-text px-2 text-xs text-neutral-400 transition-all before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-focus:-top-2 peer-focus:cursor-default peer-focus:text-xs peer-focus:text-amber-500 peer-required:after:text-neutral-400 peer-required:after:content-[\'\\00a0*\'] peer-disabled:text-neutral-300 peer-disabled:before:bg-transparent dark:before:bg-neutral-900'
@@ -164,17 +164,16 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
       <!-- Indicateur de progression -->
       <div id="stepIndicatorDynamic" class="mb-6" aria-label="Progression du formulaire"></div>
 
-      <!-- Indicateur de sauvegarde automatique -->
-      <div id="draftIndicator" class="mb-6 hidden text-xs text-neutral-400"></div>
-
       <form id="applicationForm" novalidate>
 
         <!-- ════════════════════════════════════════
              PANEL 1 — Informations personnelles
              ════════════════════════════════════════ -->
         <div data-step-panel="1">
-          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations personnelles</h2>
-          <p class="mb-8 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+          <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
+            <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations personnelles</h2>
+            <p class="mb-0 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+          </div>
 
           <FormField>
             <InputField type="text" id="nom"    label="Nom"    required />
@@ -244,7 +243,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
               aria-label="Utiliser ma position"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
               </svg>
               <span id="geolocBtnText" class="whitespace-nowrap">Ma position</span>
             </button>
@@ -280,8 +279,10 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
              PANEL 2 — Informations académiques
              ════════════════════════════════════════ -->
         <div data-step-panel="2" class="hidden">
-          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations académiques</h2>
-          <p class="mb-8 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+          <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
+            <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations académiques</h2>
+            <p class="mb-0 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+          </div>
 
           <FormField>
             <SelectField id="niveauEtude" label="Niveau d'étude actuel" options={niveauxOptions} required />
@@ -330,8 +331,10 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
              PANEL 3 — Destination & Programme
              ════════════════════════════════════════ -->
         <div data-step-panel="3" class="hidden">
-          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Destination &amp; Programme</h2>
-          <p class="mb-8 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+          <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
+            <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Destination &amp; Programme</h2>
+            <p class="mb-0 text-sm text-neutral-400">Les champs marqués d'un <span class="font-medium text-neutral-500">*</span> sont obligatoires.</p>
+          </div>
 
           <!-- Destination picker -->
           <div class="mb-6">
@@ -391,8 +394,10 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
              PANEL 4 — Infos complémentaires (Chine)
              ════════════════════════════════════════ -->
         <div data-step-panel="4" class="hidden">
-          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations complémentaires</h2>
-          <p class="mb-8 text-sm text-neutral-400">Ces informations sont spécifiques à votre candidature en Chine.</p>
+          <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
+            <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Informations complémentaires</h2>
+            <p class="mb-0 text-sm text-neutral-400">Ces informations sont spécifiques à votre candidature en Chine.</p>
+          </div>
 
           <!-- Contact d'urgence -->
           <div class="mb-6">
@@ -470,10 +475,10 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
              PANEL 5 — Documents
              ════════════════════════════════════════ -->
         <div data-step-panel="5" class="hidden">
-          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Documents à joindre</h2>
-          <p class="mb-8 text-sm text-neutral-400">
-            Les documents <span class="font-medium text-neutral-500">*</span> sont obligatoires. Formats acceptés : PDF, JPG, PNG (5 Mo max).
-          </p>
+          <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
+            <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Documents à joindre</h2>
+            <p class="mb-0 text-sm text-neutral-400">Les documents <span class="font-medium text-neutral-500">*</span> sont obligatoires. Formats acceptés : PDF, JPG, PNG (5 Mo max).</p>
+          </div>
 
           <!-- Relevés de notes dynamiques (selon niveau visé) -->
           <div class="mb-6">
@@ -535,8 +540,10 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
              PANEL 6 — Récapitulatif
              ════════════════════════════════════════ -->
         <div data-step-panel="6" class="hidden">
-          <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Récapitulatif</h2>
-          <p class="mb-8 text-sm text-neutral-400">Vérifiez vos informations avant d'envoyer votre candidature.</p>
+          <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
+            <h2 class="mb-1 text-xl font-semibold text-neutral-700 dark:text-neutral-100">Récapitulatif</h2>
+            <p class="mb-0 text-sm text-neutral-400">Vérifiez vos informations avant d'envoyer votre candidature.</p>
+          </div>
 
           <div id="reviewContent" class="flex flex-col gap-4"></div>
 
@@ -579,6 +586,9 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
             </button>
           </div>
         </div>
+
+        <!-- Indicateur de sauvegarde automatique -->
+        <div id="draftIndicator" class="mt-3 hidden text-right text-xs text-neutral-400"></div>
 
         <!-- Erreurs de validation -->
         <div id="stepErrors" class="mt-4 hidden rounded border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30" role="alert" aria-live="polite">
@@ -624,8 +634,8 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
         <p class="mb-1 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">Notre équipe étudiera votre dossier et vous contactera dans les meilleurs délais.</p>
         <p class="text-xs leading-relaxed text-amber-600 dark:text-amber-400">⚠️ Vos pièces jointes seront à envoyer par email à <strong>info@worldwise-admission.com</strong> en mentionnant votre nom et prénom.</p>
       </div>
-      <a href="/" class="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-5 text-sm font-bold tracking-wide text-white outline-none transition-all hover:bg-primary-700">
-        Retour à l'accueil
+      <a href={successHref} class="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded bg-primary-500 px-5 text-sm font-bold tracking-wide text-white hover:text-white outline-none transition-all hover:bg-primary-700">
+        {successHref === '/' ? "Retour à l'accueil" : 'Voir mes candidatures'}
       </a>
     </div>
   </div>
@@ -723,6 +733,23 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     document.querySelector(`fieldset[data-radio-group="${groupName}"]`)?.setAttribute('data-field-error', 'true')
   }
 
+  // ── Reset vers panneau 1 (sans réenregistrer les listeners) ──
+  function resetFormToPanel1(submittedView?: HTMLElement | null) {
+    submittedView?.classList.add('hidden')
+    document.getElementById('formContent')?.classList.remove('hidden')
+    document.querySelectorAll<HTMLElement>('[data-step-panel]').forEach((el) => el.classList.add('hidden'))
+    currentPanel = 0
+    ;(document.getElementById('applicationForm') as HTMLFormElement)?.reset()
+    document.querySelector('[data-multiselect-tags]')?.replaceChildren()
+    document.querySelector('[data-multiselect-hidden-inputs]')?.replaceChildren()
+    document.getElementById('draftIndicator')?.classList.add('hidden')
+    document.getElementById('dejaChineDetails')?.classList.add('hidden')
+    document.getElementById('specialiteAutreWrapper')?.classList.add('hidden')
+    document.getElementById('sourceFinancementAutreWrapper')?.classList.add('hidden')
+    clearErrors()
+    goToPanel(1)
+  }
+
   // ── Initialisation ────────────────────────────────────────
   document.addEventListener('astro:page-load', () => {
     const form = document.getElementById('applicationForm') as HTMLFormElement | null
@@ -747,6 +774,21 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     initPassportExpiryCheck()
     initCountryDropdown()
     initReset()
+  })
+
+  // ── Réinitialisation depuis le dashboard (wwa:form-reset) ─────
+  // Déclenché par startFresh()/startPrefill() pour corriger la race condition
+  // entre checkSubmittedState() (sync) et migrateResult() (async).
+  document.addEventListener('wwa:form-reset', () => {
+    const form = document.getElementById('applicationForm') as HTMLFormElement | null
+    if (!form) return
+    const submittedView = document.getElementById('submittedView')
+    resetFormToPanel1(submittedView)
+    // Générer une nouvelle référence d'idempotence pour le prochain dossier
+    delete (window as any).__wwa_form_ref__
+    if (localStorage.getItem('wwa_candidature_v2')) {
+      restoreFromLocal()
+    }
   })
 
   // ── Navigation ────────────────────────────────────────────
@@ -788,6 +830,20 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     })
   }
 
+  // Scroll the real scroll container to top (works in both dashboard <main> and standalone page)
+  function scrollToTop(anchor: Element | null) {
+    let el: Element | null = anchor?.parentElement ?? null
+    while (el && el !== document.documentElement) {
+      const oy = getComputedStyle(el as HTMLElement).overflowY
+      if (oy === 'auto' || oy === 'scroll') {
+        ;(el as HTMLElement).scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
+      el = el.parentElement
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function goToPanel(panelNum: number) {
     document.querySelector(`[data-step-panel="${currentPanel}"]`)?.classList.add('hidden')
     currentPanel = panelNum
@@ -807,7 +863,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
     renderStepIndicator()
     updateDestinationDependentUI()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    scrollToTop(document.getElementById('applicationForm'))
 
     const statusEl = document.getElementById('formStatus')
     if (statusEl) statusEl.textContent = `Étape ${idx + 1} sur ${seq.length}`
@@ -1415,15 +1471,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     document.getElementById('btnReset')?.addEventListener('click', () => {
       if (!confirm('Réinitialiser toutes vos données ? Cette action est irréversible.')) return
       localStorage.removeItem(STORAGE_KEY)
-      ;(document.getElementById('applicationForm') as HTMLFormElement)?.reset()
-      document.querySelector('[data-multiselect-tags]')?.replaceChildren()
-      document.querySelector('[data-multiselect-hidden-inputs]')?.replaceChildren()
-      document.getElementById('draftIndicator')?.classList.add('hidden')
-      document.getElementById('dejaChineDetails')?.classList.add('hidden')
-      document.getElementById('specialiteAutreWrapper')?.classList.add('hidden')
-      document.getElementById('sourceFinancementAutreWrapper')?.classList.add('hidden')
-      currentPanel = 1
-      goToPanel(1)
+      resetFormToPanel1()
     })
   }
 
@@ -1587,32 +1635,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
       if (!confirm('Attention : cela effacera votre candidature enregistrée. Continuer ?')) return
       localStorage.removeItem(STORAGE_KEY_SUBMITTED)
       localStorage.removeItem(STORAGE_KEY)
-      view.classList.add('hidden')
-      document.getElementById('formContent')?.classList.remove('hidden')
-
-      // Masquer tous les panneaux avant de réinitialiser pour éviter qu'un
-      // panneau précédemment actif reste visible après goToPanel(1).
-      document.querySelectorAll<HTMLElement>('[data-step-panel]').forEach((el) => el.classList.add('hidden'))
-      currentPanel = 0  // invalide → goToPanel(1) part d'un état propre
-
-      ;(document.getElementById('applicationForm') as HTMLFormElement)?.reset()
-
-      renderStepIndicator()
-      initNavigation()
-      initAutoSave()
-      initAddressAutocomplete()
-      initEtablissementAutocomplete()
-      initProgrammeConditional()
-      initSpecialiteConditional()
-      initDestinationChange()
-      initDejaChineConditional()
-      initSourceFinancementConditional()
-      initEmailValidation()
-      initGeolocation()
-      initPassportExpiryCheck()
-      initCountryDropdown()
-      initReset()
-      goToPanel(1)
+      resetFormToPanel1(view)
     })
   }
 
@@ -1647,7 +1670,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     `).join('')
   }
 
-  function saveSubmittedState() {
+  function saveSubmittedState(serverId?: number) {
     const getSel = (idOrSel: string) => {
       const el = (idOrSel.startsWith('[') || idOrSel.startsWith('.'))
         ? document.querySelector<HTMLSelectElement>(idOrSel)
@@ -1661,7 +1684,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     const natInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name^="nationalites"]'))
       .map((i) => i.value).join(', ')
 
-    const data: Record<string, string> = {
+    const data: Record<string, unknown> = {
       submittedAt:       new Date().toISOString(),
       nom:               get('nom'),
       prenom:            get('prenom'),
@@ -1679,6 +1702,11 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
       programme:         getSel('programme'),
       faculte:           getSel('[data-faculte-select]') || '',
       sourceFinancement: getSel('sourceFinancement'),
+    }
+    // Stocker l'ID serveur pour que migrateResult() marque l'entrée comme déjà synchronisée
+    if (serverId) {
+      data._serverId = serverId
+      data.synced    = true
     }
     try { localStorage.setItem(STORAGE_KEY_SUBMITTED, JSON.stringify(data)) } catch { /* quota */ }
   }
@@ -1740,7 +1768,88 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
       const res = await fetch(VALIDATION.formboldEndpoint, { method: 'POST', body: textData })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-      saveSubmittedState()
+      // Quand on est dans le dashboard : enregistrer la candidature + uploader les fichiers.
+      let serverId: number | undefined
+      if (window.location.pathname.startsWith('/dashboard')) {
+        const fd = new FormData(form)
+        const nationalites = Array.from(
+          document.querySelectorAll<HTMLInputElement>('input[name^="nationalites"]')
+        ).map((i) => i.value.trim()).filter(Boolean).join(', ')
+
+        // UUID d'idempotence : généré une seule fois par session de formulaire
+        // pour éviter les doublons en cas de double soumission ou retry
+        const reference = (window as any).__wwa_form_ref__ ??
+          (() => { const r = crypto.randomUUID(); (window as any).__wwa_form_ref__ = r; return r })()
+
+        const apiPayload = {
+          reference,
+          destination:  destChecked?.value || (fd.get('destination') as string) || '',
+          programme:    (fd.get('programme') as string) || '',
+          niveau_vise:  (fd.get('niveauVise') as string) || '',
+          personal_info: {
+            nom:                   (fd.get('nom') as string) || '',
+            prenom:                (fd.get('prenom') as string) || '',
+            email:                 (fd.get('email') as string) || '',
+            telephone:             `${indicatif} ${phoneNum}`.trim(),
+            nationalites,
+            sexe:                  sexeChecked?.value || '',
+            dateNaissance:         (fd.get('dateNaissance') as string) || '',
+            lieuNaissance:         (fd.get('lieuNaissance') as string) || '',
+            situationMatrimoniale: (fd.get('situationMatrimoniale') as string) || '',
+            numPasseport:          (fd.get('numPasseport') as string) || '',
+            adresse:               (fd.get('adresse') as string) || '',
+            ville:                 (fd.get('ville') as string) || '',
+            pays:                  (fd.get('pays') as string) || '',
+          },
+          academic_info: {
+            niveauEtude:    (fd.get('niveauEtude') as string) || '',
+            etablissement:  (fd.get('etablissement') as string) || '',
+            specialite:     (fd.get('specialite') as string) !== 'autre'
+              ? (fd.get('specialite') as string) || ''
+              : (fd.get('specialiteAutre') as string) || '',
+            moyenne:        (fd.get('moyenne') as string) || '',
+          },
+          complementary_info: {
+            sourceFinancement: (fd.get('sourceFinancement') as string) || '',
+            dejaEtudieChine:   dejaChecked?.value || '',
+            faculte:           (fd.get('faculte') as string) || '',
+          },
+        }
+
+        // Créer la candidature (attendu — on a besoin de l'ID pour les pièces jointes)
+        try {
+          const candResp = await fetch('/api/candidatures', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apiPayload),
+          })
+          if (candResp.ok) {
+            const saved = await candResp.json()
+            serverId = saved.id ?? undefined
+          }
+        } catch { /* serveur indisponible — syncUnsynced() retentera */ }
+
+        // Uploader les pièces jointes (fichiers sélectionnés dans les inputs)
+        if (serverId) {
+          const fileInputs = form.querySelectorAll<HTMLInputElement>('input[type="file"]')
+          const uploads = Array.from(fileInputs)
+            .filter(inp => inp.files && inp.files.length > 0)
+            .map(inp => {
+              const afd = new FormData()
+              afd.append('file',            inp.files![0])
+              afd.append('attachable_type', 'candidature')
+              afd.append('attachable_id',   String(serverId))
+              afd.append('field_name',      inp.name || inp.id || '')
+              return fetch('/api/attachments', { method: 'POST', body: afd }).catch(() => {})
+            })
+          await Promise.allSettled(uploads)
+          // Réinitialiser la référence pour la prochaine candidature
+          delete (window as any).__wwa_form_ref__
+        }
+      }
+
+      saveSubmittedState(serverId)
+      document.dispatchEvent(new CustomEvent('wwa:candidature-submitted'))
       localStorage.removeItem(STORAGE_KEY)
 
       loadingOverlay.classList.add('hidden')
