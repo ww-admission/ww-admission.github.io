@@ -1,5 +1,5 @@
 import { defineConfig } from "astro/config";
-import vercel from "@astrojs/vercel";
+import node from "@astrojs/node";
 import partytown from "@astrojs/partytown";
 import tailwind from "@astrojs/tailwind";
 import icon from "astro-icon";
@@ -11,7 +11,11 @@ export default defineConfig({
   base: '/',
   outDir: 'dist',
   output: 'server',
-  adapter: vercel(),
+  adapter: node({ mode: 'standalone' }),
+  server: {
+    host: true,
+    port: 4321,
+  },
   integrations: [
     tailwind(),
     icon(),
