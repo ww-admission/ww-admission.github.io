@@ -1,0 +1,116 @@
+services:
+  frontend:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/frontend:${IMAGE_TAG:-latest}
+    container_name: wwa-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4321
+      BACKEND_URL: http://api:80
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL}
+      PUBLIC_REVERB_APP_KEY: ${REVERB_APP_KEY}
+      PUBLIC_REVERB_HOST: ${PUBLIC_REVERB_HOST}
+      PUBLIC_REVERB_PORT: ${PUBLIC_REVERB_PORT:-443}
+      PUBLIC_REVERB_SCHEME: ${PUBLIC_REVERB_SCHEME:-https}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - wwa_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--spider", "http://127.0.0.1:4321/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  api:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-latest}
+    container_name: wwa-api
+    restart: unless-stopped
+    command: ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=80", "--admin-port=2019"]
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${PUBLIC_SITE_URL}
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
+      QUEUE_CONNECTION: database
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID}
+      REVERB_APP_KEY: ${REVERB_APP_KEY}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      OCTANE_SERVER: frankenphp
+    volumes:
+      - /data/wwa/database:/app/database
+      - /data/wwa/storage:/app/storage
+    networks:
+      - wwa_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/up"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  queue:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-latest}
+    container_name: wwa-queue
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "--tries=3", "--max-time=3600"]
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
+      QUEUE_CONNECTION: database
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID}
+      REVERB_APP_KEY: ${REVERB_APP_KEY}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+    volumes:
+      - /data/wwa/database:/app/database
+      - /data/wwa/storage:/app/storage
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - wwa_net
+
+  reverb:
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-latest}
+    container_name: wwa-reverb
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
+      REVERB_APP_ID: ${REVERB_APP_ID}
+      REVERB_APP_KEY: ${REVERB_APP_KEY}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+      REVERB_HOST: 0.0.0.0
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+    volumes:
+      - /data/wwa/database:/app/database
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - wwa_net
+
+networks:
+  wwa_net:
+    driver: bridge

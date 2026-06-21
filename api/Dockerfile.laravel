@@ -68,4 +68,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # --admin-port is forced because Octane's FrankenPHP admin-port default
 # (2019) is derived as 2019 + (port - 8000) when not passed explicitly —
 # with --port=80 that formula goes negative and crashes at boot.
-ENTRYPOINT ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=80", "--admin-port=2019"]
+#
+# CMD (not ENTRYPOINT): this image is also reused for the queue/reverb
+# services with a different command. ENTRYPOINT would only let compose
+# append to this instead of replacing it.
+CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=80", "--admin-port=2019"]
