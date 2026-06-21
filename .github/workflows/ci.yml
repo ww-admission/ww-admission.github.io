@@ -1,0 +1,253 @@
+name: Build, test, scan & push
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch: {}
+
+env:
+  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+  HARBOR_PROJECT: wwa_dev
+
+jobs:
+  # ---------- .pre stage ----------
+  hadolint:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfile.astro
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.astro
+          failure-threshold: error
+
+      - name: Lint api/Dockerfile.laravel
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: api/Dockerfile.laravel
+          failure-threshold: error
+
+  secret-scan:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------- build stage ----------
+  build-frontend:
+    needs: [hadolint, secret-scan]
+    runs-on: self-hosted
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        run: echo "sha_tag=sha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend image
+        run: |
+          docker build -t wwa-frontend:${{ steps.vars.outputs.sha_tag }} -f Dockerfile.astro .
+
+      - name: Save image as artifact for next jobs
+        run: |
+          docker save wwa-frontend:${{ steps.vars.outputs.sha_tag }} -o /tmp/wwa-frontend.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wwa-frontend-image
+          path: /tmp/wwa-frontend.tar
+          retention-days: 1
+
+  build-api:
+    needs: [hadolint, secret-scan]
+    runs-on: self-hosted
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        run: echo "sha_tag=sha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Build api image
+        run: |
+          docker build -t wwa-api:${{ steps.vars.outputs.sha_tag }} -f api/Dockerfile.laravel api/
+
+      - name: Save image as artifact for next jobs
+        run: |
+          docker save wwa-api:${{ steps.vars.outputs.sha_tag }} -o /tmp/wwa-api.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wwa-api-image
+          path: /tmp/wwa-api.tar
+          retention-days: 1
+
+  # ---------- test stage ----------
+  test-frontend:
+    needs: build-frontend
+    runs-on: self-hosted
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-frontend-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-frontend.tar
+
+      - name: Run container and check /health
+        run: |
+          docker run -d --name ci-frontend-test -p 14321:4321 \
+            -e PUBLIC_SITE_URL=http://localhost \
+            -e BACKEND_URL=http://localhost \
+            wwa-frontend:${{ needs.build-frontend.outputs.image_tag }}
+          sleep 5
+          curl -fsS http://localhost:14321/health
+          docker rm -f ci-frontend-test
+
+  test-api:
+    needs: build-api
+    runs-on: self-hosted
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-api-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-api.tar
+
+      - name: Run container and check /up
+        run: |
+          docker run -d --name ci-api-test -p 18000:80 \
+            -e APP_KEY="base64:$(openssl rand -base64 32)" \
+            -e DB_CONNECTION=sqlite \
+            -e BROADCAST_CONNECTION=reverb \
+            -e REVERB_APP_ID=ci -e REVERB_APP_KEY=ci -e REVERB_APP_SECRET=ci \
+            -e REVERB_HOST=localhost -e REVERB_PORT=8080 -e REVERB_SCHEME=http \
+            wwa-api:${{ needs.build-api.outputs.image_tag }}
+          sleep 8
+          curl -fsS http://localhost:18000/up
+          docker rm -f ci-api-test
+
+  # ---------- scan stage ----------
+  scan-frontend:
+    needs: [build-frontend, test-frontend]
+    runs-on: self-hosted
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-frontend-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-frontend.tar
+
+      - name: Trivy scan
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 \
+            wwa-frontend:${{ needs.build-frontend.outputs.image_tag }}
+
+  scan-api:
+    needs: [build-api, test-api]
+    runs-on: self-hosted
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-api-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-api.tar
+
+      - name: Trivy scan
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 \
+            wwa-api:${{ needs.build-api.outputs.image_tag }}
+
+  # ---------- push stage ----------
+  push-frontend:
+    needs: [build-frontend, test-frontend, scan-frontend]
+    runs-on: self-hosted
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-frontend-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-frontend.tar
+
+      - name: Log in to Harbor
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD_DEV }}" | docker login ${{ env.HARBOR_REGISTRY }} \
+            -u "${{ secrets.HARBOR_USER_DEV }}" --password-stdin
+
+      - name: Tag and push
+        run: |
+          SHA_TAG=${{ needs.build-frontend.outputs.image_tag }}
+          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:$SHA_TAG
+          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:$SHA_TAG
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
+
+      - name: Logout
+        if: always()
+        run: docker logout ${{ env.HARBOR_REGISTRY }}
+
+  push-api:
+    needs: [build-api, test-api, scan-api]
+    runs-on: self-hosted
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-api-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-api.tar
+
+      - name: Log in to Harbor
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD_DEV }}" | docker login ${{ env.HARBOR_REGISTRY }} \
+            -u "${{ secrets.HARBOR_USER_DEV }}" --password-stdin
+
+      - name: Tag and push
+        run: |
+          SHA_TAG=${{ needs.build-api.outputs.image_tag }}
+          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:$SHA_TAG
+          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:latest
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:$SHA_TAG
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:latest
+
+      - name: Logout
+        if: always()
+        run: docker logout ${{ env.HARBOR_REGISTRY }}
+
+  # ---------- cleanup ----------
+  cleanup:
+    needs: [build-frontend, build-api, push-frontend, push-api]
+    if: always()
+    runs-on: self-hosted
+    steps:
+      - name: Remove local images built during this run
+        run: |
+          docker image rm -f wwa-frontend:${{ needs.build-frontend.outputs.image_tag || '' }} 2>/dev/null || true
+          docker image rm -f wwa-api:${{ needs.build-api.outputs.image_tag || '' }} 2>/dev/null || true
+          docker system prune -f --filter "until=24h" 2>/dev/null || true
