@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/frontend:${IMAGE_TAG:-latest}
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/frontend:${IMAGE_TAG:-dev}
     container_name: wwa-frontend
     restart: unless-stopped
     environment:
@@ -26,7 +26,7 @@ services:
       retries: 3
 
   api:
-    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-latest}
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-dev}
     container_name: wwa-api
     restart: unless-stopped
     command: ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=80", "--admin-port=2019"]
@@ -59,7 +59,7 @@ services:
       retries: 3
 
   queue:
-    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-latest}
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-dev}
     container_name: wwa-queue
     restart: unless-stopped
     command: ["php", "artisan", "queue:work", "--tries=3", "--max-time=3600"]
@@ -87,7 +87,7 @@ services:
       - wwa_net
 
   reverb:
-    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-latest}
+    image: ${HARBOR_REGISTRY}/${HARBOR_PROJECT}/api:${IMAGE_TAG:-dev}
     container_name: wwa-reverb
     restart: unless-stopped
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]

@@ -208,10 +208,10 @@ jobs:
       - name: Tag and push
         run: |
           SHA_TAG=${{ needs.build-frontend.outputs.image_tag }}
-          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:$SHA_TAG
-          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
-          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:$SHA_TAG
-          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
+          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:dev-$SHA_TAG
+          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:dev
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:dev-$SHA_TAG
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:dev
 
       - name: Logout
         if: always()
@@ -241,10 +241,10 @@ jobs:
       - name: Tag and push
         run: |
           SHA_TAG=${{ needs.build-api.outputs.image_tag }}
-          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:$SHA_TAG
-          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:latest
-          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:$SHA_TAG
-          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:latest
+          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:dev-$SHA_TAG
+          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:dev
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:dev-$SHA_TAG
+          docker push ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/api:dev
 
       - name: Logout
         if: always()
