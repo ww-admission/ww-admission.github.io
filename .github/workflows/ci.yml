@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - develop
+    tags:
+      - 'v*.*.*'
   workflow_dispatch: {}
 
 env:
@@ -181,9 +183,10 @@ jobs:
             aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 \
             wwa-api:${{ needs.build-api.outputs.image_tag }}
 
-  # ---------- push stage ----------
+  # ---------- push stage (dev) ----------
   push-frontend:
     needs: [build-frontend, test-frontend, scan-frontend]
+    if: github.ref == 'refs/heads/develop'
     runs-on: self-hosted
     steps:
       - uses: actions/download-artifact@v4
@@ -213,6 +216,7 @@ jobs:
 
   push-api:
     needs: [build-api, test-api, scan-api]
+    if: github.ref == 'refs/heads/develop'
     runs-on: self-hosted
     steps:
       - uses: actions/download-artifact@v4
@@ -240,9 +244,82 @@ jobs:
         if: always()
         run: docker logout ${{ env.HARBOR_REGISTRY }}
 
+  # ---------- version (prod) ----------
+  extract-version:
+    needs: [hadolint, secret-scan]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: self-hosted
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+    steps:
+      - name: Extract version without v prefix
+        id: extract
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  # ---------- push stage (prod) ----------
+  prod-push-frontend:
+    needs: [build-frontend, test-frontend, scan-frontend, extract-version]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    runs-on: self-hosted
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-frontend-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-frontend.tar
+
+      - name: Log in to Harbor
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD_PROD }}" | docker login ${{ env.HARBOR_REGISTRY }} \
+            -u "${{ secrets.HARBOR_USER_PROD }}" --password-stdin
+
+      - name: Tag and push
+        run: |
+          SHA_TAG=${{ needs.build-frontend.outputs.image_tag }}
+          VERSION=${{ needs.extract-version.outputs.version }}
+          docker tag wwa-frontend:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/www_prod/frontend:$VERSION
+          docker push ${{ env.HARBOR_REGISTRY }}/www_prod/frontend:$VERSION
+
+      - name: Logout
+        if: always()
+        run: docker logout ${{ env.HARBOR_REGISTRY }}
+
+  prod-push-api:
+    needs: [build-api, test-api, scan-api, extract-version]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    runs-on: self-hosted
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wwa-api-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/wwa-api.tar
+
+      - name: Log in to Harbor
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD_PROD }}" | docker login ${{ env.HARBOR_REGISTRY }} \
+            -u "${{ secrets.HARBOR_USER_PROD }}" --password-stdin
+
+      - name: Tag and push
+        run: |
+          SHA_TAG=${{ needs.build-api.outputs.image_tag }}
+          VERSION=${{ needs.extract-version.outputs.version }}
+          docker tag wwa-api:$SHA_TAG ${{ env.HARBOR_REGISTRY }}/www_prod/api:$VERSION
+          docker push ${{ env.HARBOR_REGISTRY }}/www_prod/api:$VERSION
+
+      - name: Logout
+        if: always()
+        run: docker logout ${{ env.HARBOR_REGISTRY }}
+
   # ---------- cleanup ----------
   cleanup:
-    needs: [build-frontend, build-api, push-frontend, push-api]
+    needs: [build-frontend, build-api, push-frontend, push-api, prod-push-frontend, prod-push-api]
     if: always()
     runs-on: self-hosted
     steps:
