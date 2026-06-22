@@ -6,6 +6,11 @@ on:
       - develop
     tags:
       - 'v*.*.*'
+    paths-ignore:
+      - '**.md'
+      - '.trivyignore'
+      - '.gitignore'
+      - 'docs/**'
   workflow_dispatch: {}
 
 env:
