@@ -241,7 +241,7 @@ const contacts = useMock ? allContacts.slice((page - 1) * perPage, page * perPag
     </div>
   </div>
 
-  <!-- Injection des données via window global — fiable avec le bundler Astro -->
+  <!-- Injection des données via window global - fiable avec le bundler Astro -->
   <script is:inline define:vars={{ contactsForClient: allContacts }}>
     window.__CONTACTS_DATA__ = contactsForClient
   </script>

@@ -37,10 +37,10 @@ class CandidatureSubmittedNotification extends Notification implements ShouldQue
         $cand = $this->candidature->load('user');
 
         return (new MailMessage)
-            ->subject('Nouvelle candidature — ' . $cand->user->name)
+            ->subject('Nouvelle candidature - ' . $cand->user->name)
             ->line('Une nouvelle candidature a été soumise.')
             ->line("Candidat : {$cand->user->name}")
-            ->line("Destination : {$cand->destination} — {$cand->programme}")
+            ->line("Destination : {$cand->destination} - {$cand->programme}")
             ->action('Voir la candidature', url('/admin/candidatures/' . $cand->id));
     }
 }

@@ -1,5 +1,5 @@
 // ============================================================
-// CONFIGURATION DU FORMULAIRE DE CANDIDATURE — WWA
+// CONFIGURATION DU FORMULAIRE DE CANDIDATURE - WWA
 // Modifiable sans toucher au code des composants.
 // Chaque section est commentée pour faciliter les modifications.
 // ============================================================
@@ -8,11 +8,11 @@
 // Modifiez cette liste pour ajouter ou supprimer des niveaux.
 export const NIVEAUX_ETUDE = [
   { value: 'sans_diplome',  label: 'Sans diplôme' },
-  { value: 'cep',           label: 'CEP — Certificat d\'Études Primaires' },
-  { value: 'bepc',          label: 'BEPC — Brevet d\'Études du Premier Cycle' },
-  { value: 'bac',           label: 'BAC — Baccalauréat' },
+  { value: 'cep',           label: 'CEP - Certificat d\'Études Primaires' },
+  { value: 'bepc',          label: 'BEPC - Brevet d\'Études du Premier Cycle' },
+  { value: 'bac',           label: 'BAC - Baccalauréat' },
   { value: 'bac1',          label: 'BAC+1' },
-  { value: 'bac2',          label: 'BAC+2 / BTS — Brevet de Technicien Supérieur' },
+  { value: 'bac2',          label: 'BAC+2 / BTS - Brevet de Technicien Supérieur' },
   { value: 'bac3',          label: 'BAC+3 / Licence / Bachelor' },
   { value: 'bac4',          label: 'BAC+4 / Maîtrise' },
   { value: 'bac5',          label: 'BAC+5 / Master / DEA / DESS' },
@@ -118,44 +118,44 @@ export const SPECIALITES: { category: string; items: string[] }[] = [
 // Ajoutez des établissements ici pour enrichir les suggestions.
 export const ETABLISSEMENTS_GABON: string[] = [
   // Universités publiques
-  'Université Omar Bongo (UOB) — Libreville',
-  'Université des Sciences de la Santé (USS) — Libreville',
-  'Université des Sciences et Techniques de Masuku (USTM) — Franceville',
-  'Université de l\'École Normale Supérieure (ENS) — Libreville',
+  'Université Omar Bongo (UOB) - Libreville',
+  'Université des Sciences de la Santé (USS) - Libreville',
+  'Université des Sciences et Techniques de Masuku (USTM) - Franceville',
+  'Université de l\'École Normale Supérieure (ENS) - Libreville',
   // Grandes écoles & instituts publics
-  'École Nationale Supérieure Polytechnique (ENSP) — Libreville',
-  'Institut National des Sciences de Gestion (INSG) — Libreville',
-  'Institut Supérieur de Technologie du Gabon (ISTG) — Libreville',
-  'École Nationale d\'Administration (ENA) — Libreville',
-  'Institut National de la Poste et des TIC (INPTIC) — Libreville',
-  'École Nationale des Eaux et Forêts (ENEF) — Cap-Esterias',
-  'École Supérieure de la Magistrature — Libreville',
-  'Institut Africain d\'Informatique (IAI) — Libreville',
+  'École Nationale Supérieure Polytechnique (ENSP) - Libreville',
+  'Institut National des Sciences de Gestion (INSG) - Libreville',
+  'Institut Supérieur de Technologie du Gabon (ISTG) - Libreville',
+  'École Nationale d\'Administration (ENA) - Libreville',
+  'Institut National de la Poste et des TIC (INPTIC) - Libreville',
+  'École Nationale des Eaux et Forêts (ENEF) - Cap-Esterias',
+  'École Supérieure de la Magistrature - Libreville',
+  'Institut Africain d\'Informatique (IAI) - Libreville',
   // Établissements privés supérieurs
-  'Institut Supérieur de Management (ISM) — Libreville',
-  'École Supérieure de Gestion et de Technologie (ESGT) — Libreville',
-  'PIGIER Gabon — Libreville',
-  'HEC Gabon — Libreville',
-  'INTEC Gabon — Libreville',
-  'Institut Supérieur de Technologie Avancée (ISTA) — Libreville',
-  'École des Formations des Emplois de Banque (EFEB) — Libreville',
+  'Institut Supérieur de Management (ISM) - Libreville',
+  'École Supérieure de Gestion et de Technologie (ESGT) - Libreville',
+  'PIGIER Gabon - Libreville',
+  'HEC Gabon - Libreville',
+  'INTEC Gabon - Libreville',
+  'Institut Supérieur de Technologie Avancée (ISTA) - Libreville',
+  'École des Formations des Emplois de Banque (EFEB) - Libreville',
   'Pôle Numérique Libreville',
-  'Centre Universitaire des Sciences de la Santé (CUSS) — Libreville',
+  'Centre Universitaire des Sciences de la Santé (CUSS) - Libreville',
   // Lycées d'enseignement général
-  'Lycée National Léon Mba — Libreville',
-  'Lycée Paul Indjendjet Gondjout — Libreville',
-  'Lycée de l\'ESDE — Libreville',
-  'Lycée Technique National Omar Bongo — Libreville',
-  'Lycée Joseph Ambourouet Avaro — Libreville',
-  'Lycée Bessieux — Libreville',
-  'Lycée André Gustave Anguile — Port-Gentil',
+  'Lycée National Léon Mba - Libreville',
+  'Lycée Paul Indjendjet Gondjout - Libreville',
+  'Lycée de l\'ESDE - Libreville',
+  'Lycée Technique National Omar Bongo - Libreville',
+  'Lycée Joseph Ambourouet Avaro - Libreville',
+  'Lycée Bessieux - Libreville',
+  'Lycée André Gustave Anguile - Port-Gentil',
   'Lycée Technique de Port-Gentil',
-  'Lycée Léon Mba — Oyem',
+  'Lycée Léon Mba - Oyem',
   // Établissements catholiques & privés
-  'Collège Immaculée Conception — Libreville',
-  'Lycée Notre-Dame des Trois-Épis — Libreville',
-  'Lycée Saint-Exupéry — Libreville',
-  'Collège La Salle — Libreville',
+  'Collège Immaculée Conception - Libreville',
+  'Lycée Notre-Dame des Trois-Épis - Libreville',
+  'Lycée Saint-Exupéry - Libreville',
+  'Collège La Salle - Libreville',
 ]
 
 // ─── Documents à joindre à la candidature ────────────────────
@@ -253,19 +253,19 @@ export const LIENS_PARENTE = [
 // Chaque niveau inclut tous les niveaux inférieurs.
 export const RELEVÉS_PAR_NIVEAU: Record<string, string[]> = {
   bac:     ['Baccalauréat / Diplôme de fin d\'études secondaires'],
-  bac1:    ['Baccalauréat', 'Relevé de notes — BAC+1'],
-  bac2:    ['Baccalauréat', 'Relevé de notes — BAC+1', 'Relevé de notes — BAC+2'],
-  bac3:    ['Baccalauréat', 'Relevé de notes — BAC+1', 'Relevé de notes — BAC+2', 'Relevé de notes — BAC+3 / Licence'],
-  bac4:    ['Baccalauréat', 'Relevé de notes — BAC+1', 'Relevé de notes — BAC+2', 'Relevé de notes — BAC+3', 'Relevé de notes — BAC+4 / Maîtrise'],
-  bac5:    ['Baccalauréat', 'Relevé de notes — BAC+1', 'Relevé de notes — BAC+2', 'Relevé de notes — BAC+3', 'Relevé de notes — BAC+4', 'Relevé de notes — BAC+5 / Master'],
-  bac6plus:['Baccalauréat', 'Relevé de notes — BAC+1', 'Relevé de notes — BAC+2', 'Relevé de notes — BAC+3', 'Relevé de notes — BAC+4', 'Relevé de notes — BAC+5', 'Relevé de notes — BAC+6 / Doctorat'],
+  bac1:    ['Baccalauréat', 'Relevé de notes - BAC+1'],
+  bac2:    ['Baccalauréat', 'Relevé de notes - BAC+1', 'Relevé de notes - BAC+2'],
+  bac3:    ['Baccalauréat', 'Relevé de notes - BAC+1', 'Relevé de notes - BAC+2', 'Relevé de notes - BAC+3 / Licence'],
+  bac4:    ['Baccalauréat', 'Relevé de notes - BAC+1', 'Relevé de notes - BAC+2', 'Relevé de notes - BAC+3', 'Relevé de notes - BAC+4 / Maîtrise'],
+  bac5:    ['Baccalauréat', 'Relevé de notes - BAC+1', 'Relevé de notes - BAC+2', 'Relevé de notes - BAC+3', 'Relevé de notes - BAC+4', 'Relevé de notes - BAC+5 / Master'],
+  bac6plus:['Baccalauréat', 'Relevé de notes - BAC+1', 'Relevé de notes - BAC+2', 'Relevé de notes - BAC+3', 'Relevé de notes - BAC+4', 'Relevé de notes - BAC+5', 'Relevé de notes - BAC+6 / Doctorat'],
 }
 
 // ─── Constantes de validation ─────────────────────────────────
 export const VALIDATION = {
   noteMin: 0,
   noteMax: 20,
-  // URL FormBold — remplacez par votre ID FormBold
+  // URL FormBold - remplacez par votre ID FormBold
   // Créez un formulaire sur https://formbold.com
   formboldEndpoint: 'https://formbold.com/s/98yQN',
   // Adresse email de notification WWA (backup si FormBold indisponible)

@@ -1,4 +1,4 @@
-# WorldWise Admission — Documentation Technique
+# WorldWise Admission - Documentation Technique
 
 > **WWA** est une plateforme d'accompagnement pour étudiants africains souhaitant étudier à l'étranger (Chine, Ghana, Russie…). Elle couvre le site vitrine, le formulaire de candidature multi-étapes, les dashboards candidat et admin, et un système d'authentification SSR sécurisé par cookie HMAC.
 
@@ -65,7 +65,7 @@ WWA est une application full-stack composée de deux parties qui communiquent vi
 
 | Outil | Version | Rôle |
 |---|---|---|
-| **Astro** | 5.7.2 | Framework SSR — routing, composants, build |
+| **Astro** | 5.7.2 | Framework SSR - routing, composants, build |
 | **@astrojs/vercel** | 9.x | Adapter Vercel pour déploiement SSR |
 | **Tailwind CSS** | 3.4 | Styles utilitaires, design system |
 | **TypeScript** | 5.4 | Typage strict sur tout le codebase |
@@ -79,13 +79,13 @@ WWA est une application full-stack composée de deux parties qui communiquent vi
 
 | Outil | Version | Rôle |
 |---|---|---|
-| **Laravel** | 13.8 | Framework PHP — routing, ORM, middleware |
+| **Laravel** | 13.8 | Framework PHP - routing, ORM, middleware |
 | **Laravel Sanctum** | 4.0 | Authentification API par token porteur |
 | **Laravel Reverb** | 1.10 | Serveur WebSocket natif (temps réel) |
 | **Laravel Echo** | client | Client WebSocket côté frontend |
 | **SQLite** | MVP | Base de données locale (→ PostgreSQL en prod) |
 | **PHP** | ≥ 8.3 | Langage serveur |
-| **supervisord** | — | Daemons `reverb:start` + `queue:work` sur VPS |
+| **supervisord** | - | Daemons `reverb:start` + `queue:work` sur VPS |
 
 ### Sécurité
 
@@ -149,8 +149,8 @@ Navigateur          Astro SSR              Laravel
 
 ### Prérequis
 
-- **Node.js** ≥ 18 — [nodejs.org](https://nodejs.org)
-- **PHP** ≥ 8.2 + **Composer** — [php.net](https://php.net) / [getcomposer.org](https://getcomposer.org)
+- **Node.js** ≥ 18 - [nodejs.org](https://nodejs.org)
+- **PHP** ≥ 8.2 + **Composer** - [php.net](https://php.net) / [getcomposer.org](https://getcomposer.org)
 
 ### 1. Installer les dépendances
 
@@ -202,16 +202,16 @@ cd api && composer dev
 
 **Ou manuellement (4 terminaux) :**
 ```bash
-# Terminal 1 — Frontend Astro
+# Terminal 1 - Frontend Astro
 npm run dev          # → http://localhost:4321
 
-# Terminal 2 — Backend Laravel
+# Terminal 2 - Backend Laravel
 cd api && php artisan serve   # → http://localhost:8000
 
-# Terminal 3 — WebSocket Reverb (temps réel messages + notifications)
+# Terminal 3 - WebSocket Reverb (temps réel messages + notifications)
 cd api && php artisan reverb:start --host=0.0.0.0 --port=8080
 
-# Terminal 4 — Queue worker (ProcessAttachment, emails…)
+# Terminal 4 - Queue worker (ProcessAttachment, emails…)
 cd api && php artisan queue:listen --tries=1
 ```
 

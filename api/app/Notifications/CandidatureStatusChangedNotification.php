@@ -49,7 +49,7 @@ class CandidatureStatusChangedNotification extends Notification implements Shoul
         $label = self::STATUS_LABELS[$this->newStatus] ?? $this->newStatus;
 
         return (new MailMessage)
-            ->subject("Mise à jour de votre candidature — {$label}")
+            ->subject("Mise à jour de votre candidature - {$label}")
             ->greeting('Bonjour ' . $notifiable->name . ',')
             ->line("Le statut de votre candidature pour {$this->candidature->destination} a été mis à jour.")
             ->line("Nouveau statut : **{$label}**")

@@ -1,0 +1,265 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import { backendFetch } from '../../lib/auth'
+import { MOCK_UNIVERSITES } from '../../lib/mock-universites-data'
+import { MOCK_FORMATIONS } from '../../lib/mock-formations-data'
+import type { Universite, Formation } from '../../lib/catalogue-types'
+
+const { slug } = Astro.params as { slug: string }
+
+let universite: Universite | null = null
+let formations: Formation[] = []
+let useMock = false
+
+try {
+  const resp = await backendFetch(`/universites/${slug}`, null)
+  if (resp.ok) {
+    universite = await resp.json() as Universite
+    const fResp = await backendFetch(`/formations?universite=${slug}`, null)
+    if (fResp.ok) {
+      const d = await fResp.json() as { data?: Formation[] } | Formation[]
+      formations = Array.isArray(d) ? d : (d.data ?? [])
+    }
+  } else {
+    useMock = true
+  }
+} catch {
+  useMock = true
+}
+
+if (useMock) {
+  universite = MOCK_UNIVERSITES.find(u => u.slug === slug && u.est_publie) ?? null
+  if (universite) {
+    formations = MOCK_FORMATIONS.filter(f => f.universite.slug === slug && f.est_publie)
+  }
+}
+
+if (!universite) {
+  return Astro.redirect('/universites')
+}
+
+function formatDuree(mois: number | undefined): string {
+  if (!mois) return ''
+  if (mois % 12 === 0) return `${mois / 12} an${mois / 12 > 1 ? 's' : ''}`
+  return `${mois} mois`
+}
+---
+
+<Layout
+  title={`${universite.nom} - WorldWise Admission`}
+  description={universite.meta_description ?? universite.description}
+>
+
+  <!-- Breadcrumb -->
+  <nav class="bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
+    <div class="container mx-auto px-6 py-3">
+      <ol class="flex items-center gap-2 text-sm text-neutral-400 dark:text-neutral-500">
+        <li><a href="/" class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Accueil</a></li>
+        <li class="text-neutral-300 dark:text-neutral-700">/</li>
+        <li><a href="/universites" class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Universités</a></li>
+        <li class="text-neutral-300 dark:text-neutral-700">/</li>
+        <li class="text-neutral-600 dark:text-neutral-400 truncate max-w-[200px]">{universite.nom}</li>
+      </ol>
+    </div>
+  </nav>
+
+  <!-- Hero université -->
+  <section class="relative overflow-hidden bg-neutral-900">
+    {universite.couverture_image_url ? (
+      <img src={universite.couverture_image_url} alt="" class="absolute inset-0 w-full h-full object-cover opacity-55" />
+    ) : (
+      <div class={`absolute inset-0 flex items-center justify-center ${universite.couleur_bg}`}>
+        <span class="text-[180px] font-black text-white/10 select-none leading-none">{universite.initiales}</span>
+      </div>
+    )}
+    <div class="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+    <div class="absolute inset-0 flex items-center justify-end select-none pointer-events-none">
+      <span class="text-[180px] font-black text-white/5 leading-none">{universite.initiales}</span>
+    </div>
+    <div class="relative container mx-auto px-6 py-14 sm:py-20">
+      <div class="flex flex-col sm:flex-row sm:items-end gap-6">
+        <!-- Initiales badge -->
+        <div class="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 shadow-xl">
+          <span class="text-2xl font-black text-white">{universite.initiales}</span>
+        </div>
+        <div class="text-white">
+          <div class="flex items-center gap-3 mb-2 flex-wrap">
+            <span class="text-base font-medium text-white/80">{universite.pays.drapeau} {universite.ville}, {universite.pays.nom}</span>
+            {universite.est_vedette && (
+              <span class="text-xs font-semibold bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full">
+                À la une
+              </span>
+            )}
+          </div>
+          <h1 class="text-2xl sm:text-4xl font-light text-white mb-2">{universite.nom}</h1>
+          <div class="flex items-center gap-4 text-white/70 text-sm flex-wrap">
+            <span class="capitalize">{universite.type.replaceAll('_', ' ')}</span>
+            {universite.annee_fondation && (
+              <>
+                <span>·</span>
+                <span>Fondée en {universite.annee_fondation}</span>
+              </>
+            )}
+            <span>·</span>
+            <span>{formations.length} formation{formations.length !== 1 ? 's' : ''} disponible{formations.length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Corps -->
+  <div class="bg-neutral-50 dark:bg-neutral-950">
+    <div class="container mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Colonne principale -->
+      <div class="lg:col-span-2 space-y-8">
+
+        <!-- Description -->
+        <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-6">
+          <h2 class="text-base font-light text-neutral-800 dark:text-neutral-100 mb-4">À propos</h2>
+          <p class="text-neutral-600 dark:text-neutral-400 leading-relaxed">{universite.description}</p>
+        </div>
+
+        <!-- Formations -->
+        {formations.length > 0 && (
+          <div>
+            <h2 class="text-base font-light text-neutral-700 dark:text-neutral-300 mb-4">
+              Formations disponibles
+              <span class="text-neutral-400 dark:text-neutral-500 font-normal ml-2">({formations.length})</span>
+            </h2>
+            <div class="space-y-3">
+              {formations.map(f => (
+                <a
+                  href={`/formations/${f.slug}`}
+                  class="group flex items-center gap-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
+                >
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                      <span class="font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                        {f.nom}
+                      </span>
+                      <span class="text-xs bg-gold-100 dark:bg-gold-900/40 text-gold-800 dark:text-gold-300 px-2 py-0.5 rounded-full font-medium">
+                        {f.niveau_etude.nom}
+                      </span>
+                      {f.est_vedette && (
+                        <span class="text-xs bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full font-medium">
+                          À la une
+                        </span>
+                      )}
+                    </div>
+                    <div class="flex items-center gap-3 text-sm text-neutral-400 dark:text-neutral-500 flex-wrap">
+                      {f.duree_mois && <span>{formatDuree(f.duree_mois)}</span>}
+                      {f.frais_scolarite && (
+                        <>
+                          {f.duree_mois && <span>·</span>}
+                          <span>{f.frais_scolarite.toLocaleString('fr-FR')} {f.devise}/an</span>
+                        </>
+                      )}
+                      {f.langues_enseignement.length > 0 && (
+                        <>
+                          <span>·</span>
+                          <span>{f.langues_enseignement.join(', ')}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <svg class="w-4 h-4 text-neutral-300 dark:text-neutral-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="space-y-4">
+
+        <!-- Infos clés -->
+        <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-5">
+          <h3 class="text-sm font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-widest mb-4">
+            Infos pratiques
+          </h3>
+          <dl class="space-y-3">
+            <div>
+              <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Pays</dt>
+              <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                {universite.pays.drapeau} {universite.pays.nom}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Ville</dt>
+              <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{universite.ville}</dd>
+            </div>
+            <div>
+              <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Type</dt>
+              <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300 capitalize">{universite.type.replaceAll('_', ' ')}</dd>
+            </div>
+            {universite.annee_fondation && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Fondée</dt>
+                <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{universite.annee_fondation}</dd>
+              </div>
+            )}
+            {universite.places_disponibles && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Places disponibles</dt>
+                <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{universite.places_disponibles} places/an</dd>
+              </div>
+            )}
+            {universite.site_web && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Site officiel</dt>
+                <dd>
+                  <a
+                    href={universite.site_web}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    {(() => { try { return new URL(universite.site_web!).hostname } catch { return universite.site_web } })()}
+                  </a>
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+
+        <!-- CTA Candidature -->
+        <div class="bg-primary-50 dark:bg-primary-950 rounded-2xl border border-primary-100 dark:border-primary-900 p-5">
+          <p class="text-sm font-semibold text-primary-700 dark:text-primary-300 mb-1">
+            Intéressé par cette université ?
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-4 leading-relaxed">
+            Notre équipe vous aide à choisir la formation adaptée et à constituer votre dossier.
+          </p>
+          <a
+            href="/candidature"
+            class="block w-full text-center py-2.5 px-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+          >
+            Déposer une candidature
+          </a>
+          <a
+            href="/contact"
+            class="block w-full text-center mt-2 py-2 px-4 text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline transition-colors"
+          >
+            Nous contacter d'abord
+          </a>
+        </div>
+
+        <!-- Retour liste -->
+        <a
+          href="/universites"
+          class="flex items-center gap-2 text-sm text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors px-1"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          Toutes les universités
+        </a>
+      </aside>
+    </div>
+  </div>
+</Layout>

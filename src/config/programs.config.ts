@@ -1,5 +1,5 @@
 // ============================================================
-// PROGRAMMES UNIVERSITAIRES — WWA
+// PROGRAMMES UNIVERSITAIRES - WWA
 // Programmes proposés dans les universités partenaires en Chine.
 // Modifiable sans toucher au code des composants.
 // ============================================================

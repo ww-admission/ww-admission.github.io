@@ -1,4 +1,4 @@
-# Architecture — WorldWise Admission
+# Architecture - WorldWise Admission
 
 > Guide technique approfondi : comment le système est construit, pourquoi ces choix, comment les pièces s'assemblent.
 
@@ -7,10 +7,10 @@
 ## Table des matières
 
 1. [Vue d'ensemble du système](#1-vue-densemble-du-système)
-2. [Frontend — Astro SSR](#2-frontend--astro-ssr)
+2. [Frontend - Astro SSR](#2-frontend--astro-ssr)
 3. [Système d'authentification](#3-système-dauthentification)
 4. [Middleware et sécurité](#4-middleware-et-sécurité)
-5. [Backend — Laravel 11](#5-backend--laravel-11)
+5. [Backend - Laravel 11](#5-backend--laravel-11)
 6. [Système de candidature](#6-système-de-candidature)
 7. [Composants clés](#7-composants-clés)
 8. [Design System](#8-design-system)
@@ -99,11 +99,11 @@
 
 ---
 
-## 2. Frontend — Astro SSR
+## 2. Frontend - Astro SSR
 
 ### Mode de rendu
 
-Le projet utilise `output: 'server'` — **tout est SSR** par défaut. Chaque requête est rendue côté serveur, ce qui permet :
+Le projet utilise `output: 'server'` - **tout est SSR** par défaut. Chaque requête est rendue côté serveur, ce qui permet :
 
 - Les redirections serveur immédiates (`Astro.redirect()`)
 - L'accès aux cookies HTTP-only (`Astro.cookies`)
@@ -113,7 +113,7 @@ Le projet utilise `output: 'server'` — **tout est SSR** par défaut. Chaque re
 ```js
 // astro.config.mjs
 export default defineConfig({
-  output: 'server',      // SSR — pas de static export
+  output: 'server',      // SSR - pas de static export
   adapter: vercel(),     // Serverless sur Vercel
 })
 ```
@@ -153,7 +153,7 @@ Clic → rechargement page         Clic → fetch SSR server
 ```
 Layout.astro                  DashboardLayout.astro
 ─────────────────             ──────────────────────────────
-NavigationBar                 Sidebar (SSR — Astro.locals.session)
+NavigationBar                 Sidebar (SSR - Astro.locals.session)
   ├─ Logo                       ├─ Logo
   ├─ Nav items                  ├─ Role badge (admin/candidat)
   └─ "Se connecter" → modal     ├─ Nav items (selon rôle)
@@ -242,7 +242,7 @@ L'authentification est **hybride** :
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### src/lib/auth.ts — Le cœur du système
+### src/lib/auth.ts - Le cœur du système
 
 Ce fichier implémente un système de token signé HMAC sans dépendance externe :
 
@@ -326,7 +326,7 @@ verifyToken("data.sig")
 
 ## 4. Middleware et sécurité
 
-### src/middleware.ts — Pipeline de sécurité
+### src/middleware.ts - Pipeline de sécurité
 
 Chaque requête HTTP passe par ce fichier avant d'atteindre une page :
 
@@ -373,7 +373,7 @@ src/middleware.ts
 
 ---
 
-## 5. Backend — Laravel 11
+## 5. Backend - Laravel 11
 
 ### Structure API
 
@@ -452,7 +452,7 @@ Client          Astro Endpoint           Laravel
 
 ## 6. Système de candidature
 
-### Machine à états — `/dashboard/candidature`
+### Machine à états - `/dashboard/candidature`
 
 ```
                     Page chargée
@@ -560,17 +560,17 @@ ApplicationForm.astro
 │   └── Bouton "Nouvelle candidature"
 │
 ├── Vue formulaire (formContent)
-│   ├── Panel 1 — Informations personnelles
+│   ├── Panel 1 - Informations personnelles
 │   │   └── nom, prénom, dateNaissance, passeport, téléphone, email…
-│   ├── Panel 2 — Informations académiques
+│   ├── Panel 2 - Informations académiques
 │   │   └── niveauEtude, établissement, spécialité, moyenne
-│   ├── Panel 3 — Destination & Programme
+│   ├── Panel 3 - Destination & Programme
 │   │   └── destination picker (cards), niveauVise, programme, faculté
-│   ├── Panel 4 — Complémentaire (Chine uniquement)
+│   ├── Panel 4 - Complémentaire (Chine uniquement)
 │   │   └── contact urgence, déjà étudié en Chine, financement
-│   ├── Panel 5 — Documents
+│   ├── Panel 5 - Documents
 │   │   └── FileUpload (diplôme, pièce d'identité, relevés…)
-│   └── Panel 6 — Récapitulatif + envoi
+│   └── Panel 6 - Récapitulatif + envoi
 │       └── Tableau complet + confirmations
 │
 ├── Scripts (module script, astro:page-load):
@@ -658,7 +658,7 @@ Login.astro (composant modal)
 ```
 src/components/ui/
 ├── Button.astro          → props: type, size, style, modal, link
-├── Modal.astro           → props: id, title — bg-white/50 backdrop-blur
+├── Modal.astro           → props: id, title - bg-white/50 backdrop-blur
 ├── NavigationBar.astro   → lit navigationBar.ts
 ├── Footer.astro          → lit footerNavigation.ts
 ├── Section.astro         → wrapper avec padding/classes
@@ -675,7 +675,7 @@ src/components/ui/
 ### Pattern Floating Label (InputField)
 
 ```html
-<!-- Technique CSS peer — label remonte quand input focus ou rempli -->
+<!-- Technique CSS peer - label remonte quand input focus ou rempli -->
 <div class="relative w-full">
   <input
     placeholder="Adresse email"      ← placeholder transparent (trick)
@@ -786,7 +786,7 @@ function extractError(json: Record<string, unknown>, fallback: string): string {
 ### Migration localStorage au chargement
 
 ```javascript
-// dashboard/candidature.astro — is:inline, astro:page-load
+// dashboard/candidature.astro - is:inline, astro:page-load
 // Doit s'exécuter AVANT ApplicationForm pour que wwa_candidature_result
 // soit vide quand checkSubmittedState() d'ApplicationForm tourne
 document.addEventListener('astro:page-load', function() {
@@ -838,7 +838,7 @@ La migration vers SSR a éliminé 6 bugs significatifs identifiés en audit.
 
 ### Pourquoi localStorage pour les candidatures (MVP) ?
 
-- Zéro latence — données disponibles instantanément
+- Zéro latence - données disponibles instantanément
 - Fonctionnel sans backend (offline-first)
 - Migration transparente : `synced: false` → background sync → `synced: true`
 - Structure identique en localStorage et en DB → migration sans transformation

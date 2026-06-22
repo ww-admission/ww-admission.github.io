@@ -1,0 +1,1423 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro'
+import { backendFetch } from '../../lib/auth'
+import { MOCK_UNIVERSITES, MOCK_PAYS, MOCK_NIVEAUX_ETUDE, MOCK_SPECIALITES } from '../../lib/mock-universites-data'
+import { MOCK_FORMATIONS } from '../../lib/mock-formations-data'
+import type { Universite, Formation } from '../../lib/catalogue-types'
+
+const session = Astro.locals.session!
+const tabParam = Astro.url.searchParams.get('tab')
+const tab = (tabParam === 'formations' ? 'formations' : 'universites') as 'universites' | 'formations'
+
+let universites: Universite[] = []
+let formations: Formation[]   = []
+
+try {
+  const [uResp, fResp] = await Promise.all([
+    backendFetch('/universites', session),
+    backendFetch('/formations',  session),
+  ])
+  if (uResp.ok) {
+    const d = await uResp.json() as { data?: Universite[] } | Universite[]
+    universites = Array.isArray(d) ? d : (d.data ?? [])
+  } else { universites = MOCK_UNIVERSITES }
+  if (fResp.ok) {
+    const d = await fResp.json() as { data?: Formation[] } | Formation[]
+    formations = Array.isArray(d) ? d : (d.data ?? [])
+  } else { formations = MOCK_FORMATIONS }
+} catch {
+  universites = MOCK_UNIVERSITES
+  formations  = MOCK_FORMATIONS
+}
+
+function formatDuree(mois: number | undefined): string {
+  if (!mois) return ''
+  if (mois % 12 === 0) return `${mois / 12} an${mois / 12 > 1 ? 's' : ''}`
+  return `${mois} mois`
+}
+
+const specialitesByCategorie: Array<{ cat: string; specs: typeof MOCK_SPECIALITES }> = []
+{
+  const cats: Map<string, typeof MOCK_SPECIALITES> = new Map()
+  for (const s of MOCK_SPECIALITES) {
+    if (!cats.has(s.categorie)) cats.set(s.categorie, [])
+    cats.get(s.categorie)!.push(s)
+  }
+  for (const [cat, specs] of cats) specialitesByCategorie.push({ cat, specs })
+}
+---
+
+<DashboardLayout title="Catalogue - WorldWise Admin" activeNav="catalogue">
+  <div class="p-6 space-y-5">
+
+    <!-- ── En-tête ─────────────────────────────────────────────────── -->
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h1 class="text-xl font-semibold text-neutral-800 dark:text-neutral-100">Catalogue</h1>
+        <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-0.5">
+          Universités et formations publiées sur le site.
+        </p>
+      </div>
+      <button
+        type="button"
+        id="btn-add"
+        data-tab={tab}
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        {tab === 'universites' ? 'Ajouter une université' : 'Ajouter une formation'}
+      </button>
+    </div>
+
+    <!-- ── Barre onglets + toggle vue ──────────────────────────────── -->
+    <div class="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
+      <!-- Onglets -->
+      <div class="flex gap-0">
+        <a
+          href="?tab=universites"
+          class={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'universites'
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
+          }`}
+        >
+          Universités
+          <span class="text-xs px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-normal">
+            {universites.length}
+          </span>
+        </a>
+        <a
+          href="?tab=formations"
+          class={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'formations'
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
+          }`}
+        >
+          Formations
+          <span class="text-xs px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-normal">
+            {formations.length}
+          </span>
+        </a>
+      </div>
+
+      <!-- Toggle vue : grid / liste -->
+      <div class="flex items-center gap-1 pb-2">
+        <button
+          type="button"
+          id="btn-view-grid"
+          title="Vue cards"
+          class="view-toggle-btn p-1.5 rounded-lg transition-colors text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          id="btn-view-list"
+          title="Vue liste"
+          class="view-toggle-btn p-1.5 rounded-lg transition-colors text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- UNIVERSITÉS                                                   -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    {tab === 'universites' && (
+      <div id="catalogue-content">
+
+        <!-- ── Vue CARDS ─────────────────────────────────────────── -->
+        <div id="view-grid-content" class="flex flex-wrap gap-4">
+          {universites.length === 0 && (
+            <div class="w-full py-20 flex flex-col items-center justify-center text-center">
+              <div class="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-3">
+                <svg class="w-5 h-5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+              </div>
+              <p class="text-sm font-medium text-neutral-600 dark:text-neutral-400">Aucune université dans le catalogue</p>
+              <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Ajoutez votre première université via le bouton ci-dessus.</p>
+            </div>
+          )}
+          {universites.map((u) => (
+            <div class="catalogue-card bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl flex flex-col" style="width:360px;flex-shrink:0">
+
+              <!-- Top : nom + menu ··· -->
+              <div class="relative z-10 flex items-start justify-between gap-2 px-4 pt-4 pb-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-100 leading-snug truncate">
+                    {u.nom}
+                  </p>
+                  <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                    {u.pays.drapeau} {u.ville}
+                  </p>
+                </div>
+                <!-- Dropdown ··· -->
+                <div class="relative shrink-0" data-catalogue-dropdown>
+                  <button
+                    type="button"
+                    data-dropdown-trigger
+                    class="flex items-center justify-center w-7 h-7 rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  >
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
+                    </svg>
+                  </button>
+                  <div
+                    data-dropdown-menu
+                    class="hidden absolute right-0 top-full mt-1 z-[60] w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl shadow-neutral-900/10 dark:shadow-neutral-950/40 overflow-hidden py-1"
+                  >
+                    <button type="button" data-action="edit" data-name={u.nom} data-slug={u.slug} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      Modifier
+                    </button>
+                    <a href={`/universites/${u.slug}`} target="_blank" rel="noopener noreferrer" class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                      Voir sur le site
+                    </a>
+                    <button type="button" data-action="contact" data-name={u.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                      Contacter
+                    </button>
+                    <button type="button" data-action="move" data-name={u.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                      Déplacer
+                    </button>
+                    <div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+                    <button type="button" data-action="delete" data-name={u.nom} data-slug={u.slug} class="dropdown-item dropdown-item--danger">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Image + logo box -->
+              <div class="relative mx-4 rounded-lg overflow-hidden h-36 bg-neutral-200 dark:bg-neutral-800 shrink-0">
+                {u.couverture_image_url ? (
+                  <img
+                    src={u.couverture_image_url}
+                    alt=""
+                    loading="lazy"
+                    class="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <div class={`absolute inset-0 flex items-center justify-center ${u.couleur_bg}`}>
+                    <span class="text-5xl font-black text-white/15 select-none leading-none">{u.initiales}</span>
+                  </div>
+                )}
+                <!-- Logo box -->
+                <div class="absolute bottom-2 right-2 w-9 h-9 rounded-lg bg-white dark:bg-neutral-900 shadow-md ring-1 ring-neutral-900/10 dark:ring-white/10 flex items-center justify-center">
+                  <span class="text-[10px] font-black text-neutral-800 dark:text-neutral-100">{u.initiales}</span>
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div class="px-4 pt-3 flex-1">
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed line-clamp-2">
+                  {u.description}
+                </p>
+              </div>
+
+              <!-- Footer meta -->
+              <div class="flex items-center gap-3 px-4 py-3 mt-3 border-t border-neutral-100 dark:border-neutral-800 text-xs text-neutral-400 dark:text-neutral-500">
+                <span class="capitalize">{u.type.replaceAll('_', ' ')}</span>
+                <span>·</span>
+                <span class={(u.est_publie ? 'text-emerald-500 dark:text-emerald-400' : '')}>
+                  {u.est_publie ? 'Publié' : 'Brouillon'}
+                </span>
+                {u.est_vedette && (
+                  <>
+                    <span>·</span>
+                    <span class="text-gold-500 dark:text-gold-400">Vedette</span>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <!-- ── Vue LISTE ──────────────────────────────────────────── -->
+        <div id="view-list-content" class="hidden bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+          {universites.length === 0 && (
+            <div class="py-16 flex flex-col items-center justify-center text-center">
+              <div class="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-3">
+                <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+              </div>
+              <p class="text-sm font-medium text-neutral-600 dark:text-neutral-400">Aucune université dans le catalogue</p>
+            </div>
+          )}
+          <div class="divide-y divide-neutral-100 dark:divide-neutral-800">
+            {universites.map((u) => (
+              <div class="flex items-center gap-4 px-5 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors">
+                <!-- Badge initiales -->
+                <div class={`w-9 h-9 rounded-lg shrink-0 flex items-center justify-center ${u.couleur_bg}`}>
+                  <span class="text-xs font-black text-white/80">{u.initiales}</span>
+                </div>
+                <!-- Nom + meta -->
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{u.nom}</p>
+                  <p class="text-xs text-neutral-400 dark:text-neutral-500">{u.pays.drapeau} {u.ville} · <span class="capitalize">{u.type.replaceAll('_', ' ')}</span></p>
+                </div>
+                <!-- Statut -->
+                <span class={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  u.est_publie
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                    : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400'
+                }`}>
+                  {u.est_publie ? 'Publié' : 'Brouillon'}
+                </span>
+                <!-- Dropdown ··· -->
+                <div class="relative shrink-0" data-catalogue-dropdown>
+                  <button type="button" data-dropdown-trigger class="flex items-center justify-center w-7 h-7 rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
+                    </svg>
+                  </button>
+                  <div data-dropdown-menu class="hidden absolute right-0 top-full mt-1 z-[60] w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl shadow-neutral-900/10 dark:shadow-neutral-950/40 overflow-hidden py-1">
+                    <button type="button" data-action="edit" data-name={u.nom} data-slug={u.slug} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      Modifier
+                    </button>
+                    <a href={`/universites/${u.slug}`} target="_blank" rel="noopener noreferrer" class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                      Voir sur le site
+                    </a>
+                    <button type="button" data-action="contact" data-name={u.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                      Contacter
+                    </button>
+                    <button type="button" data-action="move" data-name={u.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                      Déplacer
+                    </button>
+                    <div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+                    <button type="button" data-action="delete" data-name={u.nom} data-slug={u.slug} class="dropdown-item dropdown-item--danger">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- FORMATIONS                                                    -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    {tab === 'formations' && (
+      <div id="catalogue-content">
+
+        <!-- ── Vue CARDS ─────────────────────────────────────────── -->
+        <div id="view-grid-content" class="flex flex-wrap gap-4">
+          {formations.length === 0 && (
+            <div class="w-full py-20 flex flex-col items-center justify-center text-center">
+              <div class="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-3">
+                <svg class="w-5 h-5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                </svg>
+              </div>
+              <p class="text-sm font-medium text-neutral-600 dark:text-neutral-400">Aucune formation dans le catalogue</p>
+              <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Ajoutez votre première formation via le bouton ci-dessus.</p>
+            </div>
+          )}
+          {formations.map((f) => (
+            <div class="catalogue-card bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl flex flex-col" style="width:360px;flex-shrink:0">
+
+              <!-- Top : nom + menu ··· -->
+              <div class="relative z-10 flex items-start justify-between gap-2 px-4 pt-4 pb-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-100 leading-snug truncate">
+                    {f.nom}
+                  </p>
+                  <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                    {f.universite.pays.drapeau} {f.universite.nom}
+                  </p>
+                </div>
+                <!-- Dropdown ··· -->
+                <div class="relative shrink-0" data-catalogue-dropdown>
+                  <button type="button" data-dropdown-trigger class="flex items-center justify-center w-7 h-7 rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
+                    </svg>
+                  </button>
+                  <div data-dropdown-menu class="hidden absolute right-0 top-full mt-1 z-[60] w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl shadow-neutral-900/10 dark:shadow-neutral-950/40 overflow-hidden py-1">
+                    <button type="button" data-action="edit" data-name={f.nom} data-slug={f.slug} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      Modifier
+                    </button>
+                    <a href={`/formations/${f.slug}`} target="_blank" rel="noopener noreferrer" class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                      Voir sur le site
+                    </a>
+                    <button type="button" data-action="contact" data-name={f.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                      Contacter
+                    </button>
+                    <button type="button" data-action="move" data-name={f.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                      Déplacer
+                    </button>
+                    <div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+                    <button type="button" data-action="delete" data-name={f.nom} data-slug={f.slug} class="dropdown-item dropdown-item--danger">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Image + logo box université -->
+              <div class="relative mx-4 rounded-lg overflow-hidden h-36 bg-neutral-200 dark:bg-neutral-800 shrink-0">
+                {f.couverture_image_url ? (
+                  <img src={f.couverture_image_url} alt="" loading="lazy" class="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div class={`absolute inset-0 flex items-center justify-center ${f.universite.couleur_bg}`}>
+                    <span class="text-5xl font-black text-white/15 select-none leading-none">{f.universite.initiales}</span>
+                  </div>
+                )}
+                <div class="absolute bottom-2 right-2 w-9 h-9 rounded-lg bg-white dark:bg-neutral-900 shadow-md ring-1 ring-neutral-900/10 dark:ring-white/10 flex items-center justify-center">
+                  <span class="text-[10px] font-black text-neutral-800 dark:text-neutral-100">{f.universite.initiales}</span>
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div class="px-4 pt-3 flex-1">
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed line-clamp-2">
+                  {f.description_courte ?? `Formation en ${f.nom} dispensée à ${f.universite.nom}.`}
+                </p>
+              </div>
+
+              <!-- Footer meta -->
+              <div class="flex items-center gap-3 px-4 py-3 mt-3 border-t border-neutral-100 dark:border-neutral-800 text-xs text-neutral-400 dark:text-neutral-500 flex-wrap">
+                <span>{f.niveau_etude.nom}</span>
+                {f.duree_mois && <><span>·</span><span>{formatDuree(f.duree_mois)}</span></>}
+                <span>·</span>
+                <span class={f.est_publie ? 'text-emerald-500 dark:text-emerald-400' : ''}>
+                  {f.est_publie ? 'Publié' : 'Brouillon'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <!-- ── Vue LISTE ──────────────────────────────────────────── -->
+        <div id="view-list-content" class="hidden bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+          {formations.length === 0 && (
+            <div class="py-16 flex flex-col items-center justify-center text-center">
+              <div class="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-3">
+                <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                </svg>
+              </div>
+              <p class="text-sm font-medium text-neutral-600 dark:text-neutral-400">Aucune formation dans le catalogue</p>
+            </div>
+          )}
+          <div class="divide-y divide-neutral-100 dark:divide-neutral-800">
+            {formations.map((f) => (
+              <div class="flex items-center gap-4 px-5 py-3.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors">
+                <div class={`w-9 h-9 rounded-lg shrink-0 flex items-center justify-center ${f.universite.couleur_bg}`}>
+                  <span class="text-xs font-black text-white/80">{f.universite.initiales.charAt(0) || '?'}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{f.nom}</p>
+                  <p class="text-xs text-neutral-400 dark:text-neutral-500">{f.universite.pays.drapeau} {f.universite.nom} · {f.niveau_etude.nom}</p>
+                </div>
+                {f.duree_mois && (
+                  <span class="hidden lg:block text-xs text-neutral-400 dark:text-neutral-500 shrink-0">{formatDuree(f.duree_mois)}</span>
+                )}
+                <span class={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                  f.est_publie
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                    : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400'
+                }`}>
+                  {f.est_publie ? 'Publié' : 'Brouillon'}
+                </span>
+                <div class="relative shrink-0" data-catalogue-dropdown>
+                  <button type="button" data-dropdown-trigger class="flex items-center justify-center w-7 h-7 rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
+                    </svg>
+                  </button>
+                  <div data-dropdown-menu class="hidden absolute right-0 top-full mt-1 z-[60] w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl shadow-neutral-900/10 dark:shadow-neutral-950/40 overflow-hidden py-1">
+                    <button type="button" data-action="edit" data-name={f.nom} data-slug={f.slug} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      Modifier
+                    </button>
+                    <a href={`/formations/${f.slug}`} target="_blank" rel="noopener noreferrer" class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                      Voir sur le site
+                    </a>
+                    <button type="button" data-action="contact" data-name={f.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                      Contacter
+                    </button>
+                    <button type="button" data-action="move" data-name={f.nom} class="dropdown-item">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                      Déplacer
+                    </button>
+                    <div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+                    <button type="button" data-action="delete" data-name={f.nom} data-slug={f.slug} class="dropdown-item dropdown-item--danger">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+
+  </div>
+
+  <!-- Safelist couleur_bg — garantit que Tailwind génère ces classes dynamiques -->
+  <div aria-hidden="true" class="hidden">
+    <div class="bg-primary-600 bg-primary-700 bg-blue-700 bg-indigo-600 bg-violet-600 bg-neutral-700 bg-neutral-800 bg-amber-600 bg-red-700 bg-emerald-600 bg-cyan-600 bg-teal-600 bg-rose-700 bg-sky-700"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- BACKDROP                                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <div
+    id="drawer-backdrop"
+    class="hidden fixed inset-0 z-40 bg-neutral-900/60 backdrop-blur-sm"
+    aria-hidden="true"
+  ></div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- DRAWER — AJOUTER UNE UNIVERSITÉ                                   -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <aside
+    id="drawer-universite"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="drawer-uni-title"
+    class="drawer fixed inset-y-0 right-0 z-50 flex flex-col w-full sm:w-[600px] bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-800 shadow-2xl"
+  >
+    <!-- Header -->
+    <div class="shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-b border-neutral-100 dark:border-neutral-800">
+      <div>
+        <h2 id="drawer-uni-title" class="text-base font-semibold text-neutral-800 dark:text-neutral-100">
+          Ajouter une université
+        </h2>
+        <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">Les champs * sont obligatoires</p>
+      </div>
+      <button
+        type="button"
+        id="close-drawer-uni"
+        aria-label="Fermer"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Scrollable form body -->
+    <form id="form-universite" novalidate class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+      <div id="uni-error"   class="hidden p-3 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-sm text-red-700 dark:text-red-400"></div>
+      <div id="uni-success" class="hidden p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 text-sm text-emerald-700 dark:text-emerald-400"></div>
+
+      <!-- Identité -->
+      <fieldset class="space-y-4">
+        <legend class="w-full pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+          Identité
+        </legend>
+
+        <div>
+          <label for="uni-nom" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Nom de l'université *</label>
+          <input id="uni-nom" name="nom" type="text" required autocomplete="off"
+            placeholder="ex. Université de Pékin"
+            class="field-input" />
+        </div>
+
+        <div>
+          <label for="uni-slug" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Slug (URL) *</label>
+          <input id="uni-slug" name="slug" type="text" required autocomplete="off"
+            placeholder="universite-de-pekin"
+            class="field-input font-mono text-xs" />
+          <p class="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">
+            Généré automatiquement · lettres minuscules, chiffres, tirets uniquement
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="uni-type" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Type *</label>
+            <div class="relative">
+              <select id="uni-type" name="type" required class="field-select pr-8">
+                <option value="">Choisir…</option>
+                <option value="publique">Publique</option>
+                <option value="privee">Privée</option>
+                <option value="grande_ecole">Grande école</option>
+                <option value="autre">Autre</option>
+              </select>
+              <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+          <div>
+            <label for="uni-pays" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Pays *</label>
+            <div class="relative">
+              <select id="uni-pays" name="pays_id" required class="field-select pr-8">
+                <option value="">Choisir…</option>
+                {MOCK_PAYS.map(p => (
+                  <option value={p.id}>{p.drapeau} {p.nom}</option>
+                ))}
+              </select>
+              <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="uni-ville" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Ville *</label>
+            <input id="uni-ville" name="ville" type="text" required placeholder="Pékin" class="field-input" />
+          </div>
+          <div>
+            <label for="uni-adresse" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Adresse</label>
+            <input id="uni-adresse" name="adresse" type="text" placeholder="5 Yiheyuan Rd…" class="field-input" />
+          </div>
+        </div>
+
+        <div>
+          <label for="uni-site" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Site web officiel</label>
+          <input id="uni-site" name="site_web" type="url" placeholder="https://www.universite.edu" class="field-input" />
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label for="uni-annee" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Fondée en</label>
+            <input id="uni-annee" name="annee_fondation" type="number" min="1000" max="2030" placeholder="1898" class="field-input" />
+          </div>
+          <div>
+            <label for="uni-places" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Places / an</label>
+            <input id="uni-places" name="places_disponibles" type="number" min="1" placeholder="30" class="field-input" />
+          </div>
+          <div>
+            <label for="uni-initiales" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Initiales</label>
+            <input id="uni-initiales" name="initiales" type="text" maxlength="5" placeholder="PKU" class="field-input font-mono uppercase tracking-widest" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Présentation -->
+      <fieldset class="space-y-4">
+        <legend class="w-full pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+          Présentation
+        </legend>
+
+        <div>
+          <label for="uni-desc" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Description *</label>
+          <textarea id="uni-desc" name="description" required rows={4}
+            placeholder="Présentation de l'université, son histoire, ses points forts…"
+            class="field-input resize-none"></textarea>
+        </div>
+
+        <div>
+          <label for="uni-cover" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">URL image de couverture</label>
+          <input id="uni-cover" name="couverture_image_url" type="url" placeholder="https://…" class="field-input" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Couleur du badge</label>
+          <div id="uni-color-picker" class="flex flex-wrap gap-2"></div>
+          <input type="hidden" id="uni-color" name="couleur_bg" value="bg-primary-600" />
+        </div>
+      </fieldset>
+
+      <!-- Publication -->
+      <fieldset class="space-y-3">
+        <legend class="w-full pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+          Publication
+        </legend>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input id="uni-publie" name="est_publie" type="checkbox"
+            class="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-amber-400" />
+          <div>
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors">Publié</p>
+            <p class="text-xs text-neutral-400 dark:text-neutral-500">Visible sur le site public</p>
+          </div>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input id="uni-vedette" name="est_vedette" type="checkbox"
+            class="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-amber-400" />
+          <div>
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors">En vedette</p>
+            <p class="text-xs text-neutral-400 dark:text-neutral-500">Affichée en priorité dans l'annuaire</p>
+          </div>
+        </label>
+      </fieldset>
+
+      <!-- SEO (collapsible) -->
+      <details class="group">
+        <summary class="cursor-pointer list-none flex items-center gap-2 pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors">
+          <svg class="w-3 h-3 transition-transform group-open:rotate-90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          SEO (optionnel)
+        </summary>
+        <div class="mt-4 space-y-3">
+          <div>
+            <label for="uni-meta-titre" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Meta titre</label>
+            <input id="uni-meta-titre" name="meta_titre" type="text" class="field-input" />
+          </div>
+          <div>
+            <label for="uni-meta-desc" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Meta description</label>
+            <textarea id="uni-meta-desc" name="meta_description" rows={2} class="field-input resize-none"></textarea>
+          </div>
+        </div>
+      </details>
+
+    </form>
+
+    <!-- Footer -->
+    <div class="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/60">
+      <button type="button" id="cancel-drawer-uni"
+        class="px-4 py-2 text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 rounded-lg">
+        Annuler
+      </button>
+      <button type="submit" form="form-universite" id="submit-drawer-uni"
+        class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Ajouter l'université
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- DRAWER — AJOUTER UNE FORMATION                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <aside
+    id="drawer-formation"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="drawer-for-title"
+    class="drawer fixed inset-y-0 right-0 z-50 flex flex-col w-full sm:w-[600px] bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-800 shadow-2xl"
+  >
+    <!-- Header -->
+    <div class="shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-b border-neutral-100 dark:border-neutral-800">
+      <div>
+        <h2 id="drawer-for-title" class="text-base font-semibold text-neutral-800 dark:text-neutral-100">
+          Ajouter une formation
+        </h2>
+        <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">Les champs * sont obligatoires</p>
+      </div>
+      <button
+        type="button"
+        id="close-drawer-for"
+        aria-label="Fermer"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-neutral-400 dark:text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Scrollable form body -->
+    <form id="form-formation" novalidate class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+      <div id="for-error"   class="hidden p-3 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-sm text-red-700 dark:text-red-400"></div>
+      <div id="for-success" class="hidden p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 text-sm text-emerald-700 dark:text-emerald-400"></div>
+
+      <!-- Identité -->
+      <fieldset class="space-y-4">
+        <legend class="w-full pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+          Identité
+        </legend>
+
+        <div>
+          <label for="for-nom" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Nom de la formation *</label>
+          <input id="for-nom" name="nom" type="text" required autocomplete="off"
+            placeholder="ex. Médecine générale — 5 ans"
+            class="field-input" />
+        </div>
+
+        <div>
+          <label for="for-slug" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Slug (URL) *</label>
+          <input id="for-slug" name="slug" type="text" required autocomplete="off"
+            placeholder="medecine-generale-5-ans"
+            class="field-input font-mono text-xs" />
+          <p class="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">
+            Généré automatiquement · lettres minuscules, chiffres, tirets uniquement
+          </p>
+        </div>
+
+        <div>
+          <label for="for-universite" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Université *</label>
+          <div class="relative">
+            <select id="for-universite" name="universite_id" required class="field-select pr-8">
+              <option value="">Choisir une université…</option>
+              {universites.map(u => (
+                <option value={u.id}>{u.pays.drapeau} {u.nom} — {u.ville}</option>
+              ))}
+            </select>
+            <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="for-niveau" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Niveau d'étude *</label>
+            <div class="relative">
+              <select id="for-niveau" name="niveau_etude_id" required class="field-select pr-8">
+                <option value="">Choisir…</option>
+                {MOCK_NIVEAUX_ETUDE.map(n => (
+                  <option value={n.id}>{n.nom}</option>
+                ))}
+              </select>
+              <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+          <div>
+            <label for="for-specialite" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Spécialité</label>
+            <div class="relative">
+              <select id="for-specialite" name="specialite_id" class="field-select pr-8">
+                <option value="">Aucune</option>
+                {specialitesByCategorie.map(({ cat, specs }) => (
+                  <optgroup label={cat}>
+                    {specs.map(s => <option value={s.id}>{s.nom}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Programme -->
+      <fieldset class="space-y-4">
+        <legend class="w-full pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+          Programme
+        </legend>
+
+        <div>
+          <label for="for-desc" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Description courte</label>
+          <textarea id="for-desc" name="description_courte" rows={3}
+            placeholder="Présentation rapide de la formation, ses atouts, son débouché…"
+            class="field-input resize-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label for="for-duree" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Durée (mois)</label>
+            <input id="for-duree" name="duree_mois" type="number" min="1" max="120" placeholder="60" class="field-input" />
+          </div>
+          <div>
+            <label for="for-frais" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Frais scolarité</label>
+            <input id="for-frais" name="frais_scolarite" type="number" min="0" placeholder="3500" class="field-input" />
+          </div>
+          <div>
+            <label for="for-devise" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Devise</label>
+            <div class="relative">
+              <select id="for-devise" name="devise" class="field-select pr-8">
+                <option value="USD">USD $</option>
+                <option value="EUR">EUR €</option>
+                <option value="CNY">CNY ¥</option>
+                <option value="GHS">GHS ₵</option>
+                <option value="RUB">RUB ₽</option>
+              </select>
+              <svg class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="for-places" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Places disponibles</label>
+            <input id="for-places" name="places_disponibles" type="number" min="1" placeholder="25" class="field-input" />
+          </div>
+          <div>
+            <label for="for-cover" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">URL image couverture</label>
+            <input id="for-cover" name="couverture_image_url" type="url" placeholder="https://…" class="field-input" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Langues d'enseignement</label>
+          <div class="flex flex-wrap gap-1.5 mb-2" id="for-lang-presets">
+            {['Anglais','Mandarin','Russe','Français','Espagnol','Arabe'].map(l => (
+              <button type="button" data-lang={l}
+                class="lang-preset px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-400 transition-colors border border-transparent hover:border-primary-200 dark:hover:border-primary-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                {l}
+              </button>
+            ))}
+          </div>
+          <input id="for-langues" name="langues_enseignement_raw" type="text"
+            placeholder="Anglais, Mandarin"
+            class="field-input" />
+          <p class="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">
+            Cliquer les suggestions ou saisir manuellement, séparées par des virgules
+          </p>
+        </div>
+      </fieldset>
+
+      <!-- Publication -->
+      <fieldset class="space-y-3">
+        <legend class="w-full pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+          Publication
+        </legend>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input id="for-publie" name="est_publie" type="checkbox"
+            class="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-amber-400" />
+          <div>
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors">Publié</p>
+            <p class="text-xs text-neutral-400 dark:text-neutral-500">Visible sur le site public</p>
+          </div>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input id="for-vedette" name="est_vedette" type="checkbox"
+            class="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-amber-400" />
+          <div>
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-neutral-100 transition-colors">En vedette</p>
+            <p class="text-xs text-neutral-400 dark:text-neutral-500">Affichée en priorité dans le catalogue</p>
+          </div>
+        </label>
+      </fieldset>
+
+      <!-- SEO (collapsible) -->
+      <details class="group">
+        <summary class="cursor-pointer list-none flex items-center gap-2 pb-2 border-b border-neutral-100 dark:border-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors">
+          <svg class="w-3 h-3 transition-transform group-open:rotate-90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          SEO (optionnel)
+        </summary>
+        <div class="mt-4 space-y-3">
+          <div>
+            <label for="for-meta-titre" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Meta titre</label>
+            <input id="for-meta-titre" name="meta_titre" type="text" class="field-input" />
+          </div>
+          <div>
+            <label for="for-meta-desc" class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Meta description</label>
+            <textarea id="for-meta-desc" name="meta_description" rows={2} class="field-input resize-none"></textarea>
+          </div>
+        </div>
+      </details>
+
+    </form>
+
+    <!-- Footer -->
+    <div class="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/60">
+      <button type="button" id="cancel-drawer-for"
+        class="px-4 py-2 text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 rounded-lg">
+        Annuler
+      </button>
+      <button type="submit" form="form-formation" id="submit-drawer-for"
+        class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Ajouter la formation
+      </button>
+    </div>
+  </aside>
+
+</DashboardLayout>
+
+<style>
+.dropdown-item {
+  @apply flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-neutral-700 dark:text-neutral-300
+         hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left;
+}
+.dropdown-item--danger {
+  @apply text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30;
+}
+.view-toggle-btn.active {
+  @apply bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200;
+}
+.catalogue-card {
+  width: 360px;
+  flex-shrink: 0;
+}
+.drawer {
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.drawer--open {
+  transform: translateX(0);
+}
+.field-input {
+  @apply w-full px-3 py-2 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700
+         rounded-lg text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500
+         focus:outline-none focus:ring-2 focus:ring-amber-400;
+}
+.field-select {
+  @apply w-full px-3 py-2 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700
+         rounded-lg text-neutral-700 dark:text-neutral-200 appearance-none cursor-pointer
+         focus:outline-none focus:ring-2 focus:ring-amber-400;
+}
+</style>
+
+<script>
+let _catalogueClickHandler: (() => void) | null = null
+let _catalogueKeyHandler: ((e: KeyboardEvent) => void) | null = null
+
+// ── Utilitaires slugification ──────────────────────────────────────────────
+function toSlug(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[''']/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function toInitiales(str: string): string {
+  const STOP = new Set(['de','d','du','la','le','les','des','un','une','l','of','the','and','et','en','à','a'])
+  const initials = str
+    .split(/[\s''']+/)
+    .filter(Boolean)
+    .filter(w => !STOP.has(w.toLowerCase().replace(/[^a-zA-Z]/g, '')))
+    .map(w => (w[0] ?? '').toUpperCase())
+    .join('')
+    .slice(0, 5)
+  return initials || str.slice(0, 3).toUpperCase()
+}
+
+// ── Palette couleurs ───────────────────────────────────────────────────────
+const COULEUR_OPTIONS = [
+  { label: 'Bleu',       value: 'bg-primary-600', hex: '#2563eb' },
+  { label: 'Bleu foncé', value: 'bg-blue-700',    hex: '#1d4ed8' },
+  { label: 'Indigo',     value: 'bg-indigo-600',  hex: '#4f46e5' },
+  { label: 'Violet',     value: 'bg-violet-600',  hex: '#7c3aed' },
+  { label: 'Gris',       value: 'bg-neutral-700', hex: '#404040' },
+  { label: 'Ardoise',    value: 'bg-neutral-800', hex: '#1f1f1f' },
+  { label: 'Orange',     value: 'bg-amber-600',   hex: '#d97706' },
+  { label: 'Rouge',      value: 'bg-red-700',     hex: '#b91c1c' },
+  { label: 'Vert',       value: 'bg-emerald-600', hex: '#059669' },
+  { label: 'Cyan',       value: 'bg-cyan-600',    hex: '#0891b2' },
+]
+
+function initColorPicker(pickerId: string, hiddenId: string) {
+  const picker = document.getElementById(pickerId)
+  const hidden = document.getElementById(hiddenId) as HTMLInputElement | null
+  if (!picker || !hidden) return
+
+  const isDark = document.documentElement.classList.contains('dark')
+  const offsetCls = isDark ? 'dark:ring-offset-neutral-900' : 'ring-offset-white'
+
+  picker.innerHTML = COULEUR_OPTIONS.map(opt => {
+    const selected = opt.value === (hidden.value || 'bg-primary-600')
+    const ringSel  = selected ? 'ring-neutral-800 dark:ring-white scale-110' : 'ring-transparent hover:scale-105'
+    return `<button type="button" class="color-swatch w-7 h-7 rounded-full ring-2 ring-offset-2 ${offsetCls} transition-all focus:outline-none focus:ring-amber-400 ${ringSel}" style="background:${opt.hex}" data-color="${opt.value}" title="${opt.label}" aria-label="${opt.label}"></button>`
+  }).join('')
+
+  picker.querySelectorAll<HTMLButtonElement>('.color-swatch').forEach(btn => {
+    btn.onclick = () => {
+      hidden.value = btn.dataset.color ?? 'bg-primary-600'
+      picker.querySelectorAll('.color-swatch').forEach(b => {
+        b.classList.remove('ring-neutral-800', 'dark:ring-white', 'scale-110')
+        b.classList.add('ring-transparent')
+        b.classList.remove('hover:scale-105')
+        b.classList.add('hover:scale-105')
+      })
+      btn.classList.remove('ring-transparent', 'hover:scale-105')
+      btn.classList.add('ring-neutral-800', 'dark:ring-white', 'scale-110')
+    }
+  })
+}
+
+// ── Gestion du spinner de soumission ──────────────────────────────────────
+const SPIN_SVG = '<svg class="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>'
+
+document.addEventListener('astro:page-load', () => {
+
+  // ── Nettoyage listeners document ─────────────────────────────────────
+  if (_catalogueClickHandler) document.removeEventListener('click',   _catalogueClickHandler)
+  if (_catalogueKeyHandler)   document.removeEventListener('keydown', _catalogueKeyHandler)
+
+  // ── Vue toggle ───────────────────────────────────────────────────────
+  const STORAGE_KEY = 'wwa_catalogue_view'
+  const gridContent = document.getElementById('view-grid-content')
+  const listContent = document.getElementById('view-list-content')
+  const btnGrid     = document.getElementById('btn-view-grid')
+  const btnList     = document.getElementById('btn-view-list')
+
+  function setView(v: string) {
+    try { localStorage.setItem(STORAGE_KEY, v) } catch (_) {}
+    if (v === 'list') {
+      gridContent?.classList.add('hidden')
+      listContent?.classList.remove('hidden')
+      btnGrid?.classList.remove('active')
+      btnList?.classList.add('active')
+    } else {
+      gridContent?.classList.remove('hidden')
+      listContent?.classList.add('hidden')
+      btnGrid?.classList.add('active')
+      btnList?.classList.remove('active')
+    }
+  }
+
+  let savedView = 'grid'
+  try { savedView = localStorage.getItem(STORAGE_KEY) ?? 'grid' } catch (_) {}
+  setView(savedView)
+  btnGrid?.addEventListener('click', () => setView('grid'))
+  btnList?.addEventListener('click', () => setView('list'))
+
+  // ── Dropdowns ────────────────────────────────────────────────────────
+  function closeAllDropdowns() {
+    document.querySelectorAll('[data-dropdown-menu]').forEach(m => m.classList.add('hidden'))
+  }
+
+  document.querySelectorAll('[data-catalogue-dropdown]').forEach(container => {
+    const trigger = container.querySelector('[data-dropdown-trigger]')
+    const menu    = container.querySelector('[data-dropdown-menu]')
+    trigger?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const isOpen = !menu?.classList.contains('hidden')
+      closeAllDropdowns()
+      if (!isOpen) menu?.classList.remove('hidden')
+    })
+  })
+
+  _catalogueClickHandler = closeAllDropdowns
+  _catalogueKeyHandler   = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      closeAllDropdowns()
+      closeDrawer('drawer-universite')
+      closeDrawer('drawer-formation')
+    }
+  }
+  document.addEventListener('click',   _catalogueClickHandler)
+  document.addEventListener('keydown', _catalogueKeyHandler)
+
+  // ── Actions dropdown ─────────────────────────────────────────────────
+  document.querySelectorAll<HTMLElement>('[data-action]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      closeAllDropdowns()
+      const action = btn.dataset.action
+      const name   = btn.dataset.name ?? 'cet élément'
+      const slug   = btn.dataset.slug ?? ''
+
+      if (action === 'delete') {
+        if (window.confirm(`Supprimer "${name}" ?\n\nCette action est irréversible.`)) {
+          void slug
+          alert(`Suppression de "${name}" — à connecter au backend.`)
+        }
+      } else if (action === 'edit') {
+        void slug
+        alert(`Formulaire d'édition de "${name}" — à implémenter.`)
+      } else if (action === 'contact') {
+        window.location.href = '/admin/messages'
+      } else if (action === 'move') {
+        alert(`Déplacer "${name}" — à implémenter.`)
+      }
+    })
+  })
+
+  // ── Drawer : ouverture / fermeture ───────────────────────────────────
+  const backdrop = document.getElementById('drawer-backdrop')
+
+  function openDrawer(id: string) {
+    backdrop?.classList.remove('hidden')
+    document.getElementById(id)?.classList.add('drawer--open')
+    document.body.style.overflow = 'hidden'
+
+    if (id === 'drawer-universite') {
+      ;(document.getElementById('form-universite') as HTMLFormElement | null)?.reset()
+      document.getElementById('uni-error')?.classList.add('hidden')
+      document.getElementById('uni-success')?.classList.add('hidden')
+      uniSlugLocked = false
+      const uniInit = document.getElementById('uni-initiales') as HTMLInputElement | null
+      if (uniInit) delete uniInit.dataset.locked
+      initColorPicker('uni-color-picker', 'uni-color')
+    } else if (id === 'drawer-formation') {
+      ;(document.getElementById('form-formation') as HTMLFormElement | null)?.reset()
+      document.getElementById('for-error')?.classList.add('hidden')
+      document.getElementById('for-success')?.classList.add('hidden')
+      forSlugLocked = false
+    }
+  }
+
+  function closeDrawer(id: string) {
+    backdrop?.classList.add('hidden')
+    document.getElementById(id)?.classList.remove('drawer--open')
+    document.body.style.overflow = ''
+  }
+
+  if (backdrop) backdrop.onclick = () => { closeDrawer('drawer-universite'); closeDrawer('drawer-formation') }
+
+  const closeBtnUni  = document.getElementById('close-drawer-uni')
+  const cancelBtnUni = document.getElementById('cancel-drawer-uni')
+  const closeBtnFor  = document.getElementById('close-drawer-for')
+  const cancelBtnFor = document.getElementById('cancel-drawer-for')
+
+  if (closeBtnUni)  closeBtnUni.onclick  = () => closeDrawer('drawer-universite')
+  if (cancelBtnUni) cancelBtnUni.onclick = () => closeDrawer('drawer-universite')
+  if (closeBtnFor)  closeBtnFor.onclick  = () => closeDrawer('drawer-formation')
+  if (cancelBtnFor) cancelBtnFor.onclick = () => closeDrawer('drawer-formation')
+
+  // ── Bouton Ajouter ───────────────────────────────────────────────────
+  const btnAdd = document.getElementById('btn-add') as HTMLElement | null
+  if (btnAdd) {
+    btnAdd.onclick = () => {
+      openDrawer(btnAdd.dataset.tab === 'formations' ? 'drawer-formation' : 'drawer-universite')
+    }
+  }
+
+  // ── Auto-slug / auto-initiales : université ──────────────────────────
+  let uniSlugLocked = false
+  const uniNom  = document.getElementById('uni-nom')  as HTMLInputElement | null
+  const uniSlug = document.getElementById('uni-slug') as HTMLInputElement | null
+  const uniInit = document.getElementById('uni-initiales') as HTMLInputElement | null
+
+  if (uniSlug) uniSlug.addEventListener('input', () => { uniSlugLocked = !!uniSlug.value })
+  if (uniInit) uniInit.addEventListener('input', () => { uniInit.dataset.locked = '1' })
+
+  if (uniNom) {
+    uniNom.addEventListener('input', () => {
+      if (!uniSlugLocked && uniSlug) uniSlug.value = toSlug(uniNom.value)
+      if (!uniInit?.dataset.locked && uniInit) uniInit.value = toInitiales(uniNom.value)
+    })
+  }
+
+  // ── Auto-slug : formation ────────────────────────────────────────────
+  let forSlugLocked = false
+  const forNom  = document.getElementById('for-nom')  as HTMLInputElement | null
+  const forSlug = document.getElementById('for-slug') as HTMLInputElement | null
+
+  if (forSlug) forSlug.addEventListener('input', () => { forSlugLocked = !!forSlug.value })
+  if (forNom) {
+    forNom.addEventListener('input', () => {
+      if (!forSlugLocked && forSlug) forSlug.value = toSlug(forNom.value)
+    })
+  }
+
+  // ── Presets langue formation ─────────────────────────────────────────
+  const langInput = document.getElementById('for-langues') as HTMLInputElement | null
+  document.querySelectorAll<HTMLButtonElement>('.lang-preset').forEach(btn => {
+    btn.onclick = () => {
+      if (!langInput) return
+      const lang = btn.dataset.lang ?? ''
+      const existing = langInput.value.split(',').map(s => s.trim()).filter(Boolean)
+      if (!existing.includes(lang)) {
+        langInput.value = [...existing, lang].join(', ')
+      }
+    }
+  })
+
+  // ── Soumission : université ──────────────────────────────────────────
+  const formUni   = document.getElementById('form-universite') as HTMLFormElement | null
+  const submitUni = document.getElementById('submit-drawer-uni') as HTMLButtonElement | null
+  const errUni    = document.getElementById('uni-error')
+  const okUni     = document.getElementById('uni-success')
+
+  formUni?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    if (!formUni || !submitUni) return
+
+    errUni?.classList.add('hidden')
+    okUni?.classList.add('hidden')
+
+    const data = new FormData(formUni)
+    const nom         = (data.get('nom') as string)?.trim()
+    const slug        = (data.get('slug') as string)?.trim()
+    const type        = (data.get('type') as string)
+    const pays_id     = (data.get('pays_id') as string)
+    const ville       = (data.get('ville') as string)?.trim()
+    const description = (data.get('description') as string)?.trim()
+
+    if (!nom || !slug || !type || !pays_id || !ville || !description) {
+      showAlert(errUni, 'Veuillez remplir tous les champs obligatoires (*).')
+      return
+    }
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      showAlert(errUni, 'Le slug ne peut contenir que des minuscules, chiffres et tirets.')
+      return
+    }
+
+    const payload: Record<string, unknown> = {
+      nom, slug, type,
+      pays_id: Number(pays_id),
+      ville,
+      description,
+      couleur_bg: (document.getElementById('uni-color') as HTMLInputElement | null)?.value ?? 'bg-primary-600',
+      est_publie:  (document.getElementById('uni-publie') as HTMLInputElement | null)?.checked  ?? false,
+      est_vedette: (document.getElementById('uni-vedette') as HTMLInputElement | null)?.checked ?? false,
+      contenu: [],
+    }
+
+    const adresse  = (data.get('adresse') as string)?.trim()
+    const site_web = (data.get('site_web') as string)?.trim()
+    const annee    = (data.get('annee_fondation') as string)
+    const places   = (data.get('places_disponibles') as string)
+    const initials = (data.get('initiales') as string)?.trim()
+    const mTitre   = (data.get('meta_titre') as string)?.trim()
+    const mDesc    = (data.get('meta_description') as string)?.trim()
+
+    if (adresse)  payload.adresse  = adresse
+    if (site_web) payload.site_web = site_web
+    if (annee)    payload.annee_fondation     = Number(annee)
+    if (places)   payload.places_disponibles  = Number(places)
+    if (initials) payload.initiales           = initials
+    if (mTitre)   payload.meta_titre          = mTitre
+    if (mDesc)    payload.meta_description    = mDesc
+
+    await submitToApi({
+      url: '/api/catalogue/universites',
+      payload,
+      submitBtn: submitUni,
+      errEl: errUni,
+      okEl: okUni,
+      successMsg: `Université « ${nom} » ajoutée avec succès !`,
+      submitLabel: "Ajouter l'université",
+      onSuccess: () => closeDrawer('drawer-universite'),
+    })
+  })
+
+  // ── Soumission : formation ───────────────────────────────────────────
+  const formFor   = document.getElementById('form-formation') as HTMLFormElement | null
+  const submitFor = document.getElementById('submit-drawer-for') as HTMLButtonElement | null
+  const errFor    = document.getElementById('for-error')
+  const okFor     = document.getElementById('for-success')
+
+  formFor?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    if (!formFor || !submitFor) return
+
+    errFor?.classList.add('hidden')
+    okFor?.classList.add('hidden')
+
+    const data = new FormData(formFor)
+    const nom            = (data.get('nom') as string)?.trim()
+    const slug           = (data.get('slug') as string)?.trim()
+    const universite_id  = (data.get('universite_id') as string)
+    const niveau_etude_id = (data.get('niveau_etude_id') as string)
+
+    if (!nom || !slug || !universite_id || !niveau_etude_id) {
+      showAlert(errFor, 'Veuillez remplir tous les champs obligatoires (*).')
+      return
+    }
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      showAlert(errFor, 'Le slug ne peut contenir que des minuscules, chiffres et tirets.')
+      return
+    }
+
+    const languesRaw = (data.get('langues_enseignement_raw') as string)
+      ?.split(',').map(s => s.trim()).filter(Boolean)
+
+    const payload: Record<string, unknown> = {
+      nom, slug,
+      universite_id: Number(universite_id),
+      niveau_etude_id: Number(niveau_etude_id),
+      langues_enseignement: languesRaw?.length ? languesRaw : [],
+      est_publie:  (document.getElementById('for-publie') as HTMLInputElement | null)?.checked  ?? false,
+      est_vedette: (document.getElementById('for-vedette') as HTMLInputElement | null)?.checked ?? false,
+      contenu: [],
+    }
+
+    const specId  = (data.get('specialite_id') as string)
+    const desc    = (data.get('description_courte') as string)?.trim()
+    const duree   = (data.get('duree_mois') as string)
+    const frais   = (data.get('frais_scolarite') as string)
+    const devise  = (data.get('devise') as string)
+    const places  = (data.get('places_disponibles') as string)
+    const cover   = (data.get('couverture_image_url') as string)?.trim()
+    const mTitre  = (data.get('meta_titre') as string)?.trim()
+    const mDesc   = (data.get('meta_description') as string)?.trim()
+
+    if (specId && specId !== '0') payload.specialite_id = Number(specId)
+    if (desc)   payload.description_courte   = desc
+    if (duree)  payload.duree_mois           = Number(duree)
+    if (frais)  payload.frais_scolarite      = Number(frais)
+    if (devise) payload.devise               = devise
+    if (places) payload.places_disponibles   = Number(places)
+    if (cover)  payload.couverture_image_url = cover
+    if (mTitre) payload.meta_titre           = mTitre
+    if (mDesc)  payload.meta_description     = mDesc
+
+    await submitToApi({
+      url: '/api/catalogue/formations',
+      payload,
+      submitBtn: submitFor,
+      errEl: errFor,
+      okEl: okFor,
+      successMsg: `Formation « ${nom} » ajoutée avec succès !`,
+      submitLabel: 'Ajouter la formation',
+      onSuccess: () => closeDrawer('drawer-formation'),
+    })
+  })
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function showAlert(el: HTMLElement | null, msg: string) {
+    if (!el) return
+    el.textContent = msg
+    el.classList.remove('hidden')
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  async function submitToApi(opts: {
+    url: string
+    payload: Record<string, unknown>
+    submitBtn: HTMLButtonElement
+    errEl: HTMLElement | null
+    okEl: HTMLElement | null
+    successMsg: string
+    submitLabel: string
+    onSuccess: () => void
+  }) {
+    const { url, payload, submitBtn, errEl, okEl, successMsg, submitLabel, onSuccess } = opts
+
+    submitBtn.disabled = true
+    submitBtn.innerHTML = `${SPIN_SVG} Enregistrement…`
+
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (resp.ok) {
+        showAlert(okEl, successMsg)
+        setTimeout(() => { onSuccess(); window.location.reload() }, 1500)
+      } else {
+        let msg = `Erreur ${resp.status}.`
+        if (resp.status === 503) {
+          msg = 'Le backend est indisponible. Vérifiez que Laravel est démarré (`php artisan serve`).'
+        } else {
+          try {
+            const json = await resp.json()
+            msg = json.message ?? msg
+            if (json.errors) {
+              msg += ' ' + Object.values(json.errors as Record<string, string[]>).flat().join(' ')
+            }
+          } catch (_) {}
+        }
+        showAlert(errEl, msg)
+      }
+    } catch (_) {
+      showAlert(errEl, 'Erreur réseau. Vérifiez votre connexion.')
+    } finally {
+      submitBtn.disabled = false
+      submitBtn.innerHTML = `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> ${submitLabel}`
+    }
+  }
+})
+</script>

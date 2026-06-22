@@ -82,7 +82,7 @@ return [
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                // Restreindre les origines autorisées — '*' interdit en production
+                // Restreindre les origines autorisées - '*' interdit en production
                 // (Cross-Site WebSocket Hijacking). Configurer REVERB_ALLOWED_ORIGINS
                 // avec le domaine exact du frontend (ex: https://app.worldwise-admission.com).
                 'allowed_origins' => array_filter(
@@ -91,7 +91,7 @@ return [
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
-                // 10 Ko max par message — protection anti-flood/DoS
+                // 10 Ko max par message - protection anti-flood/DoS
                 'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
                 'accept_client_events_from' => env('REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'members'),
                 'rate_limiting' => [

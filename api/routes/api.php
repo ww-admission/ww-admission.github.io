@@ -68,7 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users',                             [UserController::class, 'index']);
         Route::patch('/users/{id}',                      [UserController::class, 'update']);
 
-        // Réseau contacts — admin CRUD
+        // Réseau contacts - admin CRUD
         Route::get('/network/contacts',                  [NetworkContactController::class, 'index']);
         Route::post('/network/contacts',                 [NetworkContactController::class, 'store']);
         Route::get('/network/contacts/{id}',             [NetworkContactController::class, 'show']);

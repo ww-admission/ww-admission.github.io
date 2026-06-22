@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRATION 001 — Table candidatures
+-- MIGRATION 001 - Table candidatures
 -- À exécuter dans votre base de données (ex: Supabase SQL Editor)
 -- ============================================================
 

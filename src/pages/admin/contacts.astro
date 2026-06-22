@@ -330,7 +330,7 @@ const contacts = useMock ? allContacts.slice((page - 1) * perPage, page * perPag
     const ALL_CONTACTS: Contact[] = (window as any).__CONTACTS_ADMIN__ ?? []
     const ALL_ACCOUNTS: Account[] = (window as any).__ACCOUNTS_ADMIN__ ?? []
 
-    function esc(s: string) { return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+    function esc(s: string) { return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') }
 
     const CTYPE_LABELS: Record<string,string> = { wwa_team:'Équipe WWA', referent:'Référent', school:'École / Université', company:'Cabinet / Entreprise', advisor:'Conseiller', personal:'Contact personnel' }
     const CTYPE_COLORS: Record<string,string> = {

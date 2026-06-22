@@ -18,7 +18,7 @@ const { id, label, required, disabled, helperText, classes } = Astro.props
 
 <div class:list={['relative w-full', { [`${classes}`]: classes }]} data-phone-input data-id={id}>
 
-  <!-- Label flottant — toujours en position haute (le code pays occupe le champ) -->
+  <!-- Label flottant - toujours en position haute (le code pays occupe le champ) -->
   <label
     for={`${id}-number`}
     class="pointer-events-none absolute -top-2 left-2 z-[1] px-2 text-xs text-neutral-400 before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all dark:before:bg-neutral-900"
@@ -26,7 +26,7 @@ const { id, label, required, disabled, helperText, classes } = Astro.props
     {label}{required && <span class="text-neutral-400" aria-hidden="true"> *</span>}
   </label>
 
-  <!-- Champ combiné — même hauteur et bordure qu'InputField -->
+  <!-- Champ combiné - même hauteur et bordure qu'InputField -->
   <div class="flex h-12 overflow-visible rounded border border-neutral-200 transition-all focus-within:border-amber-400 dark:border-neutral-800 dark:bg-neutral-900">
 
     <!-- Bouton indicatif -->

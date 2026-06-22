@@ -16,6 +16,7 @@ export interface NavItem {
 	name: string
 	link: string
 	submenu?: NavSubItem[]
+	megamenu?: boolean
 }
 
 export interface NavAction {
@@ -34,26 +35,15 @@ export interface NavData {
 export const navigationBarData: NavData = {
 	logo: {
 		src: '/logo.svg',
-		alt: 'The tailwind astro theme',
+		alt: 'WorldWise Admission',
 		text: 'WWA'
 	},
 	navItems: [
 		{ name: 'Accueil', link: '/' },
-		// { name: 'Tarifs', link: '/pricing' },
-		{ name: 'Notre service', link: '/features' },
-		{
-			name: 'Resources',
-			link: '#',
-			submenu: [
-				// { name: 'Blog', link: '/blog' },
-				{ name: 'Process', link: '/process' },
-				// { name: 'FAQ', link: '/faq' },
-				// { name: 'Terms', link: '/terms' }
-			]
-		},
+		{ name: 'Ressources', link: '#', megamenu: true },
 		{ name: 'Contact', link: '/contact' }
 	],
 	navActions: [
-		{ name: 'Se connecter', link: '/', style: 'primary', size: 'lg' },
+		{ name: 'Se connecter', link: '/login', style: 'primary', size: 'lg' },
 	]
 }

@@ -1,16 +1,20 @@
 <!-- Scripts for UI components -->
 <script async defer>
 	document.addEventListener('astro:page-load', () => {
-		// Menu Dropdown
+		// Menu Dropdown (gère aussi le mega menu)
 		const menuItems = document.querySelectorAll('.header__menu-item')
 		menuItems.forEach((menuItem) => {
-			const submenu = menuItem.querySelector('.header__submenu')
+			const submenu = menuItem.querySelector('.header__submenu, .mega-menu')
 			const link = menuItem.querySelector('.header__menu-link')
 
 			if (submenu && link) {
 				link.addEventListener('click', function (event) {
 					event.preventDefault()
-					menuItem.classList.toggle('open')
+					const isOpen = menuItem.classList.contains('open')
+					// Ferme tous les autres menus ouverts
+					menuItems.forEach((m) => m.classList.remove('open'))
+					if (!isOpen) menuItem.classList.add('open')
+					link.setAttribute('aria-expanded', String(!isOpen))
 				})
 			}
 		})
@@ -18,11 +22,23 @@
 			const target = event.target
 
 			menuItems.forEach((menuItem) => {
-				const submenu = menuItem.querySelector('.header__submenu')
+				const submenu = menuItem.querySelector('.header__submenu, .mega-menu')
 				if (submenu && !menuItem.contains(target)) {
 					menuItem.classList.remove('open')
+					const btn = menuItem.querySelector('.header__menu-link')
+					if (btn) btn.setAttribute('aria-expanded', 'false')
 				}
 			})
+		})
+		// Fermer le mega menu avec Escape
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape') {
+				menuItems.forEach((menuItem) => {
+					menuItem.classList.remove('open')
+					const btn = menuItem.querySelector('.header__menu-link')
+					if (btn) btn.setAttribute('aria-expanded', 'false')
+				})
+			}
 		})
 
 		// Menu toggle

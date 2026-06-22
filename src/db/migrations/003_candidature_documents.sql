@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRATION 003 — Table candidature_documents
+-- MIGRATION 003 - Table candidature_documents
 -- Stockage des métadonnées des fichiers joints aux candidatures.
 -- Les fichiers eux-mêmes sont stockés dans un service externe
 -- (ex: Supabase Storage, Cloudinary, S3).

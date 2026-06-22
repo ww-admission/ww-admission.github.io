@@ -6,7 +6,7 @@ use App\Models\Message;
 use Illuminate\Notifications\Notification;
 
 /**
- * Notification stockée en base — synchrone par design.
+ * Notification stockée en base - synchrone par design.
  *
  * PAS de ShouldQueue : on garantit que la ligne `notifications` est créée
  * AVANT que le broadcast `NotificationCreated` ne soit dispatché.

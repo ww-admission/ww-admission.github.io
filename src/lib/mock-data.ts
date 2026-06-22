@@ -1,4 +1,4 @@
-// Données de démonstration — remplacées par l'API Laravel quand elle est prête
+// Données de démonstration - remplacées par l'API Laravel quand elle est prête
 
 export type CandidatureStatus = 'pending' | 'reviewing' | 'accepted' | 'rejected' | 'on_hold'
 
