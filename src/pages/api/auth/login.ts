@@ -11,7 +11,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return json({ message: 'Corps de requête invalide' }, 400)
   }
 
-  const backendUrl = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const backendUrl = (import.meta.env.BACKEND_URL ?? 'http://localhost:8000').trim()
 
   let resp: Response
   try {
@@ -20,7 +20,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
     })
-  } catch {
+  } catch (err) {
+    console.error('[auth/login] backend fetch failed:', err)
     return json({ message: 'Impossible de contacter le serveur.' }, 503)
   }
 

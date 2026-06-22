@@ -49,7 +49,7 @@ export async function proxyFormData(
   session: Session,
   formData: FormData,
 ): Promise<Response> {
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = (import.meta.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   try {
     const resp = await fetch(`${base}/api${path}`, {
       method: 'POST',
@@ -61,14 +61,15 @@ export async function proxyFormData(
     })
     const text = await resp.text()
     return new Response(text, { status: resp.status, headers: JSON_HEADERS })
-  } catch {
+  } catch (err) {
+    console.error('[bff/proxyFormData] backend fetch failed:', err)
     return unavailable()
   }
 }
 
 /** Proxy pour les fichiers binaires (download / preview) */
 export async function proxyStream(path: string, session: Session): Promise<Response> {
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = (import.meta.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   try {
     const resp = await fetch(`${base}/api${path}`, {
       method: 'GET',
@@ -91,7 +92,8 @@ export async function proxyStream(path: string, session: Session): Promise<Respo
         'Cache-Control':       'no-store',
       },
     })
-  } catch {
+  } catch (err) {
+    console.error('[bff/proxyStream] backend fetch failed:', err)
     return unavailable()
   }
 }
