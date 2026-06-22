@@ -425,7 +425,8 @@ import DoodleBackground from '../../components/DoodleBackground.astro'
 
       // Charge les images avec auth token
       async function loadAuthImages() {
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        let s: { token?: string } | null = null
+        try { s = JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch {}
         if (!s?.token) return
         document.querySelectorAll<HTMLImageElement>('[data-auth-src]:not([data-auth-loaded])').forEach(async img => {
           img.dataset.authLoaded = '1'
@@ -438,7 +439,8 @@ import DoodleBackground from '../../components/DoodleBackground.astro'
 
       // Télécharger un fichier avec auth
       async function downloadWithAuth(url: string, filename: string) {
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        let s: { token?: string } | null = null
+        try { s = JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch {}
         if (!s?.token) return
         try {
           const r = await fetch(url, { headers: { Authorization: `Bearer ${s.token}` } })
@@ -489,7 +491,8 @@ import DoodleBackground from '../../components/DoodleBackground.astro'
 
         if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); previewBlobUrl = '' }
 
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        let s: { token?: string } | null = null
+        try { s = JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch {}
         const headers: Record<string, string> = s?.token ? { Authorization: `Bearer ${s.token}` } : {}
 
         fetch(att.previewUrl, { headers })
@@ -646,7 +649,8 @@ import DoodleBackground from '../../components/DoodleBackground.astro'
         const text = input.value.trim()
         if ((!text && selectedFiles.length === 0) || !activeConvId) return
 
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        let s: { token?: string } | null = null
+        try { s = JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch {}
         if (!s?.token) return
 
         // Snapshot + reset immédiat pour l'UX
@@ -754,7 +758,7 @@ import DoodleBackground from '../../components/DoodleBackground.astro'
       }
 
       // ── Utils ─────────────────────────────────────────────────────────
-      function escHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+      function escHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') }
       function fmtDate(iso: string) {
         const d = new Date(iso)
         return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })

@@ -1,5 +1,5 @@
 ---
-// Multi-Select — Nationalités
+// Multi-Select - Nationalités
 // ------------
 // Description: Sélection multiple avec tags supprimables.
 // Charge les pays via RestCountries API.
@@ -23,12 +23,12 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
   data-id={id}
   data-required={required ? 'true' : undefined}
 >
-  <!-- Champ principal — input à gauche (flex-1), tags collés à droite -->
+  <!-- Champ principal - input à gauche (flex-1), tags collés à droite -->
   <div
     class="relative flex min-h-12 w-full items-center gap-2 rounded border border-neutral-200 bg-white px-4 py-2 transition-all focus-within:border-amber-400 dark:border-neutral-800 dark:bg-neutral-900"
     data-multiselect-field
   >
-    <!-- Input de recherche — prend tout l'espace disponible -->
+    <!-- Input de recherche - prend tout l'espace disponible -->
     <input
       type="text"
       class="min-w-0 flex-1 bg-transparent text-sm text-neutral-500 outline-none placeholder:text-neutral-400 dark:text-neutral-400"
@@ -44,7 +44,7 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
     <div class="flex flex-wrap items-center justify-end gap-1.5" data-multiselect-tags></div>
   </div>
 
-  <!-- Label toujours floatté — neutre par défaut, amber quand le champ a le focus -->
+  <!-- Label toujours floatté - neutre par défaut, amber quand le champ a le focus -->
   <label
     class="pointer-events-none absolute -top-2 left-2 z-[1] px-2 text-xs text-neutral-400 transition-colors group-focus-within:text-amber-500 before:absolute before:left-0 before:top-0 before:z-[-1] before:block before:h-full before:w-full before:bg-white before:transition-all dark:before:bg-neutral-900"
   >

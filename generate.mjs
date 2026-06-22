@@ -23,7 +23,7 @@ const ICON_COLOR  = '#F02860'
 const ICON_OPACITY = 0.13
 // ────────────────────────────────────────────────────────────────────────────
 
-// Seeded LCG — reproducible randomness without external deps
+// Seeded LCG - reproducible randomness without external deps
 function makeLcg(seed) {
   let s = seed >>> 0
   return () => {
@@ -47,7 +47,7 @@ function radius(s) {
   return s * 12 * 0.88 + PAD
 }
 
-// Scale distribution — biased toward large sizes
+// Scale distribution - biased toward large sizes
 function pickScale(rng) {
   const b = rng()
   if (b < 0.30) return SCALE_MIN + rng() * (1.05 - SCALE_MIN)   // small

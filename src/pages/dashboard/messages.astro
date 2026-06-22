@@ -173,6 +173,10 @@ try {
   </div>
 
   <script>
+    function getSession(): { token?: string } | null {
+      try { return JSON.parse(localStorage.getItem('wwa_session') || 'null') } catch { return null }
+    }
+
     document.addEventListener('astro:page-load', async () => {
       const page      = document.getElementById('messages-page')
       if (!page) return
@@ -201,7 +205,7 @@ try {
 
       // ── Attachments helpers ───────────────────────────────────────
       async function loadAuthImages() {
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        const s = getSession()
         if (!s?.token) return
         document.querySelectorAll<HTMLImageElement>('[data-auth-src]:not([data-auth-loaded])').forEach(async img => {
           img.dataset.authLoaded = '1'
@@ -213,7 +217,7 @@ try {
       }
 
       async function downloadWithAuth(url: string, filename: string) {
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        const s = getSession()
         if (!s?.token) return
         try {
           const r = await fetch(url, { headers: { Authorization: `Bearer ${s.token}` } })
@@ -263,7 +267,7 @@ try {
 
         if (previewBlobUrl) { URL.revokeObjectURL(previewBlobUrl); previewBlobUrl = '' }
 
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        const s = getSession()
         const headers: Record<string, string> = s?.token ? { Authorization: `Bearer ${s.token}` } : {}
 
         fetch(att.previewUrl, { headers })
@@ -442,7 +446,7 @@ try {
         const messages: any[] = await resp.json()
         areaEl.classList.remove('hidden'); areaEl.classList.add('flex')
         if (messages.length === 0) {
-          container.innerHTML = '<p class="text-center text-xs text-neutral-400 py-8">Aucun message — l\'équipe WWA vous répondra ici</p>'
+          container.innerHTML = '<p class="text-center text-xs text-neutral-400 py-8">Aucun message - l\'équipe WWA vous répondra ici</p>'
         } else {
           messages.forEach(m => appendMessage(m, false))
         }
@@ -466,7 +470,7 @@ try {
       sendBtn.addEventListener('click', async () => {
         const text = input.value.trim()
         if (!text && selectedFiles.length === 0) return
-        const s = JSON.parse(localStorage.getItem('wwa_session') || 'null')
+        const s = getSession()
         if (!s?.token) return
 
         const snapshot = [...selectedFiles]; const snapshotText = text

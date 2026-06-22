@@ -8,7 +8,7 @@ dist/
 # ── Dépendances ───────────────────────────────────────────────
 node_modules/
 
-# ── Variables d'environnement (SENSIBLE — ne jamais committer) ─
+# ── Variables d'environnement (SENSIBLE - ne jamais committer) ─
 .env
 .env.*
 !.env.example

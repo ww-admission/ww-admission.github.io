@@ -1,4 +1,4 @@
-# Déploiement — WorldWise Admission
+# Déploiement - WorldWise Admission
 
 > Guide complet pour déployer le frontend Astro sur Vercel et le backend Laravel sur un VPS/PaaS, avec checklist de mise en production.
 
@@ -7,8 +7,8 @@
 ## Table des matières
 
 1. [Architecture de déploiement](#1-architecture-de-déploiement)
-2. [Frontend — Vercel](#2-frontend--vercel)
-3. [Backend — Laravel sur VPS](#3-backend--laravel-sur-vps)
+2. [Frontend - Vercel](#2-frontend--vercel)
+3. [Backend - Laravel sur VPS](#3-backend--laravel-sur-vps)
 4. [Variables d'environnement de production](#4-variables-denvironnement-de-production)
 5. [Base de données](#5-base-de-données)
 6. [CORS et communication inter-services](#6-cors-et-communication-inter-services)
@@ -43,7 +43,7 @@ Le frontend Vercel ne parle **jamais** directement à la base de données. Il pa
 
 ---
 
-## 2. Frontend — Vercel
+## 2. Frontend - Vercel
 
 ### Prérequis
 
@@ -98,7 +98,7 @@ Dans le dashboard Vercel → Settings → Environment Variables, ajouter :
 > openssl rand -base64 48
 > ```
 
-> ⚠️ Ne **jamais** préfixer `JWT_SECRET` ou `BACKEND_URL` avec `PUBLIC_` — ces variables ne doivent pas apparaître dans le bundle JS client.
+> ⚠️ Ne **jamais** préfixer `JWT_SECRET` ou `BACKEND_URL` avec `PUBLIC_` - ces variables ne doivent pas apparaître dans le bundle JS client.
 
 ### Configuration vercel.json (si nécessaire)
 
@@ -117,9 +117,9 @@ Si des ajustements de timeout ou de région sont nécessaires, créer `vercel.js
 
 ---
 
-## 3. Backend — Laravel sur VPS
+## 3. Backend - Laravel sur VPS
 
-### Option A — VPS Linux (recommandé pour la prod)
+### Option A - VPS Linux (recommandé pour la prod)
 
 #### Prérequis serveur
 
@@ -212,7 +212,7 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d api.worldwise-admission.com
 ```
 
-### Option B — Railway / Render / Fly.io (PaaS simplifié)
+### Option B - Railway / Render / Fly.io (PaaS simplifié)
 
 Ces plateformes peuvent héberger Laravel sans configuration Nginx manuelle. Les variables d'environnement se configurent dans leur dashboard. Se référer à la documentation de chaque plateforme pour le déploiement PHP.
 
@@ -220,7 +220,7 @@ Ces plateformes peuvent héberger Laravel sans configuration Nginx manuelle. Les
 
 ## 4. Variables d'environnement de production
 
-### Frontend — `.env` (Vercel)
+### Frontend - `.env` (Vercel)
 
 ```env
 # Obligatoires
@@ -233,7 +233,7 @@ PUBLIC_SITE_URL=https://worldwise-admission.com
 # GOOGLE_CLIENT_SECRET=<google-oauth-secret>
 ```
 
-### Backend — `api/.env` (VPS)
+### Backend - `api/.env` (VPS)
 
 ```env
 APP_NAME=WWA-API
@@ -364,12 +364,12 @@ Les appels de l'Astro SSR vers Laravel se font serveur-à-serveur (via `BACKEND_
 ### Vérifications fonctionnelles
 
 - [ ] Page `/` charge correctement
-- [ ] Page `/candidature` — formulaire multi-étapes fonctionne
-- [ ] Modal `/login` — connexion admin → redirige vers `/admin`
-- [ ] `/register` — création compte candidat → redirige vers `/dashboard`
-- [ ] `/admin/candidatures` — liste visible (même si vide)
-- [ ] `/dashboard/candidature` — page candidat accessible
-- [ ] POST `/api/auth/logout` — déconnexion efface le cookie
+- [ ] Page `/candidature` - formulaire multi-étapes fonctionne
+- [ ] Modal `/login` - connexion admin → redirige vers `/admin`
+- [ ] `/register` - création compte candidat → redirige vers `/dashboard`
+- [ ] `/admin/candidatures` - liste visible (même si vide)
+- [ ] `/dashboard/candidature` - page candidat accessible
+- [ ] POST `/api/auth/logout` - déconnexion efface le cookie
 
 ### Sécurité
 

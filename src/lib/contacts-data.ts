@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────────────────────────
-// Contacts & Accounts — données de démonstration (remplacées par l'API Laravel)
+// Contacts & Accounts - données de démonstration (remplacées par l'API Laravel)
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type ContactType = 'wwa_team' | 'referent' | 'school' | 'company' | 'advisor' | 'personal'
@@ -84,7 +84,7 @@ export const MOCK_CONTACTS: Contact[] = [
     name: 'Michel Obame',
     firstName: 'Michel',
     lastName: 'Obame',
-    role: 'Référent WWA — Destination Chine',
+    role: 'Référent WWA - Destination Chine',
     email: 'michel.obame@worldwise-admission.com',
     phone: '+241 06 78 90 12',
     location: 'Libreville, Gabon',
@@ -107,7 +107,7 @@ export const MOCK_CONTACTS: Contact[] = [
     name: 'Aminata Diallo',
     firstName: 'Aminata',
     lastName: 'Diallo',
-    role: 'Référente WWA — Destination Ghana & Russie',
+    role: 'Référente WWA - Destination Ghana & Russie',
     email: 'aminata.diallo@worldwise-admission.com',
     phone: '+241 04 56 78 90',
     location: 'Libreville, Gabon',
@@ -127,7 +127,7 @@ export const MOCK_CONTACTS: Contact[] = [
     id: 'school-001',
     type: 'school',
     name: 'Université de Pékin (PKU)',
-    role: 'Université partenaire — Chine',
+    role: 'Université partenaire - Chine',
     email: 'admissions@pku.edu.cn',
     phone: '+86 10 6275 1234',
     location: 'Pékin, Chine',
@@ -148,7 +148,7 @@ export const MOCK_CONTACTS: Contact[] = [
     id: 'school-002',
     type: 'school',
     name: 'Université du Ghana',
-    role: 'Université partenaire — Ghana',
+    role: 'Université partenaire - Ghana',
     email: 'international@ug.edu.gh',
     phone: '+233 30 2500 381',
     location: 'Accra, Ghana',
@@ -171,7 +171,7 @@ export const MOCK_CONTACTS: Contact[] = [
     name: 'Dr. Sophie Laurent',
     firstName: 'Sophie',
     lastName: 'Laurent',
-    role: 'Conseillère d\'orientation — Europe & Asie',
+    role: 'Conseillère d\'orientation - Europe & Asie',
     email: 'sophie.laurent@orientpro.fr',
     phone: '+33 6 12 34 56 78',
     location: 'Paris, France',
@@ -180,7 +180,7 @@ export const MOCK_CONTACTS: Contact[] = [
     initials: 'SL',
     avatarColor: 'bg-neutral-600',
     languages: ['Français', 'Anglais', 'Espagnol'],
-    availability: 'Sur RDV — Mer & Ven',
+    availability: 'Sur RDV - Mer & Ven',
     specializations: ['Orientation académique', 'Bourses européennes', 'Préparation aux entretiens'],
     linkedinUrl: '#',
     status: 'active',
@@ -265,7 +265,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     conversationCount: 3,
     linkedContactId: undefined,
     permissions: ['own_candidature:read', 'messages:own'],
-    notes: 'Candidature en cours — Chine (Médecine).',
+    notes: 'Candidature en cours - Chine (Médecine).',
   },
   {
     id: 'acc-004',
@@ -300,7 +300,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     conversationCount: 8,
     linkedContactId: 'advisor-001',
     permissions: ['assigned_candidatures:read', 'messages:assigned'],
-    notes: 'Compte pro — conseillère partenaire.',
+    notes: 'Compte pro - conseillère partenaire.',
   },
   {
     id: 'acc-006',

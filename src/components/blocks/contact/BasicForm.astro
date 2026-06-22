@@ -59,7 +59,7 @@ const { classes } = Astro.props
 								Joindre un fichier
 							</span>
 							<span id="fileLabelSub" class="text-xs text-neutral-400 dark:text-neutral-500">
-								PDF, DOC, DOCX, JPG, PNG — max 5 Mo
+								PDF, DOC, DOCX, JPG, PNG - max 5 Mo
 							</span>
 						</div>
 					</label>
@@ -258,7 +258,7 @@ const { classes } = Astro.props
 			hide(successModal)
 			form.reset()
 			if (fileLabelMain) fileLabelMain.textContent = 'Joindre un fichier'
-			if (fileLabelSub) fileLabelSub.textContent = 'PDF, DOC, DOCX, JPG, PNG — max 5 Mo'
+			if (fileLabelSub) fileLabelSub.textContent = 'PDF, DOC, DOCX, JPG, PNG - max 5 Mo'
 			if (fileLabelMain) {
 				fileLabelMain.classList.remove('text-primary-600', 'dark:text-primary-400', 'text-red-500')
 				fileLabelMain.classList.add('text-neutral-500')

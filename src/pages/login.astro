@@ -12,7 +12,8 @@ if (rawToken) {
     const params = new URL(Astro.request.url).searchParams
     const r = params.get('redirect') ?? ''
     const allowed = ['/admin', '/dashboard']
-    const dest = allowed.some(p => r.startsWith(p)) ? r : (session.role === 'admin' ? '/admin' : '/dashboard')
+    const isSafe = r.startsWith('/') && !r.startsWith('//') && !r.includes('..')
+    const dest = (isSafe && allowed.some(p => r.startsWith(p))) ? r : (session.role === 'admin' ? '/admin' : '/dashboard')
     return Astro.redirect(dest)
   }
 }
@@ -20,7 +21,7 @@ if (rawToken) {
 
 <!doctype html>
 <html lang="fr" class="scroll-smooth antialiased">
-  <Header title="Connexion — WWA" description="Accédez à votre espace WorldWise Admission" />
+  <Header title="Connexion - WWA" description="Accédez à votre espace WorldWise Admission" />
   <body class="min-h-screen bg-neutral-50 flex items-center justify-center p-6 dark:bg-neutral-950">
     <div class="w-80 max-w-full">
 
@@ -32,7 +33,7 @@ if (rawToken) {
         </a>
       </div>
 
-      <!-- Card — style modal exacte -->
+      <!-- Card - style modal exacte -->
       <div class="flex flex-col overflow-hidden rounded border border-neutral-100 bg-white text-neutral-500 shadow-xl shadow-neutral-700/5 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-neutral-950/50">
 
         <!-- Header modal -->
@@ -102,7 +103,7 @@ if (rawToken) {
               </button>
             </div>
 
-            <!-- Bouton — style button--primary button--lg -->
+            <!-- Bouton - style button--primary button--lg -->
             <button
               type="submit"
               id="submit-btn"
@@ -113,13 +114,13 @@ if (rawToken) {
 
           </form>
 
-          <!-- Séparateur — style modal -->
+          <!-- Séparateur - style modal -->
           <div class="my-4 text-center text-xs text-neutral-400">ou</div>
 
           <!-- Google OAuth -->
           <button
             disabled
-            title="Google OAuth — configuration en cours"
+            title="Google OAuth - configuration en cours"
             class="inline-flex h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded border border-neutral-200 bg-white px-6 text-sm font-medium text-neutral-500 opacity-50 dark:border-neutral-800 dark:bg-neutral-900"
           >
             <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -181,7 +182,8 @@ if (rawToken) {
           var params = new URLSearchParams(window.location.search)
           var r = params.get('redirect') || ''
           var allowed = ['/admin', '/dashboard']
-          var dest = allowed.some(function (p) { return r.startsWith(p) }) ? r : (json.role === 'admin' ? '/admin' : '/dashboard')
+          var isSafe = r.startsWith('/') && !r.startsWith('//') && !r.includes('..')
+          var dest = (isSafe && allowed.some(function (p) { return r.startsWith(p) })) ? r : (json.role === 'admin' ? '/admin' : '/dashboard')
           window.location.href = dest
         } catch (err) {
           errorBox.textContent = 'Impossible de contacter le serveur. Vérifiez votre connexion.'

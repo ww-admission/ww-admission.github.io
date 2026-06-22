@@ -143,7 +143,7 @@ class NotificationTest extends TestCase
     }
 
     /**
-     * Un autre candidat ne reçoit PAS la notification — prévention IDOR.
+     * Un autre candidat ne reçoit PAS la notification - prévention IDOR.
      */
     public function test_other_candidate_receives_no_notification(): void
     {

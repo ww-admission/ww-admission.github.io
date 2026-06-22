@@ -1,38 +1,77 @@
 ---
 // Header - Navigation bar
-// ------------
-// Description: navigation bars offer a persistent and convenient way to switch between primary destinations in an app.
-// Structure:
-// - Logo: the logo of the website
-// - Menu toggle: the mobile menu toggle of the navigation bar
-// - Navigation Links: the navigation links of the menu
-// - Actions: action buttons for the navigation bar
-// - Theme Switcher: the mode (light/dark) switcher of the website
-
-// Reference: https://wind-ui.com/components/navbars/
-
-// Components
-// - UI
 import { Icon } from 'astro-icon/components'
 import Button from './Button.astro'
-import Switcher from './ModeSwitcher.astro'
-
-// Data
 import { navigationBarData } from '../../config/navigationBar'
-const { logo, navItems, navActions } = navigationBarData
 
-// Determine current path
+const { logo, navItems, navActions } = navigationBarData
 const path = new URL(Astro.request.url).pathname
+
 function isActivePath(currentPath: string): boolean {
 	return path === currentPath || path === `${currentPath}/`
 }
 
-// Type assertion for navActions to ensure type safety
 const savedNavActions = navActions.map((action) => ({
 	...action,
 	size: action.size as 'base' | 'lg' | 'sm',
 	style: action.style as 'primary' | 'secondary' | 'neutral'
 }))
+
+// Sections de liens (colonnes gauche + milieu)
+const megaMenuSections = [
+	{
+		label: 'Explorer',
+		items: [
+			{
+				href: '/universites',
+				title: 'Universités partenaires',
+				desc: 'Chine, Ghana, Russie et plus',
+				iconBg: 'bg-primary-50 dark:bg-primary-950',
+				iconColor: 'text-primary-500 dark:text-primary-400',
+				iconPath: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+			},
+			{
+				href: '/formations',
+				title: 'Toutes les formations',
+				desc: 'Licences, Masters, Doctorats',
+				iconBg: 'bg-gold-50 dark:bg-gold-900/30',
+				iconColor: 'text-gold-600 dark:text-gold-400',
+				iconPath: 'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+			},
+		],
+	},
+	{
+		label: 'Accompagnement',
+		items: [
+			{
+				href: '/process',
+				title: 'Notre processus',
+				desc: "De la candidature à l'installation",
+				iconBg: 'bg-neutral-100 dark:bg-neutral-800',
+				iconColor: 'text-neutral-500 dark:text-neutral-400',
+				iconPath: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+			},
+			{
+				href: '/about',
+				title: 'À propos de WWA',
+				desc: 'Notre mission, notre équipe',
+				iconBg: 'bg-neutral-100 dark:bg-neutral-800',
+				iconColor: 'text-neutral-500 dark:text-neutral-400',
+				iconPath: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+			},
+		],
+	},
+]
+
+// Carte mise en avant (colonne droite)
+const megaMenuFeatured = {
+	href: '/features',
+	sectionLabel: 'Nos services',
+	imageUrl: 'https://picsum.photos/seed/wwa-service-team/400/260',
+	title: 'Ce que WWA fait pour vous',
+	desc: 'Visa, logement, inscription - un accompagnement complet de A à Z.',
+	cta: 'Découvrir nos services',
+}
 ---
 
 <header class="header">
@@ -44,7 +83,7 @@ const savedNavActions = navActions.map((action) => ({
 				<span>{logo.text}</span>
 			</a>
 
-			<!-- Menu toggle -->
+			<!-- Menu toggle (mobile) -->
 			<button
 				id="header-toggle"
 				class="header__toggle"
@@ -60,124 +99,344 @@ const savedNavActions = navActions.map((action) => ({
 
 			<!-- Navigation links -->
 			<ul role="menubar" aria-label="Select page" class="header__menu">
-				{
-					navItems.map((item) => (
-						<li role="none" class="header__menu-item">
-							{!item.submenu ? (
-								<a
-									href={item.link}
-									role="menuitem"
-									class={`header__menu-link ${isActivePath(item.link) ? 'active' : ''}`}
-								>
-									{item.name}
-								</a>
-							) : (
-								<span
-									role="menuitem"
-									class={`header__menu-link ${isActivePath(item.link) ? 'active' : ''}`}
-								>
-									{item.name}
-									<Icon name="chevron-down" class="header__menu-chevron" />
-								</span>
-							)}
-							{item.submenu && (
-								<ul class="header__submenu">
-									{item.submenu.map((subItem) => (
-										<li role="none" class="header__submenu-item">
-											<a
-												href={subItem.link}
-												role="menuitem"
-												class={`header__menu-link ${isActivePath(item.link) ? 'active' : ''}`}
-											>
-												{subItem.name}
+				{navItems.map((item) => (
+					<li role="none" class="header__menu-item">
+						{!item.submenu && !item.megamenu && (
+							<a href={item.link} role="menuitem" class={`header__menu-link ${isActivePath(item.link) ? 'active' : ''}`}>
+								{item.name}
+							</a>
+						)}
+
+						{item.submenu && !item.megamenu && (
+							<span role="menuitem" class={`header__menu-link ${isActivePath(item.link) ? 'active' : ''}`}>
+								{item.name}
+								<Icon name="chevron-down" class="header__menu-chevron" />
+							</span>
+						)}
+
+						{item.megamenu && (
+							<button
+								type="button"
+								role="menuitem"
+								aria-haspopup="true"
+								aria-expanded="false"
+								class={`header__menu-link mega-menu-trigger ${
+									['/universites', '/formations', '/process', '/features', '/about'].some(p => path.startsWith(p)) ? 'active' : ''
+								}`}
+							>
+								{item.name}
+								<Icon name="chevron-down" class="header__menu-chevron" />
+							</button>
+						)}
+
+						{item.submenu && !item.megamenu && (
+							<ul class="header__submenu">
+								{item.submenu.map((subItem) => (
+									<li role="none" class="header__submenu-item">
+										<a href={subItem.link} role="menuitem" class={`header__menu-link ${isActivePath(subItem.link) ? 'active' : ''}`}>
+											{subItem.name}
+										</a>
+									</li>
+								))}
+							</ul>
+						)}
+
+						{item.megamenu && (
+							<div class="mega-menu" role="region" aria-label="Menu Ressources">
+								<div class="mega-menu__inner">
+
+									<div class="mega-menu__body">
+										<!-- Colonnes liens (gauche) -->
+										<div class="mega-menu__sections">
+											{megaMenuSections.map((section) => (
+												<div class="mega-menu__col">
+													<p class="mega-menu__col-label">{section.label}</p>
+													{section.items.map((mi) => (
+														<a href={mi.href} class={`mega-menu__item group ${isActivePath(mi.href) ? 'mega-menu__item--active' : ''}`}>
+															<div class={`mega-menu__item-icon ${mi.iconBg}`}>
+																<svg xmlns="http://www.w3.org/2000/svg" class={`h-4 w-4 ${mi.iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+																	<path stroke-linecap="round" stroke-linejoin="round" d={mi.iconPath} />
+																</svg>
+															</div>
+															<div class="min-w-0">
+																<p class="mega-menu__item-title">{mi.title}</p>
+																<p class="mega-menu__item-desc">{mi.desc}</p>
+															</div>
+														</a>
+													))}
+												</div>
+											))}
+										</div>
+
+										<!-- Carte mise en avant (droite) -->
+										<div class="mega-menu__featured-col">
+											<p class="mega-menu__col-label">{megaMenuFeatured.sectionLabel}</p>
+											<a href={megaMenuFeatured.href} class="mega-menu__featured group">
+												<div class="mega-menu__featured-thumb">
+													<img
+														src={megaMenuFeatured.imageUrl}
+														alt=""
+														loading="lazy"
+														class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+													/>
+												</div>
+												<p class="mega-menu__featured-title">{megaMenuFeatured.title}</p>
+												<p class="mega-menu__featured-desc">{megaMenuFeatured.desc}</p>
+												<span class="mega-menu__featured-cta">
+													{megaMenuFeatured.cta}
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+													</svg>
+												</span>
 											</a>
-										</li>
-									))}
-								</ul>
-							)}
-						</li>
-					))
-				}
+										</div>
+									</div>
+
+									<!-- CTA strip -->
+									<div class="mega-menu__cta">
+										<a href="/contact" class="mega-menu__cta-link">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+											</svg>
+											Contacter l'équipe
+										</a>
+										<a href="/candidature" class="mega-menu__cta-btn">
+											Déposer ma candidature
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+											</svg>
+										</a>
+									</div>
+
+								</div>
+							</div>
+						)}
+					</li>
+				))}
 			</ul>
-
-			<!-- Theme Switcher -->
-
-			<!-- Ci dessous le toggle pour switcher entre mode clair et sombre -->
-			<!-- <Switcher /> -->
 
 			<!-- Navigation action buttons -->
 			<div class="header__actions">
-				{
-					savedNavActions.map((action) => (
-						<Button classes="flex-auto" size={action.size} style={action.style} modal="login">
-							{action.name}
-						</Button>
-					))
-				}
+				{savedNavActions.map((action) => (
+					<Button
+						classes="flex-auto"
+						size={action.size}
+						style={action.style}
+						type="link"
+						link={action.link}
+					>
+						{action.name}
+					</Button>
+				))}
 			</div>
 		</nav>
 	</div>
 </header>
 
 <style>
-	.header {
-		@apply sticky top-0 z-20 w-full animate-fadeInShadowLight [animation-range:0%_20rem] [animation-timeline:scroll()] before:absolute after:absolute after:left-0 after:top-full after:z-10 after:block after:h-px after:w-full lg:after:hidden dark:animate-fadeInShadowDark dark:[animation-range:0%_20rem] dark:[animation-timeline:scroll()];
-	}
-	.header:before {
-		@apply block h-full w-full bg-white/90 lg:backdrop-blur-sm dark:bg-neutral-900/90;
-	}
-	.header__container {
-		@apply container relative mx-auto px-6;
-	}
-	.header__logo {
-		@apply flex flex-auto items-center gap-2 whitespace-nowrap py-3 font-headings text-2xl font-black tracking-wider focus:outline-none;
-	}
-	.header__nav {
-		@apply flex h-[5.5rem] items-stretch gap-6 font-medium text-neutral-700 lg:justify-between dark:text-neutral-50;
-	}
-	.header__menu {
-		@apply invisible absolute left-0 top-0 z-[-1] ml-auto h-dvh w-full justify-center overflow-hidden overflow-y-auto overscroll-contain bg-white/90 px-8 py-[6rem] font-medium opacity-0 transition-[opacity,visibility] duration-300 lg:visible lg:relative lg:top-0 lg:z-0 lg:flex lg:h-full lg:w-auto lg:items-stretch lg:overflow-visible lg:bg-white/0 lg:px-0 lg:py-0 lg:pt-0 lg:opacity-100 dark:bg-neutral-900/90 dark:lg:bg-transparent;
-	}
-	.header__menu--open {
-		@apply visible opacity-100 backdrop-blur-sm;
-	}
-	.header__menu-item {
-		@apply relative flex cursor-pointer flex-col items-stretch lg:flex-row;
-	}
-	.header__menu-link {
-		@apply relative flex items-center gap-1 py-4 transition-colors duration-300 hover:text-primary-500 focus:text-primary-600 focus:outline-none focus-visible:outline-none lg:px-6 [&.active]:text-primary-500;
-	}
-	.header__menu-chevron {
-		@apply h-4 w-4 transition-transform [.header\_\_menu-item.open_&]:rotate-180;
-	}
-	.header__submenu {
-		@apply left-0 top-full hidden animate-dropdown rounded bg-neutral-300/10 px-4 lg:absolute lg:min-w-48 lg:rounded-t-none lg:bg-white/90 lg:p-0 lg:shadow-lg lg:shadow-neutral-700/5 lg:backdrop-blur-sm dark:bg-neutral-500/10 lg:dark:bg-neutral-900/90 lg:dark:shadow-neutral-950/50 [.header\_\_menu-item.open_&]:block;
-	}
-	.header__submenu-item {
-		@apply hidden [.header\_\_menu-item.open_&]:block;
-	}
-	.header__submenu-link {
-		@apply px-8 py-4 hover:text-primary-500 [.header\_\_menu-item.open_&]:flex;
-	}
-	.header__toggle {
-		@apply relative order-10 block h-10 w-10 self-center lg:hidden [&--open]:visible [&--open]:opacity-100;
-	}
-	.header__toggle-inner {
-		@apply absolute left-1/2 top-1/2 w-6 -translate-x-1/2 -translate-y-1/2 transform;
-	}
-	.header__toggle-inner span {
-		@apply absolute block h-0.5 transform rounded-full bg-neutral-900 transition-all duration-300 dark:bg-white;
-	}
-	.header__toggle-inner span:nth-child(1) {
-		@apply w-9/12 -translate-y-2 [.header\_\_toggle--open_&]:w-6 [.header\_\_toggle--open_&]:translate-y-0 [.header\_\_toggle--open_&]:rotate-45;
-	}
-	.header__toggle-inner span:nth-child(2) {
-		@apply w-6 [.header\_\_toggle--open_&]:-rotate-45;
-	}
-	.header__toggle-inner span:nth-child(3) {
-		@apply w-1/2 origin-top-left translate-y-2 [.header\_\_toggle--open_&]:w-0;
-	}
-	.header__actions {
-		@apply fixed bottom-0 left-0 hidden w-full items-center justify-between gap-4 border-t border-neutral-100 bg-white px-6 py-4 lg:relative lg:ml-auto lg:flex lg:w-auto lg:border-none lg:bg-transparent lg:px-0 lg:py-0 dark:border-neutral-800 dark:bg-neutral-950 lg:dark:bg-transparent [.header\_\_menu--open~&]:flex;
-	}
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.header {
+	@apply sticky top-0 z-[100] w-full animate-fadeInShadowLight [animation-range:0%_20rem] [animation-timeline:scroll()] before:absolute after:absolute after:left-0 after:top-full after:z-10 after:block after:h-px after:w-full md:after:hidden dark:animate-fadeInShadowDark dark:[animation-range:0%_20rem] dark:[animation-timeline:scroll()];
+}
+.header:before {
+	@apply block h-full w-full bg-white/90 md:backdrop-blur-sm dark:bg-neutral-900/90;
+}
+.header__container {
+	@apply container relative mx-auto px-6;
+}
+.header__logo {
+	@apply flex flex-auto items-center gap-2 whitespace-nowrap py-3 font-headings text-2xl font-black tracking-wider focus:outline-none;
+}
+.header__nav {
+	@apply flex h-[5.5rem] items-stretch gap-6 font-medium text-neutral-700 md:justify-between dark:text-neutral-50;
+}
+
+/* Menu : mobile = overlay plein écran / md+ = barre horizontale inline */
+.header__menu {
+	@apply invisible absolute left-0 top-0 z-[-1] ml-auto h-dvh w-full justify-center
+	       overflow-hidden overflow-y-auto overscroll-contain bg-white/90
+	       px-8 py-[6rem] font-medium opacity-0 transition-[opacity,visibility] duration-300
+	       md:visible md:relative md:top-0 md:z-0 md:flex md:h-full md:w-auto
+	       md:items-stretch md:overflow-visible md:bg-transparent md:px-0 md:py-0 md:opacity-100
+	       dark:bg-neutral-900/90 dark:md:bg-transparent;
+}
+.header__menu--open {
+	@apply visible opacity-100 backdrop-blur-sm;
+}
+.header__menu-item {
+	@apply relative flex cursor-pointer flex-col items-stretch md:flex-row;
+}
+.header__menu-link {
+	@apply relative flex items-center gap-1 py-4 transition-colors duration-300
+	       hover:text-primary-500 focus:text-primary-600 focus:outline-none focus-visible:outline-none
+	       md:px-4 lg:px-6 [&.active]:text-primary-500;
+}
+button.header__menu-link {
+	@apply bg-transparent border-none cursor-pointer w-full text-left;
+}
+.header__menu-chevron {
+	@apply h-4 w-4 transition-transform [.header\_\_menu-item.open_&]:rotate-180;
+}
+
+/* ── Dropdown simple ─────────────────────────────────────────────────────── */
+.header__submenu {
+	@apply left-0 top-full hidden animate-dropdown rounded bg-neutral-300/10 px-4
+	       md:absolute md:min-w-48 md:rounded-t-none md:bg-white/90 md:p-0
+	       md:shadow-lg md:shadow-neutral-700/5 md:backdrop-blur-sm
+	       dark:bg-neutral-500/10 dark:md:bg-neutral-900/90 dark:md:shadow-neutral-950/50
+	       [.header\_\_menu-item.open_&]:block;
+}
+.header__submenu-item {
+	@apply hidden [.header\_\_menu-item.open_&]:block;
+}
+.header__submenu-link {
+	@apply px-8 py-4 hover:text-primary-500 [.header\_\_menu-item.open_&]:flex;
+}
+
+/* ── Toggle mobile — caché à partir de md ────────────────────────────────── */
+.header__toggle {
+	@apply relative order-10 block h-10 w-10 self-center md:hidden;
+}
+.header__toggle-inner {
+	@apply absolute left-1/2 top-1/2 w-6 -translate-x-1/2 -translate-y-1/2 transform;
+}
+.header__toggle-inner span {
+	@apply absolute block h-0.5 transform rounded-full bg-neutral-900 transition-all duration-300 dark:bg-white;
+}
+.header__toggle-inner span:nth-child(1) {
+	@apply w-9/12 -translate-y-2 [.header\_\_toggle--open_&]:w-6 [.header\_\_toggle--open_&]:translate-y-0 [.header\_\_toggle--open_&]:rotate-45;
+}
+.header__toggle-inner span:nth-child(2) {
+	@apply w-6 [.header\_\_toggle--open_&]:-rotate-45;
+}
+.header__toggle-inner span:nth-child(3) {
+	@apply w-1/2 origin-top-left translate-y-2 [.header\_\_toggle--open_&]:w-0;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+.header__actions {
+	@apply fixed bottom-0 left-0 hidden w-full items-center justify-between gap-4
+	       border-t border-neutral-100 bg-white px-6 py-4
+	       md:relative md:ml-auto md:flex md:w-auto md:border-none
+	       md:bg-transparent md:px-0 md:py-0
+	       dark:border-neutral-800 dark:bg-neutral-950 dark:md:bg-transparent
+	       [.header\_\_menu--open~&]:flex;
+}
+
+/* ── Mega menu ───────────────────────────────────────────────────────────── */
+/*
+ * Mobile  (< md)  : accordion dans l'overlay plein écran
+ * Tablette (md-lg) : dropdown flottant 520 px, sans colonne featured
+ * Desktop  (lg+)  : dropdown flottant 780 px, avec colonne featured
+ */
+.mega-menu {
+	@apply hidden bg-neutral-50/80 px-0 py-1 dark:bg-neutral-800/30;
+	@apply [.header\_\_menu-item.open_&]:block;
+	@apply md:absolute md:left-1/2 md:-translate-x-1/2 md:top-full md:z-[200] md:mt-2
+	       md:w-[520px] md:max-w-[calc(100vw-2rem)]
+	       md:rounded-2xl md:border md:border-neutral-100
+	       md:bg-white md:shadow-2xl md:shadow-neutral-900/10
+	       md:px-0 md:py-0
+	       dark:md:border-neutral-800 dark:md:bg-neutral-900
+	       dark:md:shadow-neutral-950/60
+	       lg:w-[780px];
+}
+
+.mega-menu__inner {
+	@apply flex flex-col;
+}
+
+/* Corps : sections gauche + featured droite */
+.mega-menu__body {
+	@apply flex flex-col gap-0 md:flex-row md:divide-x md:divide-neutral-100 dark:md:divide-neutral-800;
+}
+
+/* Sections de liens (2 colonnes côte à côte) */
+.mega-menu__sections {
+	@apply flex flex-col gap-0 md:flex-row md:flex-1;
+}
+
+.mega-menu__col {
+	@apply flex flex-col gap-0.5 border-b border-neutral-100 dark:border-neutral-800 px-4 py-4
+	       md:border-b-0 md:border-r md:border-neutral-100 dark:md:border-neutral-800
+	       md:flex-1 md:px-5 md:py-5 last:border-r-0;
+}
+
+.mega-menu__col-label {
+	@apply mb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500;
+}
+
+/* Chaque lien item */
+.mega-menu__item {
+	@apply flex items-start gap-3 rounded-xl px-2.5 py-2.5
+	       transition-colors duration-150
+	       hover:bg-neutral-50 dark:hover:bg-neutral-800/60
+	       focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400;
+}
+.mega-menu__item--active {
+	@apply bg-primary-50/60 dark:bg-primary-950/40;
+}
+
+.mega-menu__item-icon {
+	@apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5;
+}
+
+.mega-menu__item-title {
+	@apply text-sm font-semibold text-neutral-800 dark:text-neutral-100
+	       group-hover:text-primary-600 dark:group-hover:text-primary-400
+	       transition-colors duration-150 leading-snug mb-1.5;
+}
+
+.mega-menu__item-desc {
+	@apply text-xs text-neutral-400 dark:text-neutral-500 leading-snug mt-0.5;
+}
+
+/* Colonne featured — uniquement à partir de lg (pas assez de place sur tablette) */
+.mega-menu__featured-col {
+	@apply hidden lg:flex lg:flex-col lg:w-[280px] lg:shrink-0 lg:px-5 lg:py-5;
+}
+
+.mega-menu__featured {
+	@apply flex flex-col gap-3
+	       focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-xl;
+}
+
+.mega-menu__featured-thumb {
+	@apply relative h-40 w-full overflow-hidden rounded-2xl bg-neutral-200 dark:bg-neutral-800
+	       shadow-md shadow-neutral-900/10 dark:shadow-neutral-950/30
+	       ring-1 ring-neutral-900/5 dark:ring-neutral-700/50;
+}
+
+.mega-menu__featured-title {
+	@apply text-sm font-bold text-neutral-800 dark:text-neutral-100
+	       group-hover:text-primary-600 dark:group-hover:text-primary-400
+	       transition-colors duration-150 leading-snug mb-1.5;
+}
+
+.mega-menu__featured-desc {
+	@apply text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed -mt-2;
+}
+
+.mega-menu__featured-cta {
+	@apply inline-flex items-center gap-1 text-sm font-semibold text-primary-600 dark:text-primary-400
+	       group-hover:gap-2 transition-all duration-150;
+}
+
+/* CTA strip */
+.mega-menu__cta {
+	@apply flex flex-col gap-2 border-t border-neutral-100 px-4 py-3 dark:border-neutral-800
+	       md:flex-row md:items-center md:justify-between md:px-5 md:py-3;
+}
+
+.mega-menu__cta-link {
+	@apply inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500
+	       hover:text-primary-500 transition-colors duration-200
+	       dark:text-neutral-400 dark:hover:text-primary-400;
+}
+
+.mega-menu__cta-btn {
+	@apply inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2
+	       text-sm font-bold text-white hover:bg-primary-700 transition-colors duration-200
+	       shadow-sm shadow-primary-600/20;
+}
 </style>

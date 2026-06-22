@@ -72,7 +72,7 @@ const dropdownPos = placement === 'sidebar'
 
   // ── Abonnement au canal Echo user.{uid} (NotificationCreated) ───────────
   // Déclenché via wwa:echo-ready, qui est émis DANS le callback astro:page-load
-  // de DashboardLayout — avant que astro:page-load des modules enfants ne soit appelé.
+  // de DashboardLayout - avant que astro:page-load des modules enfants ne soit appelé.
   // On s'abonne ici (niveau module, pas par instance) pour éviter les doublons.
   //
   // Sécurité : l'auth du canal passe par /api/broadcasting/auth → Sanctum →
@@ -255,7 +255,7 @@ const dropdownPos = placement === 'sidebar'
         case 'new_message':
           return `Nouveau message de <strong class="font-semibold">${escHtml(d.senderName ?? '')}</strong>${d.preview ? ` · <span class="text-neutral-500 dark:text-neutral-400 italic">${escHtml(d.preview.slice(0, 50))}${d.preview.length > 50 ? '…' : ''}</span>` : ''}`
         case 'candidature_submitted':
-          return `Nouvelle candidature — <strong class="font-semibold">${escHtml(d.candidateName ?? '')}</strong>`
+          return `Nouvelle candidature - <strong class="font-semibold">${escHtml(d.candidateName ?? '')}</strong>`
         case 'candidature_status_changed':
           return `Statut mis à jour : <strong class="font-semibold">${escHtml(d.newLabel ?? '')}</strong>`
         default:

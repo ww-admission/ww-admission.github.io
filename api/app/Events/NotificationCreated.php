@@ -15,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
  * Canal : user.{recipientId}  (privé, autorisé dans channels.php)
  * Événement JS côté client : '.notification.created'
  *
- * Payload minimal — le frontend met à jour le badge et dispatch wwa:new-notification.
+ * Payload minimal - le frontend met à jour le badge et dispatch wwa:new-notification.
  * Il récupère le détail complet via GET /api/notifications quand l'utilisateur
  * ouvre le panneau.
  *

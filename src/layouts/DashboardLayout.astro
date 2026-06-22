@@ -40,6 +40,12 @@ const ADMIN_NAV: NavItem[] = [
     icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
   },
   {
+    href: '/admin/catalogue',
+    label: 'Catalogue',
+    key: 'catalogue',
+    icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+  },
+  {
     href: '/admin/accounts',
     label: 'Comptes & Accès',
     key: 'accounts',
@@ -86,7 +92,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
 
 <!doctype html>
 <html lang="fr" class="antialiased overflow-hidden">
-  <Header title={`${title} — WWA`} description="Espace WorldWise Admission">
+  <Header title={`${title} - WWA`} description="Espace WorldWise Admission">
     <!--
       Script anti-FOUC injecté dans <head> via le slot.
       Exécuté AVANT le premier paint → zéro flash de couleurs claires.
@@ -94,7 +100,8 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
     -->
     <script is:inline slot="head">
       ;(function () {
-        var t    = localStorage.getItem('theme')
+        var t
+        try { t = localStorage.getItem('theme') } catch (_) {}
         var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
         document.documentElement.classList.toggle('dark', dark)
       })()
@@ -103,7 +110,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
   <body class="bg-neutral-50 text-neutral-700 overflow-hidden dark:bg-neutral-950 dark:text-neutral-300"
         data-uid={session.uid ?? 0}>
 
-    <!-- Overlay du sweep de transition dark/light — plein écran, z-index max -->
+    <!-- Overlay du sweep de transition dark/light - plein écran, z-index max -->
     <div id="theme-sweep" aria-hidden="true"></div>
 
     <div class="flex h-screen overflow-hidden">
@@ -171,7 +178,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
           })}
         </nav>
 
-        <!-- Communauté — lien spécial en bas de nav, au-dessus du profil -->
+        <!-- Communauté - lien spécial en bas de nav, au-dessus du profil -->
         <div class="shrink-0 px-3 pb-2">
           {(() => {
             const communityHref   = isAdmin ? '/admin/community' : '/dashboard/community'
@@ -313,7 +320,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
       </div>
     </div>
 
-    <!-- Sidebar mobile toggle — is:inline pour éviter le flash de contenu non-initialisé -->
+    <!-- Sidebar mobile toggle - is:inline pour éviter le flash de contenu non-initialisé -->
     <script is:inline>
       var toggle  = document.getElementById('sidebar-toggle')
       var sidebar = document.getElementById('sidebar')
@@ -337,7 +344,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
     </script>
 
     <!--
-      Toggle dark/light — module script unique.
+      Toggle dark/light - module script unique.
       astro:page-load couvre premier chargement + chaque navigation ClientRouter.
       astro:after-swap gère l'application du thème avant la fin des animations.
       btn.onclick = garantit un seul handler même si l'élément est morphé.
@@ -345,7 +352,8 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
     <script>
       function wwaThemeSync() {
         // 1. Relire localStorage et réappliquer la classe (belt-and-suspenders nav)
-        const t    = localStorage.getItem('theme')
+        let t: string | null = null
+        try { t = localStorage.getItem('theme') } catch (_) {}
         const dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) {
           document.documentElement.classList.add('dark')
@@ -375,10 +383,10 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
           const nowDark = !document.documentElement.classList.contains('dark')
           if (nowDark) {
             document.documentElement.classList.add('dark')
-            localStorage.setItem('theme', 'dark')
+            try { localStorage.setItem('theme', 'dark') } catch (_) {}
           } else {
             document.documentElement.classList.remove('dark')
-            localStorage.setItem('theme', 'light')
+            try { localStorage.setItem('theme', 'light') } catch (_) {}
           }
           const m = document.getElementById('icon-moon')
           const s = document.getElementById('icon-sun')
@@ -393,7 +401,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
       document.addEventListener('astro:after-swap', wwaThemeSync)
     </script>
 
-    <!-- Logout modal — module script, garanti d'être attaché après astro:page-load -->
+    <!-- Logout modal - module script, garanti d'être attaché après astro:page-load -->
     <script>
       document.addEventListener('astro:page-load', () => {
         const logoutBtn     = document.getElementById('logout-btn')

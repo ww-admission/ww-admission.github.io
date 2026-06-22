@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const ct = request.headers.get('Content-Type') ?? ''
 
-  // FormData (multipart) — envoi depuis ApplicationForm avec pièces jointes
+  // FormData (multipart) - envoi depuis ApplicationForm avec pièces jointes
   if (ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')) {
     let formData: FormData
     try {
@@ -30,7 +30,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return proxyFormData('/candidatures', session, formData)
   }
 
-  // JSON — envoi depuis syncUnsynced() du dashboard (texte seulement, pas de fichiers)
+  // JSON - envoi depuis syncUnsynced() du dashboard (texte seulement, pas de fichiers)
   let body: Record<string, unknown>
   try {
     body = await request.json()

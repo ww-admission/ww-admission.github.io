@@ -1,0 +1,378 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import BasicDark from '../../components/blocks/CTA/BasicDark.astro'
+import { backendFetch } from '../../lib/auth'
+import { MOCK_UNIVERSITES, MOCK_PAYS } from '../../lib/mock-universites-data'
+import type { Universite } from '../../lib/catalogue-types'
+
+const q        = Astro.url.searchParams.get('q')?.trim() ?? ''
+const paysSlug = Astro.url.searchParams.get('pays') ?? ''
+const typeFil  = Astro.url.searchParams.get('type') ?? ''
+
+let universites: Universite[] = []
+let useMock = false
+
+try {
+  const qs = new URLSearchParams()
+  if (q)        qs.set('q', q)
+  if (paysSlug) qs.set('pays', paysSlug)
+  if (typeFil)  qs.set('type', typeFil)
+  const resp = await backendFetch(`/universites?${qs}`, null)
+  if (resp.ok) {
+    const d = await resp.json() as { data?: Universite[] } | Universite[]
+    universites = Array.isArray(d) ? d : (d.data ?? [])
+  } else {
+    useMock = true
+  }
+} catch {
+  useMock = true
+}
+
+if (useMock) {
+  const qLow = q.toLowerCase()
+  universites = MOCK_UNIVERSITES
+    .filter(u => u.est_publie)
+    .filter(u => !q        || u.nom.toLowerCase().includes(qLow) || u.ville.toLowerCase().includes(qLow))
+    .filter(u => !paysSlug || u.pays.slug === paysSlug)
+    .filter(u => !typeFil  || u.type === typeFil)
+}
+
+const vedettes    = universites.filter(u => u.est_vedette)
+const nonVedettes = universites.filter(u => !u.est_vedette)
+const total       = universites.length
+---
+
+<Layout title="Universités partenaires - WorldWise Admission" description="Découvrez nos universités partenaires en Chine, au Ghana, en Russie et ailleurs. Candidatez directement depuis notre plateforme.">
+
+  <!-- Hero -->
+  <section class="bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
+    <div class="container mx-auto px-6 py-12 sm:py-16">
+      <div class="max-w-2xl">
+        <p class="text-sm font-semibold text-primary-600 dark:text-primary-400 tracking-widest uppercase mb-3">
+          Annuaire
+        </p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+          Universités partenaires
+        </h1>
+        <p class="text-lg text-neutral-500 dark:text-neutral-400 leading-relaxed">
+          Nos partenaires académiques en Chine, au Ghana, en Russie et dans le monde entier.
+          Chaque université est sélectionnée pour la qualité de ses formations et son accueil international.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filtres -->
+  <section class="bg-neutral-50 dark:bg-neutral-950 border-b border-neutral-100 dark:border-neutral-800">
+    <div class="container mx-auto px-6 py-3">
+      <form method="GET" action="/universites" class="flex flex-wrap gap-2 items-center">
+
+        <!-- Recherche -->
+        <div class="relative flex-1 min-w-[200px]">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input
+            type="search"
+            name="q"
+            value={q}
+            placeholder="Rechercher une université…"
+            class="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:focus:ring-amber-400"
+          />
+        </div>
+
+        <!-- Pays -->
+        <select
+          name="pays"
+          class="py-2 pl-3 pr-8 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+        >
+          <option value="">Tous les pays</option>
+          {MOCK_PAYS.map(p => (
+            <option value={p.slug} selected={paysSlug === p.slug}>
+              {p.drapeau} {p.nom}
+            </option>
+          ))}
+        </select>
+
+        <!-- Type -->
+        <select
+          name="type"
+          class="py-2 pl-3 pr-8 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+        >
+          <option value="">Tous les types</option>
+          <option value="publique"     selected={typeFil === 'publique'}>Publique</option>
+          <option value="privee"       selected={typeFil === 'privee'}>Privée</option>
+          <option value="grande_ecole" selected={typeFil === 'grande_ecole'}>Grande école</option>
+        </select>
+
+        <button
+          type="submit"
+          class="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+        >
+          Filtrer
+        </button>
+
+        {(q || paysSlug || typeFil) && (
+          <a
+            href="/universites"
+            class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+          >
+            Réinitialiser
+          </a>
+        )}
+
+        <!-- View toggle -->
+        <div class="ml-auto flex items-center gap-1 border border-neutral-200 dark:border-neutral-700 rounded-lg p-1 bg-white dark:bg-neutral-800">
+          <button
+            type="button"
+            id="view-grid"
+            aria-label="Vue grille"
+            class="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="view-list"
+            aria-label="Vue liste"
+            class="p-1.5 rounded text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Contenu -->
+  <section class="bg-neutral-50 dark:bg-neutral-950">
+    <div class="container mx-auto px-6 py-8">
+
+      {total === 0 ? (
+        <!-- État vide -->
+        <div class="flex flex-col items-center justify-center py-24 text-center">
+          <div class="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+            </svg>
+          </div>
+          <p class="text-neutral-600 dark:text-neutral-400 font-medium mb-1">Aucune université trouvée</p>
+          <p class="text-sm text-neutral-400 dark:text-neutral-500">Essayez d'autres filtres ou <a href="/universites" class="text-primary-600 dark:text-primary-400 underline">réinitialisez</a>.</p>
+        </div>
+      ) : (
+        <>
+          <!-- Universités vedettes -->
+          {vedettes.length > 0 && (
+            <div class="mb-10">
+              <h2 class="text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-4">
+                À la une
+              </h2>
+              <div id="directory-grid" class="flex flex-wrap gap-4">
+                {vedettes.map(u => (
+                  <a
+                    href={`/universites/${u.slug}`}
+                    class="group block bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200 uni-card"
+                    style="width:360px;flex-shrink:0"
+                    data-list-hidden
+                  >
+                    <!-- Cover -->
+                    <div class="h-28 relative overflow-hidden bg-neutral-900">
+                      {u.couverture_image_url ? (
+                        <img src={u.couverture_image_url} alt="" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                      ) : (
+                        <div class={`absolute inset-0 flex items-center justify-center ${u.couleur_bg}`}>
+                          <span class="text-3xl font-black text-white/20 select-none">{u.initiales}</span>
+                        </div>
+                      )}
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                      <div class="absolute bottom-3 left-3 flex items-center gap-1.5">
+                        <span class="text-lg leading-none">{u.pays.drapeau}</span>
+                        <span class="text-xs font-medium text-white drop-shadow-sm">{u.ville}</span>
+                      </div>
+                      <span class="absolute top-3 right-3 text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        À la une
+                      </span>
+                    </div>
+                    <!-- Info -->
+                    <div class="p-4">
+                      <h3 class="text-base font-medium text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2 mb-1">
+                        {u.nom}
+                      </h3>
+                      <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs text-neutral-400 dark:text-neutral-500 capitalize">{u.type.replaceAll('_', ' ')}</span>
+                        {u.annee_fondation && (
+                          <>
+                            <span class="text-neutral-200 dark:text-neutral-700">·</span>
+                            <span class="text-xs text-neutral-400 dark:text-neutral-500">Fondée {u.annee_fondation}</span>
+                          </>
+                        )}
+                      </div>
+                      <p class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2 mb-4">{u.description}</p>
+                      <div class="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                        <span class="text-xs text-neutral-400 dark:text-neutral-500">
+                          {u.formations_count} formation{u.formations_count > 1 ? 's' : ''}
+                        </span>
+                        <span class="text-xs font-medium text-primary-600 dark:text-primary-400 group-hover:underline">
+                          Voir →
+                        </span>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <!-- Toutes les universités -->
+          {nonVedettes.length > 0 && (
+            <div>
+              {vedettes.length > 0 && (
+                <h2 class="text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-4">
+                  Toutes les universités ({total})
+                </h2>
+              )}
+
+              <!-- Vue grille -->
+              <div id="directory-grid-all" class="flex flex-wrap gap-4">
+                {nonVedettes.map(u => (
+                  <a
+                    href={`/universites/${u.slug}`}
+                    class="group block bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200 uni-card"
+                    style="width:360px;flex-shrink:0"
+                    data-list-hidden
+                  >
+                    <div class="h-28 relative overflow-hidden bg-neutral-900">
+                      {u.couverture_image_url ? (
+                        <img src={u.couverture_image_url} alt="" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                      ) : (
+                        <div class={`absolute inset-0 flex items-center justify-center ${u.couleur_bg}`}>
+                          <span class="text-3xl font-black text-white/20 select-none">{u.initiales}</span>
+                        </div>
+                      )}
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                      <div class="absolute bottom-3 left-3 flex items-center gap-1.5">
+                        <span class="text-lg leading-none">{u.pays.drapeau}</span>
+                        <span class="text-xs font-medium text-white drop-shadow-sm">{u.ville}</span>
+                      </div>
+                    </div>
+                    <div class="p-4">
+                      <h3 class="text-base font-medium text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2 mb-1">
+                        {u.nom}
+                      </h3>
+                      <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs text-neutral-400 dark:text-neutral-500 capitalize">{u.type.replaceAll('_', ' ')}</span>
+                        {u.annee_fondation && (
+                          <>
+                            <span class="text-neutral-200 dark:text-neutral-700">·</span>
+                            <span class="text-xs text-neutral-400 dark:text-neutral-500">Fondée {u.annee_fondation}</span>
+                          </>
+                        )}
+                      </div>
+                      <p class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2 mb-4">{u.description}</p>
+                      <div class="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                        <span class="text-xs text-neutral-400 dark:text-neutral-500">
+                          {u.formations_count} formation{u.formations_count > 1 ? 's' : ''}
+                        </span>
+                        <span class="text-xs font-medium text-primary-600 dark:text-primary-400 group-hover:underline">
+                          Voir →
+                        </span>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              <!-- Vue liste (cachée par défaut) -->
+              <div id="directory-list-all" class="hidden flex-col gap-2">
+                {nonVedettes.map(u => (
+                  <a
+                    href={`/universites/${u.slug}`}
+                    class="group flex items-center gap-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
+                  >
+                    <!-- Initiales -->
+                    <div class={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center ${u.couleur_bg}`}>
+                      <span class="text-xs font-black text-white/80">{u.initiales}</span>
+                    </div>
+                    <!-- Info -->
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-base font-medium text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                          {u.nom}
+                        </span>
+                        {u.est_vedette && (
+                          <span class="text-xs bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 px-2 py-0.5 rounded-full font-medium">
+                            À la une
+                          </span>
+                        )}
+                      </div>
+                      <div class="flex items-center gap-3 mt-0.5 text-sm text-neutral-400 dark:text-neutral-500">
+                        <span>{u.pays.drapeau} {u.ville}, {u.pays.nom}</span>
+                        <span>·</span>
+                        <span class="capitalize">{u.type.replaceAll('_', ' ')}</span>
+                        <span>·</span>
+                        <span>{u.formations_count} formation{u.formations_count > 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                    <svg class="w-4 h-4 text-neutral-300 dark:text-neutral-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </>
+      )}
+    </div>
+  </section>
+
+  <BasicDark />
+</Layout>
+
+<script>
+  // View toggle (grille / liste) - persisté dans localStorage
+  document.addEventListener('astro:page-load', () => {
+    const btnGrid = document.getElementById('view-grid')
+    const btnList = document.getElementById('view-list')
+    const grids   = document.querySelectorAll<HTMLElement>('#directory-grid, #directory-grid-all')
+    const lists   = document.querySelectorAll<HTMLElement>('#directory-list-all')
+
+    const savedView = localStorage.getItem('wwa_directory_view') ?? 'grid'
+
+    const applyView = (view: string) => {
+      const isGrid = view === 'grid'
+      grids.forEach(el => {
+        el.classList.toggle('hidden', !isGrid)
+        el.classList.toggle('flex', isGrid)
+      })
+      lists.forEach(el => {
+        el.classList.toggle('hidden', isGrid)
+        el.classList.toggle('flex', !isGrid)
+      })
+      btnGrid?.classList.toggle('bg-neutral-100', isGrid)
+      btnGrid?.classList.toggle('dark:bg-neutral-700', isGrid)
+      btnGrid?.classList.toggle('text-neutral-700', isGrid)
+      btnGrid?.classList.toggle('dark:text-neutral-200', isGrid)
+      btnList?.classList.toggle('bg-neutral-100', !isGrid)
+      btnList?.classList.toggle('dark:bg-neutral-700', !isGrid)
+      btnList?.classList.toggle('text-neutral-700', !isGrid)
+      btnList?.classList.toggle('dark:text-neutral-200', !isGrid)
+    }
+
+    applyView(savedView)
+
+    btnGrid?.addEventListener('click', () => {
+      localStorage.setItem('wwa_directory_view', 'grid')
+      applyView('grid')
+    })
+    btnList?.addEventListener('click', () => {
+      localStorage.setItem('wwa_directory_view', 'list')
+      applyView('list')
+    })
+  })
+</script>

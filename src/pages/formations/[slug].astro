@@ -1,0 +1,238 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import { backendFetch } from '../../lib/auth'
+import { MOCK_FORMATIONS } from '../../lib/mock-formations-data'
+import type { Formation } from '../../lib/catalogue-types'
+
+const { slug } = Astro.params as { slug: string }
+
+let formation: Formation | null = null
+let useMock = false
+
+try {
+  const resp = await backendFetch(`/formations/${slug}`, null)
+  if (resp.ok) {
+    formation = await resp.json() as Formation
+  } else {
+    useMock = true
+  }
+} catch {
+  useMock = true
+}
+
+if (useMock) {
+  formation = MOCK_FORMATIONS.find(f => f.slug === slug && f.est_publie) ?? null
+}
+
+if (!formation) {
+  return Astro.redirect('/formations')
+}
+
+function formatDuree(mois: number | undefined): string {
+  if (!mois) return ''
+  if (mois % 12 === 0) return `${mois / 12} an${mois / 12 > 1 ? 's' : ''}`
+  return `${mois} mois`
+}
+---
+
+<Layout
+  title={`${formation.nom} - ${formation.universite.nom} - WorldWise Admission`}
+  description={formation.meta_description ?? formation.description_courte ?? `Formation en ${formation.nom} à ${formation.universite.nom}`}
+>
+
+  <!-- Breadcrumb -->
+  <nav class="bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
+    <div class="container mx-auto px-6 py-3">
+      <ol class="flex items-center gap-2 text-sm text-neutral-400 dark:text-neutral-500 flex-wrap">
+        <li><a href="/" class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Accueil</a></li>
+        <li class="text-neutral-300 dark:text-neutral-700">/</li>
+        <li><a href="/formations" class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Formations</a></li>
+        <li class="text-neutral-300 dark:text-neutral-700">/</li>
+        <li class="text-neutral-600 dark:text-neutral-400 truncate max-w-[200px]">{formation.nom}</li>
+      </ol>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="relative overflow-hidden bg-neutral-900">
+    {formation.couverture_image_url ? (
+      <img src={formation.couverture_image_url} alt="" class="absolute inset-0 w-full h-full object-cover opacity-55" />
+    ) : (
+      <div class={`absolute inset-0 flex items-center justify-center ${formation.universite.couleur_bg}`}>
+        <span class="text-[180px] font-black text-white/10 select-none leading-none">{formation.universite.initiales}</span>
+      </div>
+    )}
+    <div class="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+    <div class="absolute inset-0 flex items-center justify-end select-none pointer-events-none">
+      <span class="text-[180px] font-black text-white/5 leading-none">{formation.universite.initiales}</span>
+    </div>
+    <div class="relative container mx-auto px-6 py-14 sm:py-20">
+      <div class="max-w-2xl text-white">
+        <div class="flex items-center gap-3 mb-3 flex-wrap">
+          <span class="text-xs font-semibold bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full">
+            {formation.niveau_etude.nom}
+          </span>
+          {formation.est_vedette && (
+            <span class="text-xs font-semibold bg-gold-400/30 backdrop-blur-sm text-gold-100 px-3 py-1 rounded-full">
+              À la une
+            </span>
+          )}
+        </div>
+        <h1 class="text-2xl sm:text-4xl font-light text-white mb-3">{formation.nom}</h1>
+        <a
+          href={`/universites/${formation.universite.slug}`}
+          class="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors text-sm"
+        >
+          <div class="w-6 h-6 rounded-md bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <span class="text-xs font-bold text-white">{formation.universite.initiales[0]}</span>
+          </div>
+          {formation.universite.nom}
+          <span>·</span>
+          <span>{formation.universite.pays.drapeau} {formation.universite.ville}</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Corps -->
+  <div class="bg-neutral-50 dark:bg-neutral-950">
+    <div class="container mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Colonne principale -->
+      <div class="lg:col-span-2 space-y-8">
+
+        <!-- Description -->
+        {formation.description_courte && (
+          <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-6">
+            <h2 class="text-base font-light text-neutral-800 dark:text-neutral-100 mb-4">À propos de la formation</h2>
+            <p class="text-neutral-600 dark:text-neutral-400 leading-relaxed">{formation.description_courte}</p>
+          </div>
+        )}
+
+        <!-- Langues d'enseignement -->
+        {formation.langues_enseignement.length > 0 && (
+          <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-6">
+            <h2 class="text-base font-light text-neutral-800 dark:text-neutral-100 mb-4">Langues d'enseignement</h2>
+            <div class="flex flex-wrap gap-2">
+              {formation.langues_enseignement.map(lang => (
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                  <svg class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+                  </svg>
+                  {lang}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <!-- Université liée -->
+        <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-6">
+          <h2 class="text-base font-light text-neutral-800 dark:text-neutral-100 mb-4">Université d'accueil</h2>
+          <a
+            href={`/universites/${formation.universite.slug}`}
+            class="group flex items-center gap-4 rounded-xl border border-neutral-100 dark:border-neutral-800 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 hover:border-primary-200 dark:hover:border-primary-800 transition-all"
+          >
+            <div class={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center ${formation.universite.couleur_bg}`}>
+              <span class="text-sm font-black text-white/80">{formation.universite.initiales}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                {formation.universite.nom}
+              </p>
+              <p class="text-sm text-neutral-400 dark:text-neutral-500">
+                {formation.universite.pays.drapeau} {formation.universite.ville}, {formation.universite.pays.nom}
+              </p>
+            </div>
+            <svg class="w-4 h-4 text-neutral-300 dark:text-neutral-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="space-y-4">
+
+        <!-- Détails clés -->
+        <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-5">
+          <h3 class="text-sm font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-widest mb-4">
+            En résumé
+          </h3>
+          <dl class="space-y-3">
+            <div>
+              <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Niveau</dt>
+              <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{formation.niveau_etude.nom}</dd>
+            </div>
+            {formation.specialite && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Spécialité</dt>
+                <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{formation.specialite.nom}</dd>
+              </div>
+            )}
+            {formation.duree_mois && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Durée</dt>
+                <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{formatDuree(formation.duree_mois)}</dd>
+              </div>
+            )}
+            {formation.frais_scolarite && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Frais de scolarité</dt>
+                <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  {formation.frais_scolarite.toLocaleString('fr-FR')} {formation.devise}
+                  <span class="text-neutral-400 dark:text-neutral-500 font-normal"> /an</span>
+                </dd>
+              </div>
+            )}
+            {formation.places_disponibles && (
+              <div>
+                <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Places disponibles</dt>
+                <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{formation.places_disponibles} places/an</dd>
+              </div>
+            )}
+            <div>
+              <dt class="text-xs text-neutral-400 dark:text-neutral-500 mb-0.5">Pays</dt>
+              <dd class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                {formation.universite.pays.drapeau} {formation.universite.pays.nom}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- CTA Candidature -->
+        <div class="bg-primary-50 dark:bg-primary-950 rounded-2xl border border-primary-100 dark:border-primary-900 p-5">
+          <p class="text-sm font-semibold text-primary-700 dark:text-primary-300 mb-1">
+            Cette formation vous intéresse ?
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-4 leading-relaxed">
+            Déposez votre candidature et notre équipe vous recontacte dans les 48h pour évaluer votre profil.
+          </p>
+          <a
+            href="/candidature"
+            class="block w-full text-center py-2.5 px-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+          >
+            Postuler maintenant
+          </a>
+          <a
+            href="/contact"
+            class="block w-full text-center mt-2 py-2 px-4 text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline transition-colors"
+          >
+            Poser une question
+          </a>
+        </div>
+
+        <!-- Retour liste -->
+        <a
+          href="/formations"
+          class="flex items-center gap-2 text-sm text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors px-1"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          Toutes les formations
+        </a>
+      </aside>
+    </div>
+  </div>
+</Layout>

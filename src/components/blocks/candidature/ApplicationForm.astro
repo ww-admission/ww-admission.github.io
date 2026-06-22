@@ -1,5 +1,5 @@
 ---
-// Application Form — Formulaire de candidature multi-étapes (6 panneaux)
+// Application Form - Formulaire de candidature multi-étapes (6 panneaux)
 // Soumission via FormBold. Persistance localStorage avec auto-sauvegarde.
 
 import Card from '../../ui/cards/partials/Card.astro'
@@ -167,7 +167,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
       <form id="applicationForm" novalidate>
 
         <!-- ════════════════════════════════════════
-             PANEL 1 — Informations personnelles
+             PANEL 1 - Informations personnelles
              ════════════════════════════════════════ -->
         <div data-step-panel="1">
           <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -276,7 +276,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
 
         <!-- ════════════════════════════════════════
-             PANEL 2 — Informations académiques
+             PANEL 2 - Informations académiques
              ════════════════════════════════════════ -->
         <div data-step-panel="2" class="hidden">
           <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -328,7 +328,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
 
         <!-- ════════════════════════════════════════
-             PANEL 3 — Destination & Programme
+             PANEL 3 - Destination & Programme
              ════════════════════════════════════════ -->
         <div data-step-panel="3" class="hidden">
           <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -391,7 +391,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
 
         <!-- ════════════════════════════════════════
-             PANEL 4 — Infos complémentaires (Chine)
+             PANEL 4 - Infos complémentaires (Chine)
              ════════════════════════════════════════ -->
         <div data-step-panel="4" class="hidden">
           <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -416,7 +416,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
                   class={inputClass}
                 />
                 <label for="contactTel" class={labelClass}>Téléphone du contact</label>
-                <small class="absolute flex w-full px-4 py-1 text-xs text-neutral-400"><span>Avec indicatif — ex: +241 07 12 34 56</span></small>
+                <small class="absolute flex w-full px-4 py-1 text-xs text-neutral-400"><span>Avec indicatif - ex: +241 07 12 34 56</span></small>
               </div>
               <InputField type="email" id="contactEmail" label="Email du contact" required />
             </FormField>
@@ -472,7 +472,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
 
         <!-- ════════════════════════════════════════
-             PANEL 5 — Documents
+             PANEL 5 - Documents
              ════════════════════════════════════════ -->
         <div data-step-panel="5" class="hidden">
           <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -537,7 +537,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
 
         <!-- ════════════════════════════════════════
-             PANEL 6 — Récapitulatif
+             PANEL 6 - Récapitulatif
              ════════════════════════════════════════ -->
         <div data-step-panel="6" class="hidden">
           <div class="-mx-6 mb-8 border-y border-neutral-100 bg-neutral-50 px-6 py-5 dark:border-neutral-800 dark:bg-neutral-900/50">
@@ -667,7 +667,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
   import { PROGRAMMES } from '../../../config/programs.config'
   import { ETABLISSEMENTS_GABON, VALIDATION, RELEVÉS_PAR_NIVEAU } from '../../../config/candidature.config'
 
-  // ── EmailJS — confirmation candidat ──────────────────────
+  // ── EmailJS - confirmation candidat ──────────────────────
   const EMAILJS_SERVICE_ID  = 'service_q8qwzak'
   const EMAILJS_PUBLIC_KEY  = 'cjpR8h9jpq_o2xDhu'
   const EMAILJS_TEMPLATE_CANDIDATURE = 'template_185swgh'
@@ -684,7 +684,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
           template_params: params,
         }),
       })
-    } catch { /* fire-and-forget — l'échec de l'email ne bloque pas la soumission */ }
+    } catch { /* fire-and-forget - l'échec de l'email ne bloque pas la soumission */ }
   }
 
   // ── Constantes ────────────────────────────────────────────
@@ -1518,7 +1518,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
     const dejaChineVal = document.querySelector<HTMLInputElement>('input[name="dejaChine"]:checked')?.value
     const dejaChineDisp = dejaChineVal === 'oui'
-      ? `Oui — ${get('dejaChineEtablissement')} (${get('dejaChineAnnees')})`
+      ? `Oui - ${get('dejaChineEtablissement')} (${get('dejaChineAnnees')})`
       : dejaChineVal === 'non' ? 'Non' : '—'
 
     const sections = [
@@ -1735,7 +1735,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
     if (statusEl) statusEl.textContent = 'Envoi en cours…'
 
     try {
-      // Build a text-only FormData — FormBold free tier ne supporte pas les fichiers.
+      // Build a text-only FormData - FormBold free tier ne supporte pas les fichiers.
       // Les pièces jointes seront transmises via le backend Laravel (à venir).
       const textData = new FormData()
 
@@ -1744,7 +1744,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
         if (typeof value === 'string') textData.append(key, value)
       })
 
-      // Champs radio (sélection unique — pas toujours inclus via FormData)
+      // Champs radio (sélection unique - pas toujours inclus via FormData)
       const sexeChecked = document.querySelector<HTMLInputElement>('input[name="sexe"]:checked')
       if (sexeChecked) textData.set('sexe', sexeChecked.value)
       const destChecked = document.querySelector<HTMLInputElement>('input[name="destination"]:checked')
@@ -1816,7 +1816,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
           },
         }
 
-        // Créer la candidature (attendu — on a besoin de l'ID pour les pièces jointes)
+        // Créer la candidature (attendu - on a besoin de l'ID pour les pièces jointes)
         try {
           const candResp = await fetch('/api/candidatures', {
             method: 'POST',
@@ -1827,7 +1827,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
             const saved = await candResp.json()
             serverId = saved.id ?? undefined
           }
-        } catch { /* serveur indisponible — syncUnsynced() retentera */ }
+        } catch { /* serveur indisponible - syncUnsynced() retentera */ }
 
         // Uploader les pièces jointes (fichiers sélectionnés dans les inputs)
         if (serverId) {
@@ -1897,7 +1897,7 @@ const selectFieldClass = 'peer relative h-12 w-full rounded border border-neutra
 
 <style is:global>
   /*
-   * Erreur par champ — appliquée par JS uniquement après une tentative de navigation.
+   * Erreur par champ - appliquée par JS uniquement après une tentative de navigation.
    * Jamais affichée au chargement initial.
    */
   [data-field-error] > input:not([type="hidden"]):not([type="file"]),

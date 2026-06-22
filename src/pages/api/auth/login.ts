@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return json({ message: 'Impossible de contacter le serveur.' }, 503)
   }
 
-  // Parser la réponse JSON — Laravel peut renvoyer du HTML sur erreur 500
+  // Parser la réponse JSON - Laravel peut renvoyer du HTML sur erreur 500
   let data: Record<string, unknown>
   try {
     data = await resp.json()

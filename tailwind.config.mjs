@@ -27,7 +27,7 @@ export default {
     extend: {
       colors: {
         transparent: "transparent",
-        // Rose WWA — couleur principale de la marque (#F02860)
+        // Rose WWA - couleur principale de la marque (#F02860)
         primary: {
           50:  "#fff2f6",
           100: "#ffe3eb",
@@ -41,7 +41,7 @@ export default {
           900: "#900030",
           950: "#600020",
         },
-        // Jaune Étoile d'Or — couleur secondaire de la marque (#FDD737)
+        // Jaune Étoile d'Or - couleur secondaire de la marque (#FDD737)
         gold: {
           50:  "#FFFBEB",
           100: "#FFF7E1",

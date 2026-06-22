@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRATION 002 — Table etablissements_references
+-- MIGRATION 002 - Table etablissements_references
 -- Système d'apprentissage des établissements saisis par les candidats.
 -- Un établissement inconnu ayant 5+ occurrences intègre les suggestions.
 -- ============================================================

@@ -43,7 +43,7 @@ export async function proxyJson(
   }
 }
 
-/** Proxy multipart/form-data (upload de fichiers) — passe le FormData tel quel */
+/** Proxy multipart/form-data (upload de fichiers) - passe le FormData tel quel */
 export async function proxyFormData(
   path: string,
   session: Session,

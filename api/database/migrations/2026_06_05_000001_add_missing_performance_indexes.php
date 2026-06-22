@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Ajoute les index manquants identifiés lors de l'audit :
  *
- *  1. messages.sender_id — utilisé dans Conversation::unreadCountFor()
+ *  1. messages.sender_id - utilisé dans Conversation::unreadCountFor()
  *     (WHERE sender_id != ?) sans index → seq scan sur chaque lecture.
  *
- *  2. notifications.created_at — permettra la pagination future des 50
+ *  2. notifications.created_at - permettra la pagination future des 50
  *     dernières notifs triées par date.
  *
  * Migration réversible (dropIndex dans down()).

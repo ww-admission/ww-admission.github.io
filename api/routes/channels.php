@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Broadcast;
 |
 */
 
-// Channel conversation.{id} — accessible par le candidat de la conv ou un admin
+// Channel conversation.{id} - accessible par le candidat de la conv ou un admin
 Broadcast::channel('conversation.{conversationId}', function ($user, int $conversationId) {
     $conv = Conversation::find($conversationId);
     if (! $conv) return false;
@@ -21,12 +21,12 @@ Broadcast::channel('conversation.{conversationId}', function ($user, int $conver
     return $user->role === 'admin' || $conv->candidate_id === $user->id;
 });
 
-// Channel user.{id} — chaque utilisateur accède uniquement à son propre canal
+// Channel user.{id} - chaque utilisateur accède uniquement à son propre canal
 Broadcast::channel('user.{userId}', function ($user, int $userId) {
     return $user->id === $userId;
 });
 
-// Channel candidature.{id} — admin seulement pour les commentaires live
+// Channel candidature.{id} - admin seulement pour les commentaires live
 Broadcast::channel('candidature.{candidatureId}', function ($user, int $candidatureId) {
     if ($user->role === 'admin') return true;
 
