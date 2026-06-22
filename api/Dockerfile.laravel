@@ -3,6 +3,7 @@
 # ---------- Base runtime: FrankenPHP + extensions needed by the app ----------
 # Single source of truth for extensions so builder and runtime never drift.
 FROM dunglas/frankenphp AS base
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 RUN install-php-extensions pcntl pdo_sqlite opcache zip
 
 # ---------- Stage 1: PHP dependencies (no-dev, optimized autoloader) ----------
