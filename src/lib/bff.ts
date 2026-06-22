@@ -49,7 +49,7 @@ export async function proxyFormData(
   session: Session,
   formData: FormData,
 ): Promise<Response> {
-  const base = (import.meta.env.BACKEND_URL ?? 'http://localhost:8000').trim()
+  const base = (process.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   try {
     const resp = await fetch(`${base}/api${path}`, {
       method: 'POST',
@@ -69,7 +69,7 @@ export async function proxyFormData(
 
 /** Proxy pour les fichiers binaires (download / preview) */
 export async function proxyStream(path: string, session: Session): Promise<Response> {
-  const base = (import.meta.env.BACKEND_URL ?? 'http://localhost:8000').trim()
+  const base = (process.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   try {
     const resp = await fetch(`${base}/api${path}`, {
       method: 'GET',

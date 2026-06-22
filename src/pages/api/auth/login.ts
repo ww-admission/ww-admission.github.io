@@ -11,7 +11,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return json({ message: 'Corps de requête invalide' }, 400)
   }
 
-  const backendUrl = (import.meta.env.BACKEND_URL ?? 'http://localhost:8000').trim()
+  const backendUrl = (process.env.BACKEND_URL ?? 'http://localhost:8000').trim()
 
   let resp: Response
   try {

@@ -5,7 +5,6 @@ interface ImportMetaEnv {
   readonly JWT_SECRET: string
   readonly SUPER_ADMIN_EMAIL: string
   readonly SUPER_ADMIN_PASSWORD: string
-  readonly BACKEND_URL: string | undefined
   readonly PUBLIC_BACKEND_URL: string | undefined
   readonly PUBLIC_GOOGLE_CLIENT_ID: string | undefined
   readonly GOOGLE_CLIENT_SECRET: string | undefined

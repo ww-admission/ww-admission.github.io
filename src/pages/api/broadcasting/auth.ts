@@ -5,7 +5,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   const session = await getSession(cookies)
   if (!session) return new Response(JSON.stringify({ message: 'Non authentifié.' }), { status: 401 })
 
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = (process.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   try {
     const body = await request.text()
     const resp = await fetch(`${base}/broadcasting/auth`, {
@@ -22,7 +22,8 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       status: resp.status,
       headers: { 'Content-Type': 'application/json' },
     })
-  } catch {
+  } catch (err) {
+    console.error('[broadcasting/auth] backend fetch failed:', err)
     return new Response(JSON.stringify({ message: 'Serveur indisponible.' }), { status: 503 })
   }
 }

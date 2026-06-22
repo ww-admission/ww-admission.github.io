@@ -7,7 +7,7 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ message: 'Corps invalide.' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
   }
 
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = (process.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   try {
     const resp = await fetch(`${base}/api/contact`, {
       method: 'POST',
@@ -16,7 +16,8 @@ export const POST: APIRoute = async ({ request }) => {
     })
     const text = await resp.text()
     return new Response(text, { status: resp.status, headers: { 'Content-Type': 'application/json' } })
-  } catch {
+  } catch (err) {
+    console.error('[api/contact] backend fetch failed:', err)
     return unavailable()
   }
 }
