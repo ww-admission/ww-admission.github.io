@@ -148,7 +148,6 @@ jobs:
   scan-frontend:
     needs: [build-frontend, test-frontend]
     runs-on: self-hosted
-    continue-on-error: true
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -158,16 +157,21 @@ jobs:
       - name: Load image
         run: docker load -i /tmp/wwa-frontend.tar
 
-      - name: Trivy scan
+      - name: Trivy report — all fixable CVEs (informational, non-blocking)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 \
+            aquasec/trivy image --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM,LOW --exit-code 0 \
+            wwa-frontend:${{ needs.build-frontend.outputs.image_tag }}
+
+      - name: Trivy gate — fail on fixable CRITICAL/HIGH
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 \
             wwa-frontend:${{ needs.build-frontend.outputs.image_tag }}
 
   scan-api:
     needs: [build-api, test-api]
     runs-on: self-hosted
-    continue-on-error: true
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -177,10 +181,16 @@ jobs:
       - name: Load image
         run: docker load -i /tmp/wwa-api.tar
 
-      - name: Trivy scan
+      - name: Trivy report — all fixable CVEs (informational, non-blocking)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 \
+            aquasec/trivy image --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM,LOW --exit-code 0 \
+            wwa-api:${{ needs.build-api.outputs.image_tag }}
+
+      - name: Trivy gate — fail on fixable CRITICAL/HIGH
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 \
             wwa-api:${{ needs.build-api.outputs.image_tag }}
 
   # ---------- push stage (dev) ----------
