@@ -149,6 +149,8 @@ jobs:
     needs: [build-frontend, test-frontend]
     runs-on: self-hosted
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: wwa-frontend-image
@@ -167,13 +169,17 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$(pwd)/.trivyignore:/root/.trivyignore" \
             aquasec/trivy image --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 \
+            --ignorefile /root/.trivyignore \
             wwa-frontend:${{ needs.build-frontend.outputs.image_tag }}
 
   scan-api:
     needs: [build-api, test-api]
     runs-on: self-hosted
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: wwa-api-image
@@ -192,7 +198,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$(pwd)/.trivyignore:/root/.trivyignore" \
             aquasec/trivy image --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 \
+            --ignorefile /root/.trivyignore \
             wwa-api:${{ needs.build-api.outputs.image_tag }}
 
   # ---------- push stage (dev) ----------
