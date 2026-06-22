@@ -2,7 +2,6 @@
 
 interface ImportMetaEnv {
   readonly PUBLIC_SITE_URL: string
-  readonly JWT_SECRET: string
   readonly SUPER_ADMIN_EMAIL: string
   readonly SUPER_ADMIN_PASSWORD: string
   readonly PUBLIC_BACKEND_URL: string | undefined

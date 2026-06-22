@@ -31,7 +31,7 @@ async function hmacSign(data: string, secret: string): Promise<string> {
 }
 
 function getSecret(): string {
-  const secret = import.meta.env.JWT_SECRET
+  const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET is not set in environment variables')
   return secret
 }
