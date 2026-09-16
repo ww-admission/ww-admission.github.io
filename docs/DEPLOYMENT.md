@@ -1,452 +1,1062 @@
-# Déploiement - WorldWise Admission
+# Déploiement — WorldWise Admission sur VPS OVH
 
-> Guide complet pour déployer le frontend Astro sur Vercel et le backend Laravel sur un VPS/PaaS, avec checklist de mise en production.
+> Deux environnements complets — **TEST** et **PRODUCTION** — sur un seul VPS OVH.
+> Front Astro, back Laravel et bases PostgreSQL. Aucun service tiers d'hébergement.
+>
+> Le workflow quotidien (quelle branche, comment mettre en ligne) est dans
+> **[BRANCHING.md](BRANCHING.md)**. Ce document-ci décrit l'installation.
 
 ---
 
 ## Table des matières
 
-1. [Architecture de déploiement](#1-architecture-de-déploiement)
-2. [Frontend - Vercel](#2-frontend--vercel)
-3. [Backend - Laravel sur VPS](#3-backend--laravel-sur-vps)
-4. [Variables d'environnement de production](#4-variables-denvironnement-de-production)
-5. [Base de données](#5-base-de-données)
-6. [CORS et communication inter-services](#6-cors-et-communication-inter-services)
-7. [Checklist mise en production](#7-checklist-mise-en-production)
-8. [Domaine et DNS](#8-domaine-et-dns)
-9. [Surveillance et logs](#9-surveillance-et-logs)
+1. [Architecture cible](#1-architecture-cible)
+2. [Ce qui a changé dans la codebase](#2-ce-qui-a-changé-dans-la-codebase)
+3. [Étape 0 — Réconcilier les branches](#étape-0--réconcilier-les-branches)
+4. [Étape 1 — Commander et sécuriser le VPS](#étape-1--commander-et-sécuriser-le-vps)
+5. [Étape 2 — DNS chez OVH](#étape-2--dns-chez-ovh)
+6. [Étape 3 — Installer la pile logicielle](#étape-3--installer-la-pile-logicielle)
+7. [Étape 4 — Les deux bases PostgreSQL](#étape-4--les-deux-bases-postgresql)
+8. [Étape 5 — Cloner les deux environnements](#étape-5--cloner-les-deux-environnements)
+9. [Étape 6 — Environnement de TEST](#étape-6--environnement-de-test)
+10. [Étape 7 — Environnement de PRODUCTION](#étape-7--environnement-de-production)
+11. [Étape 8 — HTTPS avec Let's Encrypt](#étape-8--https-avec-lets-encrypt)
+12. [Étape 9 — Push-to-deploy](#étape-9--push-to-deploy)
+13. [Étape 10 — Vérifications](#étape-10--vérifications)
+14. [Étape 11 — Sauvegardes automatiques](#étape-11--sauvegardes-automatiques)
+15. [Dépannage](#dépannage)
+16. [Checklist de mise en production](#checklist-de-mise-en-production)
 
 ---
 
-## 1. Architecture de déploiement
+## 1. Architecture cible
+
+Sept noms de domaine, deux environnements isolés, **une seule machine**.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  INTERNET                                                     │
-│  worldwise-admission.com → Vercel Edge                        │
-│  api.worldwise-admission.com → VPS (Laravel)                  │
-└────────────────┬─────────────────────────────────────────────┘
-                 │
-    ┌────────────▼────────────┐    ┌──────────────────────────┐
-    │  Vercel (Astro SSR)      │    │  VPS / PaaS (Laravel 11) │
-    │  worldwise-admission.com │    │  api.worldwise-adm...com │
-    │                          │    │                          │
-    │  ├─ Pages publiques      │    │  ├─ POST /api/auth/*     │
-    │  ├─ /login, /register    │────▶  ├─ GET/POST /api/cand.  │
-    │  ├─ /dashboard/*         │ HTTP  ├─ GET /api/messages    │
-    │  ├─ /admin/*             │ interne ├─ GET /api/logs      │
-    │  └─ /api/auth/* (BFF)    │    │  └─ SQLite → PostgreSQL  │
-    └──────────────────────────┘    └──────────────────────────┘
+                              INTERNET
+                                 │
+                        ┌────────┴────────┐
+                        │   nginx  :443   │  ← TLS (Let's Encrypt, 2 certificats)
+                        └────────┬────────┘
+        ┌────────────────────────┴────────────────────────┐
+        │                                                 │
+   PRODUCTION                                          TEST
+   branche PROD                                     branche develop
+        │                                                 │
+  ┌─────┴──────┬──────────────┐              ┌────────────┼──────────────┐
+  ▼            ▼              ▼              ▼            ▼              ▼
+domaine.com  app.domaine   api.domaine   dev.domaine  app.dev.dom   api.dev.dom
+(vitrine)    (back-office) (API + WS)    (vitrine)    (back-office) (API + WS)
+  │            │              │              │            │              │
+  └──────┬─────┘              │              └──────┬─────┘              │
+         ▼                    ▼                     ▼                    ▼
+  ┌──────────────┐    ┌──────────────┐      ┌──────────────┐    ┌──────────────┐
+  │ Node :4321   │───▶│ php-fpm      │      │ Node :4322   │───▶│ php-fpm      │
+  │ wwa-web      │BFF │ + Reverb 8080│      │ wwa-dev-web  │BFF │ + Reverb 8081│
+  │ /var/www/wwa │    │ supervisor   │      │/var/www/wwa- │    │ supervisor   │
+  └──────────────┘    │   wwa:*      │      │        dev   │    │  wwa-dev:*   │
+                      └──────┬───────┘      └──────────────┘    └──────┬───────┘
+                             ▼                                          ▼
+                    ┌──────────────────┐                     ┌──────────────────┐
+                    │ PostgreSQL       │                     │ PostgreSQL       │
+                    │ wwa_production   │                     │ wwa_staging      │
+                    │ user: wwa_user   │                     │ user:wwa_dev_user│
+                    └──────────────────┘                     └──────────────────┘
 ```
 
-Le frontend Vercel ne parle **jamais** directement à la base de données. Il passe toujours par le backend Laravel via `BACKEND_URL` (variable serveur, jamais exposée au navigateur).
+### Ce qui sépare les deux environnements
 
----
-
-## 2. Frontend - Vercel
-
-### Prérequis
-
-- Compte Vercel (vercel.com)
-- Dépôt GitHub connecté à Vercel
-- Projet configuré avec `output: 'server'` + `adapter: vercel()` (déjà en place dans `astro.config.mjs`)
-
-### Déploiement initial
-
-```bash
-# Installer la CLI Vercel (une fois)
-npm i -g vercel
-
-# Depuis la racine du projet
-vercel
-
-# Suivre les prompts :
-#   → Set up and deploy? Y
-#   → Which scope? (ton compte Vercel)
-#   → Link to existing project? N (ou Y si déjà créé)
-#   → Project name: wwa-astro
-#   → Directory: ./  (racine)
-#   → Override settings? N
-```
-
-### Déploiements suivants
-
-Chaque `git push` sur `main` déclenche automatiquement un déploiement si le dépôt GitHub est connecté à Vercel.
-
-Pour un déploiement manuel :
-
-```bash
-vercel --prod
-```
-
-### Variables d'environnement Vercel
-
-Dans le dashboard Vercel → Settings → Environment Variables, ajouter :
-
-| Variable | Scope | Valeur |
+| | PRODUCTION | TEST |
 |---|---|---|
-| `JWT_SECRET` | Production | Clé aléatoire 32+ chars (voir ci-dessous) |
-| `BACKEND_URL` | Production | `https://api.worldwise-admission.com` |
-| `PUBLIC_SITE_URL` | Production | `https://worldwise-admission.com` |
+| Branche git | `PROD` | `develop` |
+| Dossier | `/var/www/wwa` | `/var/www/wwa-dev` |
+| Vitrine | `worldwise-admission.com` | `dev.worldwise-admission.com` |
+| Back-office | `app.worldwise-admission.com` | `app.dev.worldwise-admission.com` |
+| API + WebSocket | `api.worldwise-admission.com` | `api.dev.worldwise-admission.com` |
+| Port Node | 4321 | 4322 |
+| Port Reverb | 8080 | 8081 |
+| Service systemd | `wwa-web` | `wwa-dev-web` |
+| Groupe supervisor | `wwa` | `wwa-dev` |
+| Base PostgreSQL | `wwa_production` | `wwa_staging` |
+| Utilisateur base | `wwa_user` | `wwa_dev_user` |
+| `COOKIE_DOMAIN` | `.worldwise-admission.com` | `.dev.worldwise-admission.com` |
+| `JWT_SECRET` | un secret | **un autre secret** |
+| Indexation Google | vitrine oui, back-office non | **rien, nulle part** |
+| Emails | Resend (réels) | `MAIL_MAILER=log` (aucun envoi) |
+| Bandeau orange | non | oui, avec le n° de version |
 
-> **Générer JWT_SECRET :**
-> ```bash
-> # PowerShell
-> -join ((1..48) | ForEach-Object { [char](Get-Random -Min 65 -Max 122) })
->
-> # Bash / Linux
-> openssl rand -base64 48
-> ```
+Le fichier `deploy/targets/production.conf` et `deploy/targets/staging.conf`
+contiennent ces valeurs. `deploy/deploy.sh` les lit et **refuse de déployer** si les
+`.env` ne correspondent pas.
 
-> ⚠️ Ne **jamais** préfixer `JWT_SECRET` ou `BACKEND_URL` avec `PUBLIC_` - ces variables ne doivent pas apparaître dans le bundle JS client.
+### Pourquoi `app.dev.domaine.com` et pas `dev.app.domaine.com`
 
-### Configuration vercel.json (si nécessaire)
+C'est la décision d'architecture la plus importante de ce document, et elle n'est pas
+cosmétique.
 
-Si des ajustements de timeout ou de région sont nécessaires, créer `vercel.json` à la racine :
+La page `/candidature` est servie par la **vitrine**, mais elle poste vers
+`/api/candidatures` **avec le cookie de session**. Le cookie doit donc être valable
+sur la vitrine **et** sur le back-office. C'est le rôle de `COOKIE_DOMAIN`.
 
-```json
-{
-  "regions": ["cdg1"],
-  "functions": {
-    "src/pages/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  }
+Or un cookie posé sur `Domain=dev.worldwise-admission.com` couvre ce domaine et ses
+sous-domaines. Et `dev.app.worldwise-admission.com` **n'est pas** un sous-domaine de
+`dev.worldwise-admission.com` — leurs parents sont `app.worldwise-admission.com` puis
+`worldwise-admission.com`.
+
+Conséquence, avec la forme `dev.app.` :
+
+- soit le cookie ne couvre pas les deux hôtes → **toute candidature d'un utilisateur
+  connecté partirait sans authentification** ;
+- soit on remonte à `COOKIE_DOMAIN=.worldwise-admission.com` → le cookie de test est
+  envoyé aux hôtes de production, **avec le même nom `wwa_session`** : se connecter
+  au test déconnecterait les utilisateurs du site live.
+
+Avec `app.dev.` tout l'environnement de test vit sous `dev.`, `COOKIE_DOMAIN=.dev.…`
+couvre exactement les deux hôtes de test, et jamais la production.
+
+`deploy.sh` fait respecter cet invariant :
+
+```
+COOKIE_DOMAIN (sans le point) == hôte de PUBLIC_SITE_URL
+hôte de PUBLIC_APP_URL        == sous-domaine de l'hôte de PUBLIC_SITE_URL
+```
+
+Vérifié sur les cinq combinaisons possibles ; les trois formes cassées sont refusées.
+
+---
+
+## 2. Ce qui a changé dans la codebase
+
+### Adapter et environnements
+
+| Fichier | Changement | Pourquoi |
+|---|---|---|
+| `astro.config.mjs` | `@astrojs/vercel` → `@astrojs/node` (`standalone`) | Le serveur tourne sur le VPS |
+| `astro.config.mjs` | sitemap **uniquement en production** | Le test est entièrement interdit à l'indexation |
+| `package.json` | `start`, `promote`, `promote:dry`, `hooks:install` | Commandes du quotidien |
+| `src/lib/urls.ts` | **nouveau** | `ENV_NAME`, `IS_STAGING`, `RELEASE`, `SPLIT_HOSTS`, `appLink()`, `siteUrl()` |
+| `src/middleware.ts` | Routage par hôte + `X-Robots-Tag` + `X-WWA-Env` | Le back-office ne vit que sur `app.` ; hors production rien n'est indexable |
+| `src/pages/robots.txt.ts` | Dépend de l'hôte **et** de l'environnement | `Disallow: /` partout en test |
+| `src/pages/health.ts` | **nouveau** | Sonde utilisée par `deploy.sh` et les workflows |
+| `src/components/ui/EnvBanner.astro` | **nouveau** | Bandeau orange, non masquable, avec le n° de version |
+| `src/layouts/Layout.astro`, `DashboardLayout.astro`, `pages/login.astro`, `pages/register.astro` | Insertion du bandeau | `/login` et `/register` n'utilisent aucun layout partagé — il fallait les traiter à part |
+| `src/env.d.ts` | Séparation `import.meta.env` / `process.env` | Deux mécanismes distincts, à ne pas confondre |
+
+### Session partagée entre vitrine et back-office
+
+| Fichier | Changement |
+|---|---|
+| `src/lib/auth.ts` | `cookieDomain()`, `sessionCookieOptions()`, `sessionCookieClearOptions()` |
+| `src/pages/api/auth/{login,register,logout}.ts` | Utilisent ces options partagées |
+| `src/config/navigationBar.ts` | Lien « Se connecter » via `appLink('/login')` |
+
+### Variables serveur : `process.env`, jamais `import.meta.env`
+
+`src/lib/auth.ts`, `src/lib/bff.ts` et les routes `src/pages/api/**` lisent désormais
+`JWT_SECRET`, `BACKEND_URL` et `COOKIE_DOMAIN` via `process.env`.
+
+C'est la règle documentée dans [INFRA-CHANGES.md §3](INFRA-CHANGES.md) : `import.meta.env`
+peut être figé au build par Vite, ce qui rendrait la configuration du VPS sans effet.
+Sur la version actuelle d'Astro, la transformation en `process.env` se fait bien
+automatiquement — vérifié en inspectant `dist/server/` — mais écrire `process.env`
+explicitement supprime toute dépendance à ce comportement.
+
+Le workflow `ci-build.yml` vérifie ce point à chaque push :
+
+```
+process.env.JWT_SECRET     présent dans dist/server/   → OK
+process.env.BACKEND_URL    présent dans dist/server/   → OK
+process.env.COOKIE_DOMAIN  présent dans dist/server/   → OK
+aucun secret de build figé dans dist/                  → OK
+```
+
+### Infrastructure (nouveau dossier `deploy/`)
+
+```
+deploy/
+├── targets/
+│   ├── production.conf          branche PROD, /var/www/wwa, ports 4321/8080
+│   └── staging.conf             branche develop, /var/www/wwa-dev, ports 4322/8081
+├── deploy.sh                    déploiement, préflight, verrou, retour arrière
+├── install.sh                   installe systemd + supervisor + nginx + sudoers
+├── env/
+│   ├── frontend.env.prod.example      api.env.prod.example
+│   └── frontend.env.staging.example   api.env.staging.example
+├── nginx/
+│   ├── snippets/wwa-node-proxy.conf       (→ 4321)
+│   ├── snippets/wwa-dev-node-proxy.conf   (→ 4322)
+│   ├── wwa-site.conf      wwa-app.conf      wwa-api.conf
+│   └── wwa-dev-site.conf  wwa-dev-app.conf  wwa-dev-api.conf
+├── systemd/
+│   ├── wwa-web.service      wwa-dev-web.service
+└── supervisor/
+    ├── wwa.conf             wwa-dev.conf
+```
+
+`api/supervisord.conf` a été supprimé : son contenu est repris dans
+`deploy/supervisor/wwa.conf`, à côté de son pendant staging. Garder les deux au même
+endroit évite qu'ils divergent.
+
+### Scripts et workflows
+
+| Fichier | Rôle |
+|---|---|
+| `scripts/promote.ps1` | Promotion `develop` → `PROD`, avec contrôles et confirmation |
+| `scripts/git-hooks/pre-push` | Refuse tout `git push` sur `PROD` hors promotion |
+| `scripts/install-git-hooks.ps1` | Active `core.hooksPath` |
+| `.github/workflows/ci-build.yml` | Build + typage + contrôle du bundle |
+| `.github/workflows/deploy-staging.yml` | Push `develop` → déploiement TEST automatique |
+| `.github/workflows/deploy-production.yml` | Push `PROD` → contrôle + **approbation** → PRODUCTION |
+
+### Variables `PUBLIC_*` : figées au build
+
+Astro remplace `import.meta.env.PUBLIC_*` par sa valeur **au moment du
+`npm run build`**. Toute modification de `PUBLIC_ENV_NAME`, `PUBLIC_SITE_URL`,
+`PUBLIC_APP_URL` ou `PUBLIC_REVERB_*` impose donc un **rebuild**, pas un simple
+`systemctl restart`. `deploy.sh` rebuild systématiquement, donc c'est couvert.
+
+---
+
+## Étape 0 — Réconcilier les branches
+
+> **À faire avant tout le reste.** Rien ne fonctionnera tant que les branches ne sont
+> pas en ordre.
+
+### La situation actuelle
+
+```powershell
+git fetch --prune origin
+git log --oneline main..develop | Measure-Object -Line   # commits sur develop absents de main
+git log --oneline develop..main | Measure-Object -Line   # commits sur main absents de develop
+```
+
+Au moment de l'écriture de ce document :
+
+- `develop` a **15 commits** que `main` n'a pas (dockerisation, CI, correctifs CVE, `LLM.txt`)
+- `main` a **1 commit** que `develop` n'a pas : `33b5c2c` — les annuaires universités / formations
+- la branche `PROD` **n'existe pas encore**
+
+Les deux branches ont donc divergé. Un `merge --ff-only` échouerait.
+
+### La réconciliation
+
+Le merge de `main` dans `develop` a été vérifié : il est **propre, sans conflit**
+(`git merge-tree --write-tree main develop` → code retour 0).
+
+Attention toutefois : **13 fichiers** modifiés par le travail d'infrastructure en
+cours sont aussi modifiés sur `develop`. Une fois ce travail commité, ces fichiers
+demanderont une résolution manuelle :
+
+```
+README.md                              src/config/navigationBar.ts
+astro.config.mjs                       src/env.d.ts
+package.json  package-lock.json        src/layouts/DashboardLayout.astro
+docs/ARCHITECTURE.md                   src/lib/auth.ts
+docs/DEPLOYMENT.md                     src/pages/api/auth/login.ts
+api/supervisord.conf (supprimé ici)    src/pages/api/auth/register.ts
+```
+
+Règle de résolution pour ces conflits : **garder les deux apports**, ils sont
+complémentaires et non contradictoires.
+
+- `src/lib/auth.ts` — garder `process.env` (venu de `develop`) **et** les fonctions
+  `cookieDomain()` / `sessionCookieOptions()` (venues d'ici).
+- `src/pages/api/auth/{login,register}.ts` — garder `process.env.BACKEND_URL` **et**
+  l'appel à `sessionCookieOptions()`.
+- `astro.config.mjs` — `develop` a déjà l'adapter Node ; garder en plus le sitemap
+  conditionnel et `site` lu depuis `process.env`.
+- `package.json` — fusionner les deux listes de scripts et les `overrides` de sécurité
+  de `develop`.
+- `api/supervisord.conf` — accepter la suppression (remplacé par `deploy/supervisor/`).
+
+### La séquence
+
+```powershell
+# 1. Commiter le travail d'infrastructure
+git add -A
+git commit -m "infra: deux environnements (TEST/PROD) sur VPS OVH, sous-domaines et garde-fous"
+
+# 2. Rapatrier develop dans cette branche, résoudre les 13 fichiers ci-dessus
+git merge origin/develop
+#    ... résolution ...
+git add -A && git commit
+
+# 3. Basculer le tout sur develop
+git checkout develop
+git merge main            # doit être un fast-forward maintenant
+git push origin develop
+
+# 4. Créer PROD (promote.ps1 le fait tout seul la première fois)
+npm run promote
+```
+
+À partir de là, `main` est obsolète. Une fois `PROD` en ligne et vérifié :
+
+```powershell
+git push origin --delete main       # optionnel, quand tu es sûr
+```
+
+Fais ensuite les réglages GitHub de
+[BRANCHING.md §4](BRANCHING.md#4-réglages-github-à-faire-une-seule-fois) :
+branche par défaut `develop`, protection de `PROD`, environnement `production`.
+
+### Le pipeline Docker existant sur `develop`
+
+`develop` contient une infrastructure Docker complète (`docker-compose.yml`,
+`Dockerfile.astro`, `api/Dockerfile.laravel`, Octane/FrankenPHP) et un pipeline
+`.github/workflows/ci.yml` de 366 lignes qui pousse des images vers un **Harbor privé
+via Tailscale**, sur un **runner self-hosted `ndewo`**.
+
+Cette infrastructure suppose du matériel qui n'existe pas sur un VPS OVH neuf. Le
+déploiement décrit ici n'en dépend pas.
+
+**Ne supprime rien** — mais après la réconciliation, mets son déclencheur en manuel,
+sinon chaque push sur `develop` lancerait un pipeline qui ne peut pas s'exécuter :
+
+```yaml
+# .github/workflows/ci.yml — remplacer tout le bloc `on:` par :
+on:
+  workflow_dispatch: {}
+```
+
+Le contenu du pipeline reste intact et réactivable en une ligne.
+
+---
+
+## Étape 1 — Commander et sécuriser le VPS
+
+### 1.1 Réinstaller le VPS
+
+Espace client OVH : **Bare Metal Cloud → VPS → ton VPS → … → Réinstaller mon VPS**.
+
+- Distribution : **Ubuntu 24.04 LTS**, image nue (pas de Plesk / cPanel)
+- Ajoute ta **clé SSH** à ce moment-là
+
+```powershell
+ssh-keygen -t ed25519 -C "steeve@wwa"
+Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub   # à coller dans OVH
+```
+
+OVH t'envoie ensuite l'IP et le login initial (`ubuntu` ou `root`).
+
+> **Dimensionnement.** Deux environnements sur une machine, c'est deux process Node,
+> deux Reverb, deux queues et une base. Prends **4 Go de RAM minimum**. Sur 2 Go
+> ça tient, mais le build Astro se fait tuer sans swap — voir 1.4.
+
+### 1.2 Mettre à jour, verrouiller SSH
+
+```bash
+ssh ubuntu@IP_DU_VPS
+sudo apt update && sudo apt full-upgrade -y
+sudo timedatectl set-timezone Africa/Libreville
+sudo nano /etc/ssh/sshd_config
+```
+
+```
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+```
+
+> ⚠️ Ne passe `PasswordAuthentication no` **qu'après** avoir vérifié que ta clé
+> fonctionne, depuis une seconde fenêtre. Garde la session actuelle ouverte.
+
+```bash
+sudo systemctl restart ssh
+```
+
+### 1.3 Pare-feu et fail2ban
+
+```bash
+sudo apt install -y ufw fail2ban
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw --force enable
+sudo systemctl enable --now fail2ban
+sudo ufw status
+```
+
+Seuls 22, 80 et 443 sont ouverts. Node (4321/4322), Reverb (8080/8081) et PostgreSQL
+(5432) n'écoutent que sur `127.0.0.1`.
+
+> OVH propose aussi un **Network Firewall** dans le manager. Facultatif ; si tu
+> l'actives, ouvre 22/80/443 sinon tu coupes l'accès.
+
+### 1.4 Swap
+
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h
+```
+
+---
+
+## Étape 2 — DNS chez OVH
+
+**Web Cloud → Noms de domaine → worldwise-admission.com → Zone DNS**.
+
+Sept enregistrements, en remplaçant `203.0.113.10` par l'IPv4 de ton VPS :
+
+| Type | Sous-domaine | Cible | Sert à |
+|---|---|---|---|
+| `A` | *(vide)* | `203.0.113.10` | vitrine production |
+| `A` | `www` | `203.0.113.10` | vitrine production |
+| `A` | `app` | `203.0.113.10` | back-office production |
+| `A` | `api` | `203.0.113.10` | API + WebSocket production |
+| `A` | `dev` | `203.0.113.10` | vitrine test |
+| `A` | `app.dev` | `203.0.113.10` | back-office test |
+| `A` | `api.dev` | `203.0.113.10` | API + WebSocket test |
+
+Chez OVH tu saisis seulement la partie sous-domaine : `app.dev` produit bien
+`app.dev.worldwise-admission.com`. Les sous-domaines à trois niveaux sont acceptés,
+et Let's Encrypt les certifie sans problème en validation HTTP.
+
+Si le VPS a une IPv6, ajoute les mêmes en `AAAA`.
+
+> **Supprime d'abord** les anciens enregistrements pointant vers GitHub Pages
+> (`A` vers `185.199.x.x`) ou Vercel (`CNAME` vers `cname.vercel-dns.com`). Un `CNAME`
+> et un `A` ne peuvent pas coexister sur le même sous-domaine.
+
+Vérifie avant de passer à l'étape 8 :
+
+```powershell
+'','www.','app.','api.','dev.','app.dev.','api.dev.' | ForEach-Object {
+  $h = "$($_)worldwise-admission.com"
+  "$h -> " + ((Resolve-DnsName $h -Type A -ErrorAction SilentlyContinue).IPAddress -join ',')
 }
 ```
 
+Les sept doivent renvoyer l'IP du VPS.
+
 ---
 
-## 3. Backend - Laravel sur VPS
-
-### Option A - VPS Linux (recommandé pour la prod)
-
-#### Prérequis serveur
-
-- Ubuntu 22.04 LTS
-- PHP 8.2+ avec extensions : `pdo`, `pdo_sqlite` (MVP) ou `pdo_pgsql` (prod), `mbstring`, `xml`, `curl`, `zip`
-- Composer
-- Nginx
-- (Optionnel) Supervisor pour les queues Laravel
-
-#### Installation PHP + Nginx (Ubuntu)
+## Étape 3 — Installer la pile logicielle
 
 ```bash
-sudo apt update
-sudo apt install -y nginx php8.2-fpm php8.2-cli php8.2-mbstring \
-  php8.2-xml php8.2-curl php8.2-zip php8.2-sqlite3 php8.2-pgsql
+# Base
+sudo apt install -y nginx git curl unzip supervisor
 
-# Installer Composer
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
+# Node 22 LTS (le paquet Ubuntu est trop ancien : les deps exigent >= 22)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v            # v22.x
+
+# PHP 8.3 (correspond au "php": "^8.3" de api/composer.json)
+sudo apt install -y php8.3-fpm php8.3-cli php8.3-common php8.3-pgsql \
+  php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath \
+  php8.3-intl php8.3-gd
+sudo systemctl enable --now php8.3-fpm
+
+# Composer
+curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
+sudo php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+
+# PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
 ```
 
-#### Déployer l'application
+Limites PHP pour les pièces jointes :
 
 ```bash
-# Cloner le dépôt (si accès Git sur le VPS)
-git clone https://github.com/ww-admission/wwa-astro-dev.git /var/www/wwa
-cd /var/www/wwa/api
+sudo nano /etc/php/8.3/fpm/php.ini
+```
 
-# Installer les dépendances
+```ini
+upload_max_filesize = 25M
+post_max_size = 26M
+memory_limit = 256M
+max_execution_time = 120
+```
+
+```bash
+sudo systemctl restart php8.3-fpm
+```
+
+> Les deux environnements partagent le même pool php-fpm. C'est suffisant à ce
+> volume. Si le test se met à ralentir la production, crée un pool dédié
+> (`/etc/php/8.3/fpm/pool.d/wwa-dev.conf`) et fais pointer `fastcgi_pass` de
+> `wwa-dev-api.conf` vers son socket.
+
+---
+
+## Étape 4 — Les deux bases PostgreSQL
+
+Deux bases, **deux utilisateurs distincts** : une compromission du test ne doit pas
+donner accès aux données réelles.
+
+```bash
+openssl rand -base64 24   # mot de passe production
+openssl rand -base64 24   # mot de passe test
+sudo -u postgres psql
+```
+
+```sql
+-- ── PRODUCTION ────────────────────────────────────────────────────────────
+CREATE DATABASE wwa_production;
+CREATE USER wwa_user WITH ENCRYPTED PASSWORD 'MOT_DE_PASSE_PROD';
+GRANT ALL PRIVILEGES ON DATABASE wwa_production TO wwa_user;
+ALTER DATABASE wwa_production OWNER TO wwa_user;
+\c wwa_production
+GRANT ALL ON SCHEMA public TO wwa_user;     -- requis depuis PostgreSQL 15
+ALTER ROLE wwa_user SET client_encoding TO 'utf8';
+ALTER ROLE wwa_user SET timezone TO 'UTC';
+
+-- ── TEST ──────────────────────────────────────────────────────────────────
+\c postgres
+CREATE DATABASE wwa_staging;
+CREATE USER wwa_dev_user WITH ENCRYPTED PASSWORD 'MOT_DE_PASSE_TEST';
+GRANT ALL PRIVILEGES ON DATABASE wwa_staging TO wwa_dev_user;
+ALTER DATABASE wwa_staging OWNER TO wwa_dev_user;
+\c wwa_staging
+GRANT ALL ON SCHEMA public TO wwa_dev_user;
+ALTER ROLE wwa_dev_user SET client_encoding TO 'utf8';
+ALTER ROLE wwa_dev_user SET timezone TO 'UTC';
+\q
+```
+
+Vérifie les deux :
+
+```bash
+psql "postgresql://wwa_user:MOT_DE_PASSE_PROD@127.0.0.1:5432/wwa_production" -c '\conninfo'
+psql "postgresql://wwa_dev_user:MOT_DE_PASSE_TEST@127.0.0.1:5432/wwa_staging" -c '\conninfo'
+```
+
+> **Pas de copie des données de production vers le test.** La base contient des
+> données personnelles réelles (passeports, adresses, relevés). Les copier dans un
+> environnement moins protégé est un risque disproportionné. Le test se peuple avec
+> le seeder et des données saisies à la main.
+
+---
+
+## Étape 5 — Cloner les deux environnements
+
+```bash
+sudo mkdir -p /var/www
+sudo chown "$USER:$USER" /var/www
+
+REPO=https://github.com/ww-admission/ww-admission.github.io.git
+
+git clone -b develop "$REPO" /var/www/wwa-dev     # TEST
+git clone -b PROD    "$REPO" /var/www/wwa         # PRODUCTION
+```
+
+> La branche `PROD` doit exister sur GitHub (étape 0). Si ce n'est pas encore le cas,
+> clone d'abord `develop` dans `/var/www/wwa` et `deploy.sh` basculera dessus au
+> premier déploiement de production.
+
+> **Dépôt privé ?** Crée une clé de déploiement en **lecture seule** sur le VPS
+> (`ssh-keygen -t ed25519 -f ~/.ssh/wwa_deploy`), ajoute la publique dans
+> **GitHub → Settings → Deploy keys**, et clone en `git@github.com:…`.
+> Le VPS n'a jamais besoin d'écrire sur le dépôt.
+
+---
+
+## Étape 6 — Environnement de TEST
+
+On installe le **test d'abord**, volontairement : c'est là qu'on apprend la procédure
+sans risque.
+
+### 6.1 Installer les services
+
+```bash
+sudo bash /var/www/wwa-dev/deploy/install.sh staging
+```
+
+Le script installe et vérifie : l'unité systemd `wwa-dev-web`, le groupe supervisor
+`wwa-dev`, le snippet nginx et les trois vhosts `wwa-dev-site` / `wwa-dev-app` /
+`wwa-dev-api`, puis lance `nginx -t` avant de recharger. Il est idempotent.
+
+> Si ton domaine n'est pas `worldwise-admission.com`, remplace-le **avant** :
+> ```bash
+> cd /var/www/wwa-dev/deploy/nginx
+> sed -i 's/worldwise-admission\.com/TON-DOMAINE.com/g' ./*.conf
+> ```
+
+### 6.2 Configuration du frontend
+
+```bash
+sudo cp /var/www/wwa-dev/deploy/env/frontend.env.staging.example /var/www/wwa-dev/.env
+sudo nano /var/www/wwa-dev/.env
+```
+
+| Variable | Valeur |
+|---|---|
+| `PUBLIC_ENV_NAME` | `staging` |
+| `PUBLIC_SITE_URL` | `https://dev.worldwise-admission.com` |
+| `PUBLIC_APP_URL` | `https://app.dev.worldwise-admission.com` |
+| `COOKIE_DOMAIN` | `.dev.worldwise-admission.com` |
+| `PORT` | `4322` |
+| `JWT_SECRET` | `openssl rand -base64 48` — **différent de la production** |
+| `BACKEND_URL` | `https://api.dev.worldwise-admission.com` |
+| `PUBLIC_REVERB_APP_KEY` | identique à `REVERB_APP_KEY` de `api/.env` |
+| `PUBLIC_REVERB_HOST` | `api.dev.worldwise-admission.com` |
+
+> ⚠️ Lu par **systemd** : format `KEY=value` strict, pas de `export`, pas de
+> commentaire en fin de ligne, pas d'espace autour du `=`.
+
+### 6.3 Configuration du backend
+
+```bash
+sudo cp /var/www/wwa-dev/deploy/env/api.env.staging.example /var/www/wwa-dev/api/.env
+sudo nano /var/www/wwa-dev/api/.env
+```
+
+À remplir : `DB_PASSWORD` (celui du test), les trois secrets Reverb, et laisser
+`MAIL_MAILER=log` pour ne rien envoyer à de vrais candidats.
+
+```bash
+for n in ID KEY SECRET; do echo "REVERB_APP_$n=$(openssl rand -hex 16)"; done
+```
+
+Note la valeur de `REVERB_APP_KEY` : elle doit être recopiée dans
+`PUBLIC_REVERB_APP_KEY` du `.env` frontend.
+
+### 6.4 Première initialisation
+
+```bash
+cd /var/www/wwa-dev/api
 composer install --no-dev --optimize-autoloader
-
-# Configurer .env
-cp .env.example .env
-nano .env  # remplir les valeurs (voir section 4)
-
-# Générer la clé Laravel
 php artisan key:generate
+php artisan migrate --force
+php artisan db:seed --force        # crée le compte super admin
+```
 
-# Migrations + seeder
+### 6.5 Premier déploiement
+
+```bash
+sudo bash /var/www/wwa-dev/deploy/deploy.sh
+```
+
+Sans argument, la cible est **staging** — c'est le défaut voulu.
+
+Le script commence par vérifier la cohérence de la configuration : environnement,
+hôtes, invariant du cookie, longueur et unicité du `JWT_SECRET`, base de données,
+CORS, clé Reverb, port Reverb. Il s'arrête avec un message explicite au premier
+écart. Puis il récupère le code, met à jour Laravel, rebuild Astro, corrige les
+permissions, redémarre les services et interroge `/health`.
+
+Sortie attendue à la fin :
+
+```
+  ✓ sante : {"status":"ok","env":"staging","release":"a1b2c3d"}
+  ✓ release en ligne : a1b2c3d
+  OK  Deploiement staging termine — release a1b2c3d
+```
+
+---
+
+## Étape 7 — Environnement de PRODUCTION
+
+Même procédure, avec les valeurs de production. Le test t'a servi de répétition.
+
+```bash
+sudo bash /var/www/wwa/deploy/install.sh production
+
+sudo cp /var/www/wwa/deploy/env/frontend.env.prod.example /var/www/wwa/.env
+sudo nano /var/www/wwa/.env
+#   PUBLIC_ENV_NAME=production
+#   PUBLIC_SITE_URL=https://worldwise-admission.com
+#   PUBLIC_APP_URL=https://app.worldwise-admission.com
+#   COOKIE_DOMAIN=.worldwise-admission.com
+#   PORT=4321
+#   JWT_SECRET=<openssl rand -base64 48, différent du test>
+#   BACKEND_URL=https://api.worldwise-admission.com
+#   PUBLIC_REVERB_HOST=api.worldwise-admission.com
+
+sudo cp /var/www/wwa/deploy/env/api.env.prod.example /var/www/wwa/api/.env
+sudo nano /var/www/wwa/api/.env
+#   DB_DATABASE=wwa_production, DB_USERNAME=wwa_user, DB_PASSWORD=<prod>
+#   REVERB_SERVER_PORT=8080
+#   trois nouveaux secrets Reverb (différents du test)
+#   MAIL_* → Resend
+
+cd /var/www/wwa/api
+composer install --no-dev --optimize-autoloader
+php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --force
 
-# Optimisations Laravel
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-
-# Permissions
-chown -R www-data:www-data /var/www/wwa/api
-chmod -R 755 /var/www/wwa/api/storage
-chmod -R 755 /var/www/wwa/api/bootstrap/cache
+sudo bash /var/www/wwa/deploy/deploy.sh production
 ```
 
-#### Configuration Nginx
+Ce dernier affiche une bannière rouge et demande de taper `PRODUCTION` en entier.
 
-```nginx
-# /etc/nginx/sites-available/wwa-api
-server {
-    listen 80;
-    server_name api.worldwise-admission.com;
-    root /var/www/wwa/api/public;
-    index index.php;
+---
 
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
+## Étape 8 — HTTPS avec Let's Encrypt
 
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
+Les sept enregistrements DNS doivent déjà résoudre vers le VPS.
 
-    location ~ /\.ht {
-        deny all;
-    }
-}
-```
-
-```bash
-sudo ln -s /etc/nginx/sites-available/wwa-api /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-#### SSL avec Let's Encrypt
+Deux certificats séparés : un incident sur le certificat de test ne doit jamais
+toucher la production.
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d api.worldwise-admission.com
+
+# PRODUCTION
+sudo certbot --nginx \
+  -d worldwise-admission.com \
+  -d www.worldwise-admission.com \
+  -d app.worldwise-admission.com \
+  -d api.worldwise-admission.com \
+  --agree-tos -m info@worldwise-admission.com --redirect
+
+# TEST
+sudo certbot --nginx \
+  -d dev.worldwise-admission.com \
+  -d app.dev.worldwise-admission.com \
+  -d api.dev.worldwise-admission.com \
+  --agree-tos -m info@worldwise-admission.com --redirect
 ```
 
-### Option B - Railway / Render / Fly.io (PaaS simplifié)
-
-Ces plateformes peuvent héberger Laravel sans configuration Nginx manuelle. Les variables d'environnement se configurent dans leur dashboard. Se référer à la documentation de chaque plateforme pour le déploiement PHP.
-
----
-
-## 4. Variables d'environnement de production
-
-### Frontend - `.env` (Vercel)
-
-```env
-# Obligatoires
-JWT_SECRET=<clé-aléatoire-32+-chars>
-BACKEND_URL=https://api.worldwise-admission.com
-PUBLIC_SITE_URL=https://worldwise-admission.com
-
-# Optionnels (futur)
-# PUBLIC_GOOGLE_CLIENT_ID=<google-oauth-client-id>
-# GOOGLE_CLIENT_SECRET=<google-oauth-secret>
+```bash
+sudo systemctl status certbot.timer
+sudo certbot renew --dry-run
 ```
 
-### Backend - `api/.env` (VPS)
+> `install.sh` **ne réécrit pas** un vhost contenant déjà `listen 443` : il détecte
+> le passage de certbot et te prévient. Si tu modifies un fichier `deploy/nginx/*`
+> après certbot, reporte le changement à la main dans
+> `/etc/nginx/sites-available/`, puis `nginx -t && systemctl reload nginx`.
 
-```env
-APP_NAME=WWA-API
-APP_ENV=production
-APP_KEY=<généré par php artisan key:generate>
-APP_DEBUG=false
-APP_URL=https://api.worldwise-admission.com
+### Redirection `www` → domaine nu (optionnel)
 
-FRONTEND_URL=https://worldwise-admission.com
+Après certbot, dans `/etc/nginx/sites-available/wwa-site`, sors `www` dans son propre
+bloc :
 
-# Compte Super Admin
-SUPER_ADMIN_EMAIL=info@worldwise-admission.com
-SUPER_ADMIN_PASSWORD=<mot-de-passe-fort>
-
-# Base de données (PostgreSQL en prod)
-DB_CONNECTION=pgsql
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_DATABASE=wwa_production
-DB_USERNAME=wwa_user
-DB_PASSWORD=<mot-de-passe-db>
-
-# Logs
-LOG_CHANNEL=stack
-LOG_STACK=daily
-LOG_LEVEL=warning
-
-# Sessions
-SESSION_DRIVER=database
-SESSION_LIFETIME=10080  # 7 jours en minutes
-
-# Cache
-CACHE_STORE=database
-
-# Mail (Resend)
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.resend.com
-MAIL_PORT=465
-MAIL_USERNAME=resend
-MAIL_PASSWORD=<resend-api-key>
-MAIL_ENCRYPTION=ssl
-MAIL_FROM_ADDRESS=noreply@worldwise-admission.com
-MAIL_FROM_NAME="WorldWise Admission"
+```nginx
+server {
+    listen 443 ssl;
+    server_name www.worldwise-admission.com;
+    # les directives ssl_* ajoutées par certbot restent ici
+    return 301 https://worldwise-admission.com$request_uri;
+}
 ```
 
 ---
 
-## 5. Base de données
+## Étape 9 — Push-to-deploy
 
-### Migration SQLite → PostgreSQL
+Objectif : `git push` sur `develop` met à jour le test tout seul ; `PROD` met à jour
+la production après ton approbation.
 
-Pour le passage en production, remplacer SQLite par PostgreSQL :
+### 9.1 Utilisateur de déploiement sur le VPS
 
 ```bash
-# Sur le VPS
-sudo apt install -y postgresql postgresql-contrib php8.2-pgsql
+sudo adduser --disabled-password --gecos "" deploy
+sudo mkdir -p /home/deploy/.ssh && sudo chmod 700 /home/deploy/.ssh
 
-# Créer la base
-sudo -u postgres psql
-  CREATE DATABASE wwa_production;
-  CREATE USER wwa_user WITH PASSWORD 'mot-de-passe-fort';
-  GRANT ALL PRIVILEGES ON DATABASE wwa_production TO wwa_user;
-  \q
+# Paire de clés dédiée à GitHub Actions
+sudo -u deploy ssh-keygen -t ed25519 -N "" -f /home/deploy/.ssh/gh_actions -C "github-actions@wwa"
+sudo -u deploy cp /home/deploy/.ssh/gh_actions.pub /home/deploy/.ssh/authorized_keys
+sudo chmod 600 /home/deploy/.ssh/authorized_keys
+sudo chown -R deploy:deploy /home/deploy/.ssh
 
-# Dans api/.env
-DB_CONNECTION=pgsql
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_DATABASE=wwa_production
-DB_USERNAME=wwa_user
-DB_PASSWORD=mot-de-passe-fort
-
-# Appliquer les migrations
-php artisan migrate --force
-php artisan db:seed --force
+# `deploy` doit pouvoir lire les dépôts et écrire dans les dossiers de build
+sudo usermod -aG www-data deploy
 ```
 
-### Sauvegardes
+### 9.2 Autoriser uniquement le déploiement, rien d'autre
 
 ```bash
-# Sauvegarde PostgreSQL (à automatiser via cron)
-pg_dump -U wwa_user wwa_production > backup_$(date +%Y%m%d).sql
+sudo bash /var/www/wwa/deploy/install.sh production deploy
+sudo bash /var/www/wwa-dev/deploy/install.sh staging deploy
+```
 
-# Cron journalier à 3h00
-0 3 * * * pg_dump -U wwa_user wwa_production > /backups/wwa_$(date +\%Y\%m\%d).sql
+Avec un utilisateur en second argument, `install.sh` :
+
+- copie `deploy.sh` dans **`/usr/local/sbin/wwa-deploy`**, propriété de root, non
+  modifiable par `deploy` ;
+- écrit `/etc/sudoers.d/wwa-deploy` avec une seule autorisation :
+  `deploy ALL=(root) NOPASSWD: /usr/local/sbin/wwa-deploy` ;
+- valide la règle avec `visudo -c` et l'annule si elle est invalide.
+
+> C'est une **copie** volontairement : si `sudoers` pointait directement sur
+> `deploy/deploy.sh`, l'utilisateur `deploy` pourrait éditer ce fichier et obtenir
+> root. Conséquence à retenir : après toute modification de `deploy/deploy.sh`, il faut
+> relancer `install.sh` pour rafraîchir la copie.
+
+Test :
+
+```bash
+sudo -u deploy sudo -n /usr/local/sbin/wwa-deploy staging --yes
+```
+
+### 9.3 Récupérer les valeurs pour GitHub
+
+```bash
+sudo cat /home/deploy/.ssh/gh_actions        # → secret VPS_SSH_KEY (tout, en-têtes inclus)
+ssh-keyscan -H "$(curl -s ifconfig.me)"      # → secret VPS_SSH_KNOWN_HOSTS
+curl -s ifconfig.me                          # → secret VPS_HOST
+```
+
+### 9.4 Réglages GitHub
+
+Suis [BRANCHING.md §4](BRANCHING.md#4-réglages-github-à-faire-une-seule-fois) :
+
+- branche par défaut `develop`
+- protection de `PROD` (interdire force-push et suppression)
+- **environnement `production` avec « Required reviewers »** ← le garde-fou essentiel
+- les cinq secrets
+
+### 9.5 Garde-fous sur ta machine
+
+```powershell
+npm run hooks:install
+```
+
+> Active les workflows **après** avoir réussi les déploiements manuels des étapes 6
+> et 7 et obtenu les certificats. Les workflows vérifient les URLs publiques en
+> HTTPS : ils échoueraient avant.
+
+---
+
+## Étape 10 — Vérifications
+
+### 10.1 Services
+
+```bash
+systemctl is-active nginx php8.3-fpm postgresql wwa-web wwa-dev-web
+sudo supervisorctl status
+```
+
+Attendu :
+
+```
+wwa:wwa-queue              RUNNING
+wwa:wwa-reverb             RUNNING
+wwa-dev:wwa-dev-queue      RUNNING
+wwa-dev:wwa-dev-reverb     RUNNING
+```
+
+### 10.2 Isolation des ports
+
+```bash
+sudo ss -ltnp | grep -E '4321|4322|8080|8081|5432'
+```
+
+Les cinq doivent être sur `127.0.0.1`, **aucun** sur `0.0.0.0`.
+
+### 10.3 Routage, environnements, SEO
+
+```bash
+# PRODUCTION
+curl -sI https://worldwise-admission.com/login | grep -i location
+#   → https://app.worldwise-admission.com/login
+curl -sI https://app.worldwise-admission.com/            # 302 → /login
+curl -sI https://app.worldwise-admission.com/contact     # 302 → vitrine
+curl -s  https://worldwise-admission.com/health          # env=production
+curl -s  https://worldwise-admission.com/robots.txt      # Allow: /
+curl -s  https://app.worldwise-admission.com/robots.txt  # Disallow: /
+curl -sI https://app.worldwise-admission.com/login | grep -i x-robots-tag
+
+# TEST
+curl -sI https://dev.worldwise-admission.com/login | grep -i location
+#   → https://app.dev.worldwise-admission.com/login
+curl -s  https://dev.worldwise-admission.com/health      # env=staging
+curl -s  https://dev.worldwise-admission.com/robots.txt      # Disallow: /
+curl -s  https://app.dev.worldwise-admission.com/robots.txt  # Disallow: /
+```
+
+**Le contrôle le plus important** — la vitrine de production doit être indexable, et
+absolument rien d'autre :
+
+```bash
+for u in https://worldwise-admission.com \
+         https://app.worldwise-admission.com \
+         https://dev.worldwise-admission.com \
+         https://app.dev.worldwise-admission.com; do
+  printf '%-42s %s\n' "$u" "$(curl -s "$u/robots.txt" | tr '\n' ' ')"
+done
+```
+
+Seul le premier doit contenir `Allow: /`.
+
+### 10.4 Isolation des sessions
+
+Le test qui prouve que les deux environnements ne se marchent pas dessus :
+
+1. Connecte-toi sur `https://app.worldwise-admission.com/login` (production)
+2. Dans le **même navigateur**, connecte-toi sur
+   `https://app.dev.worldwise-admission.com/login` (test)
+3. Recharge l'onglet de production → **tu dois toujours être connecté**
+
+Dans les outils du navigateur → Application → Cookies, tu dois voir deux cookies
+`wwa_session` distincts, l'un sur `.worldwise-admission.com`, l'autre sur
+`.dev.worldwise-admission.com`.
+
+### 10.5 Parcours fonctionnel, sur le TEST
+
+- [ ] Bandeau orange « Environnement de test » visible en bas à gauche, avec la version
+- [ ] Connexion admin → `app.dev.…/admin`, statistiques chargées depuis Laravel
+- [ ] Inscription candidat sur `app.dev.…/register` → `app.dev.…/dashboard`
+- [ ] `dev.…/candidature` : formulaire 6 étapes soumis, visible dans l'admin
+- [ ] Messagerie temps réel sans rechargement (WebSocket Reverb)
+- [ ] Pièce jointe téléversée puis téléchargée depuis l'admin
+- [ ] Bascule clair/sombre conservée après rechargement
+- [ ] Déconnexion → retour vitrine ; `app.dev.…/admin` renvoie vers `/login`
+
+Puis les mêmes vérifications en production, **sans** le bandeau orange.
+
+### 10.6 Chaîne complète de déploiement
+
+```powershell
+git checkout develop
+"test $(Get-Date -Format o)" | Out-File -Encoding utf8 -Append docs/scratch.md
+git add docs/scratch.md
+git commit -m "test: verifier la chaine de deploiement"
+git push
+```
+
+→ le workflow **Deploy - TEST** doit passer au vert et `dev.…/health` renvoyer le
+nouveau `release`.
+
+```powershell
+npm run promote     # puis approuver dans GitHub
+```
+
+→ le workflow **Deploy - PRODUCTION** doit s'arrêter en attente d'approbation, puis
+passer au vert. Supprime ensuite le fichier de test.
+
+---
+
+## Étape 11 — Sauvegardes automatiques
+
+Seule la production est sauvegardée : le test est reconstructible à volonté.
+
+```bash
+sudo nano /usr/local/bin/wwa-backup.sh
+```
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+DEST=/var/backups/wwa
+STAMP=$(date +%Y%m%d-%H%M)
+mkdir -p "$DEST"
+
+sudo -u postgres pg_dump -Fc wwa_production > "$DEST/db-$STAMP.dump"
+tar czf "$DEST/storage-$STAMP.tar.gz" -C /var/www/wwa/api storage/app
+find "$DEST" -type f -mtime +14 -delete
+```
+
+```bash
+sudo chmod +x /usr/local/bin/wwa-backup.sh
+sudo crontab -e
+```
+
+```cron
+0 3 * * * /usr/local/bin/wwa-backup.sh >> /var/log/wwa-backup.log 2>&1
+```
+
+Restauration :
+
+```bash
+sudo -u postgres pg_restore -d wwa_production --clean /var/backups/wwa/db-20260818-0300.dump
+```
+
+> Une sauvegarde sur le VPS ne protège pas de la perte du VPS. Copie-les ailleurs
+> (`rsync` vers ta machine) ou active l'option **Snapshot / Backup automatisé** d'OVH.
+
+**Astuce test** : pour peupler le test avec une structure réaliste sans données
+personnelles, restaure une sauvegarde de production dans `wwa_staging` **puis
+anonymise**. À défaut d'un script d'anonymisation vérifié, reste sur le seeder.
+
+---
+
+## Dépannage
+
+| Symptôme | Cause probable | Vérification |
+|---|---|---|
+| `502` sur une vitrine ou un back-office | le service Node est arrêté | `journalctl -u wwa-web -n 50` / `-u wwa-dev-web` |
+| Le service redémarre en boucle | `JWT_SECRET` absent du `.env` | `systemctl show wwa-web -p EnvironmentFiles` |
+| `502` sur une API | mauvais socket php-fpm | `ls /run/php/` puis corriger `fastcgi_pass` |
+| `deploy.sh` refuse : `COOKIE_DOMAIN incoherent` | le garde-fou fait son travail | il doit valoir exactement `.` + hôte de `PUBLIC_SITE_URL` |
+| `deploy.sh` refuse : `PUBLIC_ENV_NAME ... mais la cible est ...` | `.env` du mauvais environnement | `grep PUBLIC_ENV_NAME /var/www/wwa*/.env` |
+| `deploy.sh` refuse : `DB_DATABASE ... attendu ...` | risque d'écraser la base de prod | `grep DB_DATABASE /var/www/wwa*/api/.env` |
+| `deploy.sh` refuse : `JWT_SECRET identique` | test et prod partagent le secret | en régénérer un pour le test |
+| Session perdue entre vitrine et back-office | `COOKIE_DOMAIN` vide → cookie host-only | onglet Cookies du navigateur |
+| Se connecter au test déconnecte de la prod | `COOKIE_DOMAIN` du test trop large | doit être `.dev.domaine.com` |
+| Le bandeau orange manque sur le test | `PUBLIC_ENV_NAME` absent au build | `curl dev.…/health` puis rebuild |
+| Bandeau orange visible en **production** | `PUBLIC_ENV_NAME` ≠ `production` | corriger puis `deploy.sh production` |
+| `robots.txt` de la prod en `Disallow: /` | idem — **urgent, désindexation** | corriger et redéployer immédiatement |
+| La vitrine s'affiche sur `app.…` | vhost `*-app` inactif | `nginx -T \| grep -A3 'server_name app'` |
+| WebSocket qui échoue | clé Reverb ou origine incohérente | `/var/log/supervisor/wwa-reverb.log` |
+| Le test répond avec les assets de la prod | mauvais chemin `/_astro/` dans un vhost | `grep -r alias /etc/nginx/sites-available/` |
+| Pages en données mock | Laravel injoignable depuis Node | `curl https://api.…/api/auth/login` depuis le VPS |
+| `npm run build` tué (OOM) | pas assez de RAM | ajouter du swap (étape 1.4) |
+| Modification de `.env` sans effet | variable `PUBLIC_*` figée au build | relancer `deploy.sh` (pas un simple restart) |
+| Modification de `deploy.sh` sans effet en CI | la copie root n'est pas à jour | relancer `install.sh <cible> deploy` |
+| `un déploiement est déjà en cours` | verrou `flock` | attendre, ou `ls -l /var/lock/wwa-deploy-*` |
+
+**Journaux :**
+
+```bash
+sudo journalctl -u wwa-web -f                        # Astro production
+sudo journalctl -u wwa-dev-web -f                    # Astro test
+sudo tail -f /var/log/nginx/wwa-app.error.log
+sudo tail -f /var/www/wwa/api/storage/logs/laravel-*.log
+sudo tail -f /var/log/supervisor/wwa-reverb.log
+sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 ```
 
 ---
 
-## 6. CORS et communication inter-services
+## Checklist de mise en production
 
-### Configuration CORS Laravel
+### Branches et GitHub
+- [ ] `main` et `develop` réconciliés, `develop` contient les annuaires
+- [ ] `PROD` créée et à jour
+- [ ] Branche par défaut GitHub = `develop`
+- [ ] `PROD` protégée : force-push et suppression interdits
+- [ ] Environnement GitHub `production` avec **Required reviewers**
+- [ ] Cinq secrets renseignés (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `VPS_PORT` si besoin)
+- [ ] `ci.yml` (pipeline Docker) passé en `workflow_dispatch`
+- [ ] `npm run hooks:install` lancé sur ta machine
 
-Le fichier `api/config/cors.php` doit autoriser uniquement le frontend :
+### Infrastructure
+- [ ] Ubuntu 24.04 à jour, fuseau horaire réglé
+- [ ] SSH par clé, `PermitRootLogin no`, `PasswordAuthentication no`
+- [ ] `ufw` actif : 22 / 80 / 443 uniquement
+- [ ] `fail2ban` actif
+- [ ] Swap présent (4 Go conseillé pour deux environnements)
+- [ ] Les 7 enregistrements DNS pointent vers le VPS, anciens Vercel/Pages supprimés
+- [ ] Node 22, PHP 8.3, PostgreSQL 16, nginx, supervisor installés
 
-```php
-// api/config/cors.php
-'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:4321')],
-'allowed_methods' => ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-'allowed_headers' => ['Content-Type', 'Authorization', 'Accept'],
-'exposed_headers' => [],
-'max_age' => 3600,
-'supports_credentials' => false,
-```
+### Configuration
+- [ ] `PUBLIC_ENV_NAME` = `production` d'un côté, `staging` de l'autre
+- [ ] `COOKIE_DOMAIN` = `.domaine.com` / `.dev.domaine.com`
+- [ ] Les deux `JWT_SECRET` sont **différents** et font ≥ 32 caractères
+- [ ] Les deux jeux de secrets Reverb sont différents
+- [ ] `PUBLIC_REVERB_APP_KEY` == `REVERB_APP_KEY` dans chaque environnement
+- [ ] `REVERB_ALLOWED_ORIGINS` pointe le bon hôte `app.` — jamais `*`
+- [ ] `APP_DEBUG=false` dans les deux `api/.env`
+- [ ] `DB_DATABASE` : `wwa_production` / `wwa_staging`, deux utilisateurs distincts
+- [ ] `MAIL_MAILER=log` sur le test
+- [ ] Les quatre `.env` en `chmod 600`, propriétaire `www-data`
+- [ ] Aucun secret préfixé `PUBLIC_`
 
-> En production : `FRONTEND_URL=https://worldwise-admission.com` dans `api/.env`.
+### Services
+- [ ] `wwa-web` et `wwa-dev-web` : `enabled` et `active`
+- [ ] `wwa:*` et `wwa-dev:*` : `RUNNING`
+- [ ] Ports 4321, 4322, 8080, 8081, 5432 tous sur `127.0.0.1`
+- [ ] Deux certificats Let's Encrypt émis, `certbot.timer` actif
+- [ ] `/usr/local/sbin/wwa-deploy` installé, `/etc/sudoers.d/wwa-deploy` valide
 
-### Pourquoi pas de CORS strict côté Astro ?
+### Sécurité et SEO
+- [ ] Seul `worldwise-admission.com/robots.txt` contient `Allow: /`
+- [ ] `X-Robots-Tag: noindex` sur les trois autres hôtes
+- [ ] `https://api.domaine.com/storage/` renvoie 403
+- [ ] Isolation des sessions vérifiée ([10.4](#104-isolation-des-sessions))
+- [ ] Mot de passe super admin différent de tout exemple
 
-Les appels de l'Astro SSR vers Laravel se font serveur-à-serveur (via `BACKEND_URL`). CORS ne s'applique qu'aux appels navigateur → serveur. Le BFF Astro agit comme proxy, donc le navigateur ne parle jamais directement à Laravel.
-
----
-
-## 7. Checklist mise en production
-
-### Avant le premier déploiement
-
-- [ ] Générer `JWT_SECRET` avec `openssl rand -base64 48` et l'ajouter dans Vercel
-- [ ] Définir `BACKEND_URL` dans Vercel (URL publique du backend Laravel)
-- [ ] Définir `SUPER_ADMIN_EMAIL` et `SUPER_ADMIN_PASSWORD` dans `api/.env`
-- [ ] Lancer `php artisan key:generate` sur le VPS
-- [ ] Lancer `php artisan migrate --force` et `php artisan db:seed --force`
-- [ ] Vérifier que `APP_DEBUG=false` dans `api/.env`
-- [ ] Configurer CORS (`FRONTEND_URL` dans `api/.env`)
-- [ ] Installer SSL (Let's Encrypt) sur le VPS
-- [ ] Tester le login avec `info@worldwise-admission.com`
-
-### Vérifications fonctionnelles
-
-- [ ] Page `/` charge correctement
-- [ ] Page `/candidature` - formulaire multi-étapes fonctionne
-- [ ] Modal `/login` - connexion admin → redirige vers `/admin`
-- [ ] `/register` - création compte candidat → redirige vers `/dashboard`
-- [ ] `/admin/candidatures` - liste visible (même si vide)
-- [ ] `/dashboard/candidature` - page candidat accessible
-- [ ] POST `/api/auth/logout` - déconnexion efface le cookie
-
-### Sécurité
-
-- [ ] `APP_DEBUG=false` en production (erreurs Laravel non exposées)
-- [ ] Cookie `wwa_session` : `httpOnly=true`, `secure=true`, `sameSite=Lax`
-- [ ] Headers de sécurité injectés par `src/middleware.ts` (`X-Frame-Options`, etc.)
-- [ ] `JWT_SECRET` unique et aléatoire (jamais la valeur exemple)
-- [ ] Aucune variable secrète préfixée `PUBLIC_` dans Vercel
-
-### Performance
-
-- [ ] `php artisan config:cache` exécuté en production
-- [ ] `php artisan route:cache` exécuté en production
-- [ ] `composer install --no-dev --optimize-autoloader`
-
----
-
-## 8. Domaine et DNS
-
-### Configuration recommandée
-
-| Sous-domaine | Type | Valeur | Destination |
-|---|---|---|---|
-| `worldwise-admission.com` | CNAME | `cname.vercel-dns.com` | Vercel (frontend) |
-| `www.worldwise-admission.com` | CNAME | `cname.vercel-dns.com` | Vercel (frontend) |
-| `api.worldwise-admission.com` | A | IP du VPS | Laravel backend |
-
-### Configurer le domaine dans Vercel
-
-1. Dashboard Vercel → projet → Settings → Domains
-2. Ajouter `worldwise-admission.com` et `www.worldwise-admission.com`
-3. Vercel génère les enregistrements DNS à ajouter chez le registrar
-
----
-
-## 9. Surveillance et logs
-
-### Logs Laravel
-
-```bash
-# Consulter les logs en temps réel
-tail -f /var/www/wwa/api/storage/logs/laravel.log
-
-# Logs quotidiens (si LOG_STACK=daily)
-ls /var/www/wwa/api/storage/logs/
-```
-
-### Logs Vercel
-
-Dans le dashboard Vercel → Deployments → sélectionner un déploiement → Functions → voir les logs serverless en temps réel.
-
-### Vérification santé API
-
-```bash
-# Tester que le backend répond
-curl -X POST https://api.worldwise-admission.com/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"info@worldwise-admission.com","password":"Worldwise@ADMIN-1234"}'
-# Attendu: { "token": "...", "user": { ... } }
-```
-
-### Mises à jour (frontend)
-
-```bash
-git push origin main
-# → Vercel détecte le push et redéploie automatiquement
-```
-
-### Mises à jour (backend)
-
-```bash
-# Sur le VPS
-cd /var/www/wwa/api
-git pull origin main
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan config:cache
-php artisan route:cache
-sudo systemctl reload php8.2-fpm
-```
+### Fonctionnel
+- [ ] Toutes les vérifications de l'[étape 10](#étape-10--vérifications) passent
+- [ ] Chaîne `git push` → test → `promote` → production testée de bout en bout
+- [ ] Sauvegarde quotidienne planifiée **et restauration testée une fois**

@@ -1,0 +1,65 @@
+name: CI - build
+
+# Verification que la branche compile. Ne deploie rien.
+# Le deploiement est fait par deploy-staging.yml et deploy-production.yml.
+
+on:
+  push:
+    branches: [develop, PROD]
+    paths-ignore: ['**.md', 'docs/**', '.gitignore']
+  pull_request:
+    branches: [develop, PROD]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dependances
+        run: npm ci --include=dev --no-audit --no-fund
+
+      - name: Verification TypeScript
+        run: npm run check
+
+      - name: Build Astro (config staging factice)
+        # Valeurs factices : seule la compilation est verifiee ici.
+        env:
+          PUBLIC_ENV_NAME: staging
+          PUBLIC_SITE_URL: https://dev.example.com
+          PUBLIC_APP_URL: https://app.dev.example.com
+          JWT_SECRET: ci-only-not-a-real-secret-value-32chars
+          BACKEND_URL: http://127.0.0.1:8000
+        run: npm run build
+
+      - name: Verifier que les secrets serveur ne sont pas figes dans le bundle
+        # Regle documentee dans docs/INFRA-CHANGES.md §3 : toute variable
+        # serveur doit rester une lecture dynamique de process.env dans le
+        # bundle compile, sinon la configuration du VPS n'aurait aucun effet.
+        run: |
+          set -e
+          for v in JWT_SECRET BACKEND_URL COOKIE_DOMAIN; do
+            if ! grep -rq "process\.env\.$v" dist/server/; then
+              echo "::error::$v n'apparait pas comme process.env.$v dans dist/server/ — valeur probablement figee au build"
+              exit 1
+            fi
+            echo "OK  process.env.$v present dans le bundle"
+          done
+          if grep -rq "ci-only-not-a-real-secret-value-32chars" dist/; then
+            echo "::error::le JWT_SECRET du CI a fuite dans le bundle compile"
+            exit 1
+          fi
+          echo "OK  aucun secret de build fige dans dist/"

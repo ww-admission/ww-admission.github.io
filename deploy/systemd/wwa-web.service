@@ -1,0 +1,55 @@
+# ============================================================================
+# wwa-web.service - Serveur Astro (Node standalone) pour WorldWise Admission
+#
+# Sert la vitrine (worldwise-admission.com) ET le back-office
+# (app.worldwise-admission.com) : un seul process, le routage par hôte est fait
+# dans src/middleware.ts.
+#
+# Installation :
+#   sudo cp deploy/systemd/wwa-web.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now wwa-web
+#   sudo systemctl status wwa-web
+# ============================================================================
+
+[Unit]
+Description=WWA - Serveur Astro (SSR Node)
+Documentation=https://github.com/ww-admission/ww-admission.github.io
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/wwa
+
+# Les variables sont lues au démarrage (pas de dotenv au runtime dans Astro).
+# Format strict KEY=value, sans `export` ni commentaire en fin de ligne.
+EnvironmentFile=/var/www/wwa/.env
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node /var/www/wwa/dist/server/entry.mjs
+
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wwa-web
+
+# ── Durcissement ──────────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# Écriture autorisée uniquement là où Astro/sharp en ont besoin
+ReadWritePaths=/var/www/wwa/dist
+
+[Install]
+WantedBy=multi-user.target

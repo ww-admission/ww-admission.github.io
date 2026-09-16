@@ -7,6 +7,7 @@ import Footer from '../components/ui/Footer.astro'
 import LoginModal from '../components/blocks/modal/Login.astro'
 import RegisterModal from '../components/blocks/modal/Register.astro'
 import Header from '../components/blocks/head/Header.astro'
+import EnvBanner from '../components/ui/EnvBanner.astro'
 // Scripts
 import Scriprs from '../components/scripts/LocalScripts.astro'
 import GoogleTagManagerBody from '../components/scripts/googleTagManagerBody.astro'
@@ -47,5 +48,6 @@ const { title, description, ogImage, noindex } = Astro.props
 		<LoginModal />
 		<RegisterModal />
 		<Scriprs />
+		<EnvBanner />
 	</body>
 </html>

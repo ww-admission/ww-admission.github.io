@@ -1,6 +1,8 @@
 // Navigation Bar
 // ------------
 // Description: The navigation bar data for the website.
+import { appLink } from '../lib/urls'
+
 export interface Logo {
 	src: string
 	alt: string
@@ -44,6 +46,7 @@ export const navigationBarData: NavData = {
 		{ name: 'Contact', link: '/contact' }
 	],
 	navActions: [
-		{ name: 'Se connecter', link: '/login', style: 'primary', size: 'lg' },
+		// Le back-office vit sur app.domaine.com → lien absolu en prod, '/login' en local
+		{ name: 'Se connecter', link: appLink('/login'), style: 'primary', size: 'lg' },
 	]
 }

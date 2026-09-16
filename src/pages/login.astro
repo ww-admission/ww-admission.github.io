@@ -1,5 +1,6 @@
 ---
 import Header from '../components/blocks/head/Header.astro'
+import EnvBanner from '../components/ui/EnvBanner.astro'
 import '../styles/global.css'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/outfit'
@@ -193,5 +194,6 @@ if (rawToken) {
         }
       })
     </script>
+    <EnvBanner />
   </body>
 </html>

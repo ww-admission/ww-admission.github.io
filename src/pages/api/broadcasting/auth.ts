@@ -5,7 +5,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   const session = await getSession(cookies)
   if (!session) return new Response(JSON.stringify({ message: 'Non authentifié.' }), { status: 401 })
 
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = process.env.BACKEND_URL ?? 'http://localhost:8000'
   try {
     const body = await request.text()
     const resp = await fetch(`${base}/broadcasting/auth`, {

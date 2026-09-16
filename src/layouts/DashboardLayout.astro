@@ -1,6 +1,7 @@
 ---
 import Header from '../components/blocks/head/Header.astro'
 import NotificationBell from '../components/ui/NotificationBell.astro'
+import EnvBanner from '../components/ui/EnvBanner.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -403,6 +404,8 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
 
     <!-- Logout modal - module script, garanti d'être attaché après astro:page-load -->
     <script>
+      import { SPLIT_HOSTS, siteUrl } from '../lib/urls'
+
       document.addEventListener('astro:page-load', () => {
         const logoutBtn     = document.getElementById('logout-btn')
         const logoutModal   = document.getElementById('logout-modal')
@@ -432,7 +435,11 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
             headers: { 'X-Requested-With': 'fetch' },
           })
             .catch(() => {})
-            .finally(() => { window.location.href = '/' })
+            .finally(() => {
+              // Le back-office vit sur app.domaine.com : la déconnexion ramène
+              // sur la vitrine (absolue en prod, '/' quand il n'y a qu'un hôte).
+              window.location.href = SPLIT_HOSTS ? siteUrl('/') : '/'
+            })
         })
 
         logoutModal.addEventListener('click', (e) => {
@@ -477,6 +484,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
         ;(window as any).__echoInstance = null
       })
     </script>
+    <EnvBanner />
   </body>
 </html>
 

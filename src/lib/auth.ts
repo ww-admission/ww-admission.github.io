@@ -31,7 +31,7 @@ async function hmacSign(data: string, secret: string): Promise<string> {
 }
 
 function getSecret(): string {
-  const secret = import.meta.env.JWT_SECRET
+  const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET is not set in environment variables')
   return secret
 }
@@ -66,18 +66,50 @@ export function sessionCookieName(): string {
   return COOKIE_NAME
 }
 
-export function makeSetCookieHeader(token: string): string {
-  const secure = import.meta.env.PUBLIC_SITE_URL?.startsWith('https') ? '; Secure' : ''
-  return `${COOKIE_NAME}=${token}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${TTL_SECONDS}${secure}`
+/**
+ * Domaine du cookie de session.
+ *
+ * En production la vitrine (domaine.com) et le back-office (app.domaine.com)
+ * doivent partager la session : `/candidature` est servi par la vitrine mais
+ * poste vers `/api/candidatures` avec le cookie. `COOKIE_DOMAIN=.domaine.com`
+ * rend le cookie visible sur les deux hôtes. Non défini en local → cookie
+ * host-only sur localhost.
+ */
+export function cookieDomain(): string | undefined {
+  const domain = process.env.COOKIE_DOMAIN?.trim()
+  return domain ? domain : undefined
 }
 
-export function clearCookieHeader(): string {
-  return `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0`
+export interface SessionCookieOptions {
+  httpOnly: boolean
+  secure: boolean
+  sameSite: 'lax'
+  maxAge: number
+  path: string
+  domain?: string
+}
+
+export function sessionCookieOptions(): SessionCookieOptions {
+  const domain = cookieDomain()
+  return {
+    httpOnly: true,
+    secure: import.meta.env.PROD,
+    sameSite: 'lax',
+    maxAge: TTL_SECONDS,
+    path: '/',
+    ...(domain ? { domain } : {}),
+  }
+}
+
+/** Options à passer à cookies.delete() - doivent correspondre à celles du set */
+export function sessionCookieClearOptions(): { path: string; domain?: string } {
+  const domain = cookieDomain()
+  return { path: '/', ...(domain ? { domain } : {}) }
 }
 
 // Helper pour appels serveur Astro → Laravel
 export function backendFetch(path: string, session: Session | null, init?: RequestInit): Promise<Response> {
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = process.env.BACKEND_URL ?? 'http://localhost:8000'
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',

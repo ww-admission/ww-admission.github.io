@@ -1,0 +1,58 @@
+# ============================================================================
+# wwa-dev-web.service - Serveur Astro de STAGING (Node standalone)
+#
+# Environnement de TEST. Sert dev.worldwise-admission.com ET
+# app.dev.worldwise-admission.com : un seul process, le routage par hote est
+# fait dans src/middleware.ts.
+#
+# Ecoute sur 127.0.0.1:4322 (la production est sur 4321) - HOST et PORT sont
+# definis dans /var/www/wwa-dev/.env.
+#
+# Installation :
+#   sudo cp deploy/systemd/wwa-dev-web.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now wwa-dev-web
+#   sudo systemctl status wwa-dev-web
+# ============================================================================
+
+[Unit]
+Description=WWA STAGING - Serveur Astro (SSR Node)
+Documentation=https://github.com/ww-admission/ww-admission.github.io
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/wwa-dev
+
+# Variables lues au demarrage. Astro ne charge pas de dotenv au runtime :
+# c'est systemd qui fournit process.env.
+# Format strict KEY=value, sans `export`, sans commentaire en fin de ligne.
+EnvironmentFile=/var/www/wwa-dev/.env
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node /var/www/wwa-dev/dist/server/entry.mjs
+
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wwa-dev-web
+
+# ── Durcissement ──────────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/www/wwa-dev/dist
+
+[Install]
+WantedBy=multi-user.target

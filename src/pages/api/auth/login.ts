@@ -1,7 +1,5 @@
 import type { APIRoute } from 'astro'
-import { createToken, sessionCookieName } from '../../../lib/auth'
-
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60
+import { createToken, sessionCookieName, sessionCookieOptions } from '../../../lib/auth'
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   let body: Record<string, unknown>
@@ -11,7 +9,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return json({ message: 'Corps de requête invalide' }, 400)
   }
 
-  const backendUrl = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8000'
 
   let resp: Response
   try {
@@ -53,13 +51,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     token: data.token,
   })
 
-  const cookieOpts = {
-    httpOnly: true,
-    secure: import.meta.env.PROD,
-    sameSite: 'lax' as const,
-    maxAge: COOKIE_MAX_AGE,
-    path: '/',
-  }
+  const cookieOpts = sessionCookieOptions()
 
   cookies.set(sessionCookieName(), sessionToken, cookieOpts)
   cookies.set('wwa_role', role, { ...cookieOpts, httpOnly: false })

@@ -30,7 +30,7 @@
                │ HTTPS (TLS 1.3)
                ▼
 ╔══════════════════════════════════════════════════════════════╗
-║              VERCEL EDGE NETWORK                             ║
+║              VPS OVH - nginx (TLS)                           ║
 ║  ┌──────────────────────────────────────────────────────┐   ║
 ║  │                 ASTRO SSR SERVER                      │   ║
 ║  │                                                       │   ║
@@ -89,13 +89,13 @@
 
 ### Rôles des deux serveurs
 
-| | Astro SSR (Vercel) | Laravel (api/) |
+| | Astro SSR (Node) | Laravel (api/) |
 |---|---|---|
 | **Responsabilité** | Rendu HTML, routing, sécurité session | Logique métier, persistance, auth tokens |
 | **Connaissance du client** | Cookies, headers HTTP, session HMAC | Tokens Sanctum uniquement |
 | **Base de données** | Aucune | SQLite → PostgreSQL en prod |
 | **Secrets exposés** | `JWT_SECRET` (jamais au client) | `APP_KEY`, credentials DB |
-| **Scale** | Serverless Vercel (auto) | VPS / PaaS à déployer |
+| **Scale** | Process Node (systemd, VPS OVH) | php-fpm sur le même VPS |
 
 ---
 
@@ -114,7 +114,7 @@ Le projet utilise `output: 'server'` - **tout est SSR** par défaut. Chaque requ
 // astro.config.mjs
 export default defineConfig({
   output: 'server',      // SSR - pas de static export
-  adapter: vercel(),     // Serverless sur Vercel
+  adapter: node({ mode: 'standalone' }),  // VPS OVH, service systemd
 })
 ```
 
@@ -275,7 +275,7 @@ verifyToken("data.sig")
 **Pourquoi HMAC maison et pas JWT ?**
 - Aucune dépendance externe (moins de surface d'attaque)
 - Format simple et auditable
-- `crypto.subtle` (Web Crypto API) disponible dans les runtimes Vercel/Edge
+- `crypto.subtle` (Web Crypto API) disponible nativement dans Node 22
 - Le JWT standard est souvent over-engineered pour ce cas d'usage
 
 ### Flux complet de connexion
@@ -832,7 +832,7 @@ La migration vers SSR a éliminé 6 bugs significatifs identifiés en audit.
 ### Pourquoi HMAC et pas JWT standard ?
 
 - Aucune dépendance npm (`jsonwebtoken`, `jose`, etc.)
-- `crypto.subtle` natif dans tous les runtimes modernes (Vercel Edge, Node, Deno)
+- `crypto.subtle` natif dans tous les runtimes modernes (Node, Deno, Edge)
 - Format plus simple, auditable en 50 lignes
 - Pas de vulnérabilités liées à l'algo `none` de JWT
 

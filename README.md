@@ -26,8 +26,8 @@ WWA est une application full-stack composée de deux parties qui communiquent vi
 
 | Partie | Technologie | Rôle |
 |---|---|---|
-| **Frontend** | Astro 5 SSR + Vercel | Site vitrine, formulaires, dashboards |
-| **Backend** | Laravel 13 + SQLite | API REST, authentification, persistance |
+| **Frontend** | Astro 5 SSR (Node standalone) | Vitrine + back-office `app.domaine.com` |
+| **Backend** | Laravel 13 + PostgreSQL | API REST, authentification, persistance |
 | **WebSocket** | Laravel Reverb + Echo | Messagerie temps réel, notifications live |
 
 ```
@@ -38,7 +38,7 @@ WWA est une application full-stack composée de deux parties qui communiquent vi
                │ HTTPS                      │ WSS
                ▼                            ▼
 ┌──────────────────────────┐  ┌─────────────────────────────────┐
-│   Vercel Edge / Astro    │  │  VPS Hostinger (Laravel 13)      │
+│  Astro SSR (Node 22)     │  │  VPS OVH - Laravel 13 (php-fpm)  │
 │   SSR + BFF              │  │                                  │
 │  /api/auth/*      ───────┼──▶ POST /api/auth/*                 │
 │  /api/conversations/* ───┼──▶ GET/POST /api/conversations/*    │
@@ -66,7 +66,7 @@ WWA est une application full-stack composée de deux parties qui communiquent vi
 | Outil | Version | Rôle |
 |---|---|---|
 | **Astro** | 5.7.2 | Framework SSR - routing, composants, build |
-| **@astrojs/vercel** | 9.x | Adapter Vercel pour déploiement SSR |
+| **@astrojs/node** | 9.x | Adapter Node standalone (VPS OVH, service systemd) |
 | **Tailwind CSS** | 3.4 | Styles utilitaires, design system |
 | **TypeScript** | 5.4 | Typage strict sur tout le codebase |
 | **ClientRouter** | intégré Astro | Navigation SPA sans rechargement de page |
@@ -306,7 +306,7 @@ wwa-astro-dev/
 │           └── logs.astro            ← Logs d'activité
 │
 ├── public/                           ← Assets statiques (logo.svg, fonts)
-├── astro.config.mjs                  ← output: 'server', adapter: vercel()
+├── astro.config.mjs                  ← output: 'server', adapter: node()
 ├── tailwind.config.mjs               ← Thème, couleurs primary (rose), fonts
 ├── tsconfig.json                     ← TypeScript strict, exclude api/
 └── package.json                      ← Dépendances, scripts npm
@@ -360,4 +360,5 @@ sudo supervisorctl restart wwa:*     # Redémarrer après déploiement
 | Document | Description |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture complète, flux de données, système d'auth, patterns de code, composants clés |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Déploiement Vercel + Laravel, variables de production, checklist mise en prod |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installation des deux environnements (TEST + PRODUCTION) sur VPS OVH : DNS, PostgreSQL, nginx, systemd, HTTPS, push-to-deploy, checklist |
+| [docs/BRANCHING.md](docs/BRANCHING.md) | Le quotidien : branches `develop` / `PROD`, mise en ligne, promotion, garde-fous, retour arrière |

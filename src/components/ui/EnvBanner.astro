@@ -1,0 +1,35 @@
+---
+/**
+ * Bandeau d'environnement.
+ *
+ * Visible uniquement hors production (staging, ou local si PUBLIC_ENV_NAME
+ * n'est pas 'production'). Sert à ne JAMAIS confondre le site de test avec la
+ * version live — c'est le garde-fou le plus simple contre les erreurs humaines.
+ *
+ * `pointer-events-none` : n'intercepte jamais un clic.
+ * Non masquable volontairement : un bandeau qu'on peut fermer ne protège plus.
+ */
+import { ENV_NAME, IS_PRODUCTION, RELEASE } from '../../lib/urls'
+
+const label = ENV_NAME === 'staging' ? 'Environnement de test' : 'Environnement local'
+---
+
+{
+  !IS_PRODUCTION && (
+    <div
+      class="pointer-events-none fixed bottom-3 left-3 z-[9998] select-none"
+      data-wwa-env={ENV_NAME}
+      aria-hidden="true"
+    >
+      <span class="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-100/95 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-900 shadow-lg shadow-amber-900/10 backdrop-blur dark:border-amber-700/60 dark:bg-amber-950/95 dark:text-amber-200 dark:shadow-black/40">
+        <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 dark:bg-amber-400" />
+        {label}
+        {RELEASE && (
+          <span class="font-mono font-normal normal-case tracking-normal text-amber-700 dark:text-amber-400">
+            {RELEASE}
+          </span>
+        )}
+      </span>
+    </div>
+  )
+}

@@ -7,7 +7,7 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ message: 'Corps invalide.' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
   }
 
-  const base = import.meta.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = process.env.BACKEND_URL ?? 'http://localhost:8000'
   try {
     const resp = await fetch(`${base}/api/contact`, {
       method: 'POST',
