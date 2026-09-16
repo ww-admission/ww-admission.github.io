@@ -3,6 +3,9 @@
 > Deux environnements complets — **TEST** et **PRODUCTION** — sur un seul VPS OVH.
 > Front Astro, back Laravel et bases PostgreSQL. Aucun service tiers d'hébergement.
 >
+> **Deux prestataires, deux rôles :** le serveur est chez **OVH**, le nom de domaine,
+> sa zone DNS et la messagerie `info@` sont chez **Hostinger**.
+>
 > Le workflow quotidien (quelle branche, comment mettre en ligne) est dans
 > **[BRANCHING.md](BRANCHING.md)**. Ce document-ci décrit l'installation.
 
@@ -14,7 +17,7 @@
 2. [Ce qui a changé dans la codebase](#2-ce-qui-a-changé-dans-la-codebase)
 3. [Étape 0 — Réconcilier les branches](#étape-0--réconcilier-les-branches)
 4. [Étape 1 — Commander et sécuriser le VPS](#étape-1--commander-et-sécuriser-le-vps)
-5. [Étape 2 — DNS chez OVH](#étape-2--dns-chez-ovh)
+5. [Étape 2 — DNS chez Hostinger](#étape-2--dns-chez-hostinger)
 6. [Étape 3 — Installer la pile logicielle](#étape-3--installer-la-pile-logicielle)
 7. [Étape 4 — Les deux bases PostgreSQL](#étape-4--les-deux-bases-postgresql)
 8. [Étape 5 — Cloner les deux environnements](#étape-5--cloner-les-deux-environnements)
@@ -396,42 +399,110 @@ free -h
 
 ---
 
-## Étape 2 — DNS chez OVH
+## Étape 2 — DNS chez Hostinger
 
-**Web Cloud → Noms de domaine → worldwise-admission.com → Zone DNS**.
+Le nom de domaine et sa zone DNS sont gérés chez **Hostinger**. OVH ne fournit que le
+serveur : il n'y a rien à régler dans l'espace client OVH pour cette étape.
 
-Sept enregistrements, en remplaçant `203.0.113.10` par l'IPv4 de ton VPS :
+### 2.1 Vérifier que c'est bien la zone Hostinger qui répond
 
-| Type | Sous-domaine | Cible | Sert à |
+Les enregistrements saisis dans hPanel n'ont aucun effet si le domaine délègue à
+d'autres serveurs de noms :
+
+```powershell
+Resolve-DnsName worldwise-admission.com -Type NS | Where-Object Type -eq 'NS' |
+  Select-Object -ExpandProperty NameHost
+```
+
+Réponse attendue : `ns1.dns-parking.com` et `ns2.dns-parking.com`, les serveurs de
+Hostinger.
+
+### 2.2 Les sept enregistrements
+
+hPanel : **Domaines → worldwise-admission.com → DNS / Serveurs de noms → Enregistrements DNS**.
+
+Remplace `203.0.113.10` par l'IPv4 du VPS (espace client OVH, fiche du VPS) :
+
+| Type | Nom | Pointe vers | Sert à |
 |---|---|---|---|
-| `A` | *(vide)* | `203.0.113.10` | vitrine production |
-| `A` | `www` | `203.0.113.10` | vitrine production |
+| `A` | `@` | `203.0.113.10` | vitrine production |
+| `CNAME` | `www` | `worldwise-admission.com` | vitrine production |
 | `A` | `app` | `203.0.113.10` | back-office production |
 | `A` | `api` | `203.0.113.10` | API + WebSocket production |
 | `A` | `dev` | `203.0.113.10` | vitrine test |
 | `A` | `app.dev` | `203.0.113.10` | back-office test |
 | `A` | `api.dev` | `203.0.113.10` | API + WebSocket test |
 
-Chez OVH tu saisis seulement la partie sous-domaine : `app.dev` produit bien
-`app.dev.worldwise-admission.com`. Les sous-domaines à trois niveaux sont acceptés,
-et Let's Encrypt les certifie sans problème en validation HTTP.
+- **Nom** : seulement la partie sous-domaine. `@` désigne le domaine nu, `app.dev`
+  produit `app.dev.worldwise-admission.com`. Les noms à deux niveaux sont acceptés, et
+  Let's Encrypt les certifie sans problème en validation HTTP.
+- **`www`** est un `CNAME` vers le domaine nu : il suit l'IP de `@` sans qu'on ait à
+  la recopier. Si Hostinger l'a déjà créé ainsi, laisse-le. Un `CNAME` et un `A` ne
+  peuvent pas coexister sur le même nom.
+- **Un enregistrement existe déjà sur ce nom** (page de parking Hostinger, ancien
+  GitHub Pages en `185.199.x.x`, ancien Vercel en `cname.vercel-dns.com`) :
+  **modifie-le** plutôt que d'en ajouter un second. Deux `A` sur le même nom, c'est une
+  réponse tirée au hasard entre deux IP.
+- **TTL** : `300` pendant l'installation, pour qu'une erreur se corrige en cinq
+  minutes et non en quatre heures (`14400`, la valeur proposée par défaut). Tu peux la
+  remonter une fois tout validé.
+- **IPv6** : si le VPS en a une, ajoute les mêmes noms en `AAAA`, sauf `www` qui suit
+  le `CNAME`.
 
-Si le VPS a une IPv6, ajoute les mêmes en `AAAA`.
+> **À ne pas toucher : la messagerie.** L'adresse `info@worldwise-admission.com` est
+> hébergée chez Hostinger et dépend d'enregistrements de la même zone :
+>
+> | Type | Nom | Valeur |
+> |---|---|---|
+> | `MX` | `@` | `mx1.hostinger.com` (5), `mx2.hostinger.com` (10) |
+> | `TXT` | `@` | `v=spf1 include:_spf.mail.hostinger.com ~all` |
+> | `CNAME` | `hostingermail-a._domainkey` (et `-b`, `-c`) | DKIM Hostinger |
+> | `CNAME` | `autodiscover`, `autoconfig` | configuration des clients mail |
+>
+> Les supprimer en « faisant le ménage » coupe la réception et l'envoi des e-mails.
 
-> **Supprime d'abord** les anciens enregistrements pointant vers GitHub Pages
-> (`A` vers `185.199.x.x`) ou Vercel (`CNAME` vers `cname.vercel-dns.com`). Un `CNAME`
-> et un `A` ne peuvent pas coexister sur le même sous-domaine.
+> **CAA.** Si la zone contient des enregistrements `CAA`, l'un d'eux doit autoriser
+> Let's Encrypt (`0 issue "letsencrypt.org"`), sinon certbot échoue à l'étape 8. Sans
+> aucun `CAA`, toutes les autorités sont acceptées.
 
-Vérifie avant de passer à l'étape 8 :
+> **Reverse DNS (PTR).** Il dépend du propriétaire de l'IP, donc d'OVH, pas de
+> Hostinger. Rien à faire : le serveur n'envoie pas d'e-mails lui-même.
+
+### 2.3 E-mails transactionnels (Resend), plus tard
+
+Quand les `MAIL_*` de production seront branchés sur Resend, celui-ci demandera de
+vérifier le domaine. Les enregistrements qu'il affiche (DKIM sur `resend._domainkey`,
+`MX` et `TXT` sur le sous-domaine `send`) s'ajoutent **dans la zone Hostinger**, avec les
+valeurs exactes données par Resend.
+
+Ils vivent sur leurs propres noms et ne remplacent rien. En particulier, n'ajoute
+**jamais** un second `TXT v=spf1` sur `@` : un domaine ne peut avoir qu'un seul SPF, et
+deux SPF invalident les deux, donc aussi la messagerie Hostinger.
+
+### 2.4 Vérifier
+
+Interroge directement le serveur de Hostinger. La réponse reflète la zone tout de
+suite, sans attendre l'expiration des caches :
 
 ```powershell
 '','www.','app.','api.','dev.','app.dev.','api.dev.' | ForEach-Object {
   $h = "$($_)worldwise-admission.com"
-  "$h -> " + ((Resolve-DnsName $h -Type A -ErrorAction SilentlyContinue).IPAddress -join ',')
+  $ip = (Resolve-DnsName $h -Type A -Server ns1.dns-parking.com -DnsOnly -ErrorAction SilentlyContinue |
+         Where-Object Type -eq 'A').IPAddress -join ','
+  "{0,-34} {1}" -f $h, $ip
 }
+
+# La messagerie est toujours en place
+Resolve-DnsName worldwise-admission.com -Type MX -Server ns1.dns-parking.com |
+  Where-Object Type -eq 'MX' | Select-Object -ExpandProperty NameExchange
 ```
 
-Les sept doivent renvoyer l'IP du VPS.
+Les sept hôtes doivent renvoyer l'IP du VPS, et les `MX` rester `mx1` / `mx2.hostinger.com`.
+
+Si Hostinger répond juste mais qu'un navigateur ou certbot voit encore l'ancienne IP,
+c'est le cache : attends la fin du TTL précédent (`Clear-DnsClientCache` vide celui de
+ta machine). Relance la même boucle sans `-Server ns1.dns-parking.com` pour voir ce que
+voit le reste d'Internet.
 
 ---
 
@@ -674,7 +745,7 @@ sudo nano /var/www/wwa/api/.env
 #   DB_DATABASE=wwa_production, DB_USERNAME=wwa_user, DB_PASSWORD=<prod>
 #   REVERB_SERVER_PORT=8080
 #   trois nouveaux secrets Reverb (différents du test)
-#   MAIL_* → Resend
+#   MAIL_* → Resend (domaine vérifié via la zone Hostinger, étape 2.3)
 
 cd /var/www/wwa/api
 composer install --no-dev --optimize-autoloader
@@ -691,7 +762,9 @@ Ce dernier affiche une bannière rouge et demande de taper `PRODUCTION` en entie
 
 ## Étape 8 — HTTPS avec Let's Encrypt
 
-Les sept enregistrements DNS doivent déjà résoudre vers le VPS.
+Les sept enregistrements de la zone Hostinger doivent déjà résoudre vers le VPS
+([étape 2.4](#24-vérifier)). Let's Encrypt interroge le DNS public : si un hôte
+renvoie encore une ancienne IP en cache, certbot échoue pour cet hôte.
 
 Deux certificats séparés : un incident sur le certificat de test ne doit jamais
 toucher la production.
@@ -974,6 +1047,11 @@ anonymise**. À défaut d'un script d'anonymisation vérifié, reste sur le seed
 
 | Symptôme | Cause probable | Vérification |
 |---|---|---|
+| certbot : `DNS problem: NXDOMAIN` | hôte absent de la zone Hostinger, ou mal nommé | boucle de l'[étape 2.4](#24-vérifier) |
+| certbot : mauvaise IP / `Timeout during connect` | ancienne IP encore en cache DNS | même boucle, avec puis sans `-Server ns1.dns-parking.com` |
+| certbot : `CAA record ... prevents issuance` | un `CAA` de la zone Hostinger exclut Let's Encrypt | ajouter `0 issue "letsencrypt.org"` |
+| Modification dans hPanel sans effet | le domaine délègue à d'autres serveurs de noms | `Resolve-DnsName worldwise-admission.com -Type NS` |
+| `info@` ne reçoit plus rien | `MX`, SPF ou DKIM Hostinger supprimés de la zone | les recréer ([étape 2.2](#22-les-sept-enregistrements)) |
 | `502` sur une vitrine ou un back-office | le service Node est arrêté | `journalctl -u wwa-web -n 50` / `-u wwa-dev-web` |
 | Le service redémarre en boucle | `JWT_SECRET` absent du `.env` | `systemctl show wwa-web -p EnvironmentFiles` |
 | `502` sur une API | mauvais socket php-fpm | `ls /run/php/` puis corriger `fastcgi_pass` |
@@ -1026,7 +1104,10 @@ sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 - [ ] `ufw` actif : 22 / 80 / 443 uniquement
 - [ ] `fail2ban` actif
 - [ ] Swap présent (4 Go conseillé pour deux environnements)
-- [ ] Les 7 enregistrements DNS pointent vers le VPS, anciens Vercel/Pages supprimés
+- [ ] Serveurs de noms = `ns1` / `ns2.dns-parking.com` (Hostinger)
+- [ ] Les 7 hôtes pointent vers le VPS dans la zone Hostinger, anciens Vercel/Pages supprimés
+- [ ] `MX`, SPF et DKIM Hostinger intacts : `info@` reçoit toujours
+- [ ] TTL remontés après validation (300 → 3600 ou plus)
 - [ ] Node 22, PHP 8.3, PostgreSQL 16, nginx, supervisor installés
 
 ### Configuration
@@ -1039,6 +1120,7 @@ sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 - [ ] `APP_DEBUG=false` dans les deux `api/.env`
 - [ ] `DB_DATABASE` : `wwa_production` / `wwa_staging`, deux utilisateurs distincts
 - [ ] `MAIL_MAILER=log` sur le test
+- [ ] Si Resend est branché en production : domaine vérifié, enregistrements dans la zone Hostinger, un seul SPF sur `@`
 - [ ] Les quatre `.env` en `chmod 600`, propriétaire `www-data`
 - [ ] Aucun secret préfixé `PUBLIC_`
 
