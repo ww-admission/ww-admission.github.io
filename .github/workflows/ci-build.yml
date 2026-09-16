@@ -29,6 +29,17 @@ jobs:
       - name: Installer les dependances
         run: npm ci --include=dev --no-audit --no-fund
 
+      - name: Audit des dependances de production (informatif)
+        # Non bloquant : les CVE acceptees sont documentees dans SECURITY.md et
+        # .trivyignore. Le resultat reste visible dans le resume du run.
+        run: |
+          {
+            echo "### npm audit (dependances de production)"
+            echo '```'
+            npm audit --omit=dev --audit-level=high 2>&1 | tail -25 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Verification TypeScript
         run: npm run check
 

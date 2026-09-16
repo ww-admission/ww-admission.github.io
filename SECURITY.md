@@ -100,9 +100,11 @@ le trafic en production.
 
 ## 6. Surveillance continue
 
-Assurée nativement par Harbor (scanner Trivy intégré, scan automatique à chaque
-push d'image + rescan planifiable sur les images existantes). Pas de tooling CI
-additionnel nécessaire pour cette tâche.
+Jusqu'en septembre 2026, assurée par Harbor (scanner Trivy intégré sur les images).
+Le déploiement ne produit plus d'images : la surveillance passe par
+`npm audit` (étape informative de **CI - build**, visible dans le résumé de chaque run,
+y compris avant chaque mise en production) et par les alertes **Dependabot** de GitHub
+(*Settings → Advanced Security → Dependabot alerts*).
 
 ## 7. Recommandation à moyen terme
 

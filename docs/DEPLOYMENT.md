@@ -6,8 +6,9 @@
 > **Deux prestataires, deux rôles :** le serveur est chez **OVH**, le nom de domaine,
 > sa zone DNS et la messagerie `info@` sont chez **Hostinger**.
 >
-> Le workflow quotidien (quelle branche, comment mettre en ligne) est dans
-> **[BRANCHING.md](BRANCHING.md)**. Ce document-ci décrit l'installation.
+> Le quotidien (publier sur le test, mettre une version en production, corriger vite,
+> revenir en arrière) est dans **[BRANCHING.md](BRANCHING.md)**. Ce document-ci décrit
+> l'installation.
 
 ---
 
@@ -15,7 +16,7 @@
 
 1. [Architecture cible](#1-architecture-cible)
 2. [Ce qui a changé dans la codebase](#2-ce-qui-a-changé-dans-la-codebase)
-3. [Étape 0 — Réconcilier les branches](#étape-0--réconcilier-les-branches)
+3. [Étape 0 — Branches et versions](#étape-0--branches-et-versions)
 4. [Étape 1 — Commander et sécuriser le VPS](#étape-1--commander-et-sécuriser-le-vps)
 5. [Étape 2 — DNS chez Hostinger](#étape-2--dns-chez-hostinger)
 6. [Étape 3 — Installer la pile logicielle](#étape-3--installer-la-pile-logicielle)
@@ -45,7 +46,7 @@ Sept noms de domaine, deux environnements isolés, **une seule machine**.
         ┌────────────────────────┴────────────────────────┐
         │                                                 │
    PRODUCTION                                          TEST
-   branche main                                     branche develop
+   tag vX.Y.Z                                       branche develop
         │                                                 │
   ┌─────┴──────┬──────────────┐              ┌────────────┼──────────────┐
   ▼            ▼              ▼              ▼            ▼              ▼
@@ -72,7 +73,7 @@ domaine.com  app.domaine   api.domaine   dev.domaine  app.dev.dom   api.dev.dom
 
 | | PRODUCTION | TEST |
 |---|---|---|
-| Branche git | `main` (reçoit les merges de `develop`) | `develop` (branche par défaut) |
+| Ce qui est déployé | un tag de version `vX.Y.Z` (`main` = version en ligne) | la pointe de `develop` (branche par défaut) |
 | Dossier | `/var/www/wwa` | `/var/www/wwa-dev` |
 | Vitrine | `worldwise-admission.com` | `dev.worldwise-admission.com` |
 | Back-office | `app.worldwise-admission.com` | `app.dev.worldwise-admission.com` |
@@ -88,6 +89,7 @@ domaine.com  app.domaine   api.domaine   dev.domaine  app.dev.dom   api.dev.dom
 | Indexation Google | vitrine oui, back-office non | **rien, nulle part** |
 | Emails | Resend (réels) | `MAIL_MAILER=log` (aucun envoi) |
 | Bandeau orange | non | oui, avec le n° de version |
+| Approbation GitHub | **oui** (environnement `production`) | non (environnement `staging`) |
 
 Le fichier `deploy/targets/production.conf` et `deploy/targets/staging.conf`
 contiennent ces valeurs. `deploy/deploy.sh` les lit et **refuse de déployer** si les
@@ -137,11 +139,12 @@ Vérifié sur les cinq combinaisons possibles ; les trois formes cassées sont r
 |---|---|---|
 | `astro.config.mjs` | `@astrojs/vercel` → `@astrojs/node` (`standalone`) | Le serveur tourne sur le VPS |
 | `astro.config.mjs` | sitemap **uniquement en production** | Le test est entièrement interdit à l'indexation |
-| `package.json` | `start`, `promote`, `promote:dry`, `hooks:install` | Commandes du quotidien |
+| `astro.config.mjs` | `outDir` surchargeable (`WWA_OUT_DIR`) | `deploy.sh` construit dans `dist-next/` puis bascule |
+| `package.json` | `start`, `release`, `release:hotfix`, `release:dry`, `hooks:install` | Commandes du quotidien |
 | `src/lib/urls.ts` | **nouveau** | `ENV_NAME`, `IS_STAGING`, `RELEASE`, `SPLIT_HOSTS`, `appLink()`, `siteUrl()` |
 | `src/middleware.ts` | Routage par hôte + `X-Robots-Tag` + `X-WWA-Env` | Le back-office ne vit que sur `app.` ; hors production rien n'est indexable |
 | `src/pages/robots.txt.ts` | Dépend de l'hôte **et** de l'environnement | `Disallow: /` partout en test |
-| `src/pages/health.ts` | **nouveau** | Sonde utilisée par `deploy.sh` et les workflows |
+| `src/pages/health.ts` | **nouveau** | Sonde utilisée par `deploy.sh` et les workflows : `env`, `version` (tag), `release` (commit) |
 | `src/components/ui/EnvBanner.astro` | **nouveau** | Bandeau orange, non masquable, avec le n° de version |
 | `src/layouts/Layout.astro`, `DashboardLayout.astro`, `pages/login.astro`, `pages/register.astro` | Insertion du bandeau | `/login` et `/register` n'utilisent aucun layout partagé — il fallait les traiter à part |
 | `src/env.d.ts` | Séparation `import.meta.env` / `process.env` | Deux mécanismes distincts, à ne pas confondre |
@@ -179,10 +182,11 @@ aucun secret de build figé dans dist/                  → OK
 ```
 deploy/
 ├── targets/
-│   ├── production.conf          branche main, /var/www/wwa, ports 4321/8080
+│   ├── production.conf          tags vX.Y.Z, /var/www/wwa, ports 4321/8080
 │   └── staging.conf             branche develop, /var/www/wwa-dev, ports 4322/8081
-├── deploy.sh                    déploiement, préflight, verrou, retour arrière
-├── install.sh                   installe systemd + supervisor + nginx + sudoers
+├── deploy.sh                    déploiement, préflight, verrou, bascule, sauvegarde, retour arrière
+├── ssh-gate.sh                  seule commande permise à la clé SSH de GitHub Actions
+├── install.sh                   installe systemd + supervisor + nginx + sudoers + ssh-gate
 ├── env/
 │   ├── frontend.env.prod.example      api.env.prod.example
 │   └── frontend.env.staging.example   api.env.staging.example
@@ -205,13 +209,13 @@ endroit évite qu'ils divergent.
 
 | Fichier | Rôle |
 |---|---|
-| `scripts/promote.ps1` | Merge `develop` → `main` depuis le terminal, avec contrôles et confirmation |
-| `scripts/git-hooks/pre-push` | Refuse un `git push` sur `main` contenant du code absent de `develop` |
+| `scripts/release.ps1` | `npm run release` / `release:hotfix` / `release:dry` : crée le tag de version, avec résumé et confirmation |
+| `scripts/git-hooks/pre-push` | Refuse un push direct sur `main` et toute suppression ou déplacement d'un tag `vX.Y.Z` |
 | `scripts/install-git-hooks.ps1` | Active `core.hooksPath` |
 | `.gitattributes` | Force LF sur les scripts shell et `deploy/` (sinon CRLF sous Windows) |
-| `.github/workflows/ci-build.yml` | Build + typage + contrôle du bundle, sur `develop`, `main` et les PR |
-| `.github/workflows/deploy-staging.yml` | Push `develop` → déploiement TEST automatique |
-| `.github/workflows/deploy-production.yml` | Merge dans `main` → contrôle `guard` → PRODUCTION (approbation optionnelle) |
+| `.github/workflows/ci-build.yml` | Build + typage + contrôle du bundle, sur `develop`, les PR, et avant chaque mise en production |
+| `.github/workflows/deploy-staging.yml` | Push `develop` (ou *Run workflow* sur une branche) → TEST, environnement `staging` |
+| `.github/workflows/deploy-production.yml` | Tag `vX.Y.Z` → résumé → build → **approbation** → PRODUCTION → Release GitHub, `main` avancée, report dans `develop` |
 
 ### Variables `PUBLIC_*` : figées au build
 
@@ -222,73 +226,115 @@ Astro remplace `import.meta.env.PUBLIC_*` par sa valeur **au moment du
 
 ---
 
-## Étape 0 — Les branches
+## Étape 0 — Branches et versions
 
-| Branche | Environnement | Déclencheur |
-|---|---|---|
-| `develop` (par défaut) | TEST | `git push` |
-| `main` | PRODUCTION | merge de `develop` dans `main` (Pull Request *Create a merge commit*, ou `npm run promote`) |
+| Quoi | Où | Déclencheur | Approbation |
+|---|---|---|---|
+| TEST | branche `develop` (par défaut) | `git push` | non |
+| PRODUCTION | tag `vX.Y.Z` | `npm run release` | **oui**, environnement GitHub `production` |
+| Version en ligne | branche `main` | avancée par le workflow après chaque mise en production | — |
+| Archive | *Releases* GitHub | créée par le workflow | — |
 
-> **Ne supprime jamais `main`** : c'est la branche de production. Le workflow
-> quotidien est décrit dans [BRANCHING.md](BRANCHING.md).
+C'est la procédure qui existait déjà (tags `v1.0.0` et `v1.0.1` approuvés dans
+*Deployments → production*), débarrassée de Harbor, Komodo et Tailscale : le
+déploiement se fait directement sur le VPS. Le détail du quotidien est dans
+[BRANCHING.md](BRANCHING.md).
 
-### Réconciliation (faite le 2026-09-16)
+> **Ne supprime jamais `main` ni un tag `vX.Y.Z`** : `main` est la référence de la
+> production, chaque tag est l'archive d'une version.
 
-`main` et `develop` avaient divergé (15 commits Docker/CI/CVE d'un côté, les annuaires
-universités/formations de l'autre). Ils ont été réconciliés par un merge, et `develop`
-contient désormais tout l'historique de `main`. Contrôle :
+### État de départ (au 2026-09-17)
+
+- `develop` et `main` ont été réconciliés le 2026-09-16 : `develop` contient tout
+  l'historique de `main`, donc la première version publiée depuis `develop` sera
+  acceptée par le contrôle « construit sur la production ».
+- `origin/main` est encore dans l'état de l'ancien site GitHub Pages (pas de
+  `deploy/`, pas de `/health`). Elle sera avancée automatiquement par la première mise
+  en production réussie. Ne la modifie pas à la main.
+- Dernière version publiée : `v1.0.1` (22 juin, pipeline Docker). La prochaine
+  proposée par `npm run release` sera `v1.1.0`.
+
+Contrôle à tout moment :
 
 ```powershell
-git fetch --prune origin
-git log --oneline --no-merges origin/develop..origin/main   # doit être vide
+git fetch --prune --tags origin
+git merge-base --is-ancestor origin/main origin/develop; $LASTEXITCODE   # 0 = OK
 ```
 
-Si cette commande affiche des commits, **ne merge pas `develop` dans `main`** avant
-d'avoir rapatrié ces commits dans `develop`
-([BRANCHING.md §5](BRANCHING.md#main-a-divergé-de-develop)).
+### L'ancienne infrastructure Docker
 
-### Avant le premier déploiement de production
+`develop` contient toujours `docker-compose.yml`, `Dockerfile.astro`,
+`api/Dockerfile.laravel` et le pipeline `.github/workflows/ci.yml` (images poussées
+vers un **Harbor privé via Tailscale**, runner self-hosted `ndewo`, déploiement par
+**Komodo**). Ce pipeline est en **déclenchement manuel uniquement**
+(`workflow_dispatch`) : il n'est plus lancé par les pushes ni par les tags, et le
+déploiement décrit ici n'en dépend pas. Les images `www_prod/*:1.0.0` et `1.0.1`
+restent dans Harbor à titre d'archive.
 
-`origin/main` est encore dans l'état de l'ancien site GitHub Pages : pas de dossier
-`deploy/`, pas de `/health`, et un workflow `.github/workflows/deploy.yml` (GitHub
-Pages) que `develop` a supprimé. Le premier merge `develop` → `main` (un fast-forward)
-met `main` au niveau de `develop`. Tant que ce merge n'a pas eu lieu, `/var/www/wwa`
-cloné sur `main` ne contient pas de quoi se déployer : fais ce premier merge **après**
-avoir validé le test (étape 6), et **avant** l'étape 7.
-
-> Ce premier merge déclenche **Deploy - PRODUCTION (main)**. Si l'étape 7 n'est pas
-> encore faite, ce run échouera sans rien casser : relance-le depuis l'onglet
-> *Actions* (**Re-run jobs**) une fois la production installée.
-
-Fais ensuite les réglages GitHub de
-[BRANCHING.md §4](BRANCHING.md#4-réglages-github-à-faire-une-seule-fois) :
-branche par défaut `develop`, merge commits uniquement, protection de `main`,
-environnement `production`, secrets, désactivation de GitHub Pages.
-
-### Le pipeline Docker existant sur `develop`
-
-`develop` contient une infrastructure Docker complète (`docker-compose.yml`,
-`Dockerfile.astro`, `api/Dockerfile.laravel`, Octane/FrankenPHP) et un pipeline
-`.github/workflows/ci.yml` de 366 lignes qui pousse des images vers un **Harbor privé
-via Tailscale**, sur un **runner self-hosted `ndewo`**.
-
-Cette infrastructure suppose du matériel qui n'existe pas sur un VPS OVH neuf. Le
-déploiement décrit ici n'en dépend pas.
-
-**Ne supprime rien** — mais après la réconciliation, mets son déclencheur en manuel,
-sinon chaque push sur `develop` lancerait un pipeline qui ne peut pas s'exécuter :
-
-```yaml
-# .github/workflows/ci.yml — remplacer tout le bloc `on:` par :
-on:
-  workflow_dispatch: {}
-```
-
-Le contenu du pipeline reste intact et réactivable en une ligne.
+Rien n'a été supprimé : le pipeline se réactive en restaurant son bloc `on:`.
 
 ---
 
 ## Étape 1 — Commander et sécuriser le VPS
+
+### 1.0 État du VPS constaté le 2026-09-16 (à lire avant tout)
+
+Vu de l'extérieur, le VPS (`37.59.97.158`, `vps-d51894c8.vps.ovh.net`) n'est **pas**
+vierge :
+
+- les ports **80 et 443** sont tenus par **SafeLine**, un pare-feu applicatif
+  (Chaitin) : redirection vers `https://hôte:443/`, certificats Let's Encrypt du
+  2026-08-22 pour `worldwise-admission.com` et `dev.` seulement, puis **504** après
+  60 s (aucune application derrière) ;
+- la **console d'administration SafeLine est ouverte à Internet** sur le port `9443` ;
+- le port **SSH 22 refuse les connexions** depuis Internet.
+
+Décision (2026-09-17) : **retirer SafeLine** et suivre ce guide (nginx + certbot). Deux
+façons, choisis selon ce que contient le serveur :
+
+**Option A — réinstaller (recommandé si rien d'autre n'y tourne)** : étape 1.1
+ci-dessous. SafeLine et tout le reste disparaissent, on repart d'un Ubuntu propre.
+
+**Option B — garder le système et retirer SafeLine** : connecte-toi (console KVM du
+manager OVH si SSH est fermé), puis **inventaire d'abord** :
+
+```bash
+sudo ss -ltnp | grep -E ':(22|80|443|9443)\b'      # qui écoute sur ces ports
+sudo docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+```
+
+> Si d'autres conteneurs que ceux de SafeLine (`safeline-*`) tournent — Komodo,
+> `wwa-*`, une base — **arrête-toi** : ils appartiennent peut-être à l'ancienne
+> infrastructure de l'agence. Vérifie avant de supprimer quoi que ce soit.
+
+Si seul SafeLine est présent :
+
+```bash
+# Dossier d'installation de SafeLine (souvent /data/safeline)
+DIR=$(sudo docker inspect safeline-mgt --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}')
+echo "$DIR"
+cd "$DIR" && sudo docker compose down        # arrête et retire les conteneurs SafeLine
+sudo ss -ltnp | grep -E ':(80|443|9443)\b' || echo "80, 443 et 9443 sont libres"
+```
+
+`docker compose down` conserve les données de SafeLine sur le disque (réversible).
+Quand tout fonctionne avec nginx, tu peux supprimer `$DIR` et, si Docker ne sert plus à
+rien d'autre, `sudo apt purge docker-ce docker-ce-cli containerd.io`.
+
+Enfin, rends SSH joignable (nécessaire à GitHub Actions) :
+
+```bash
+sudo systemctl enable --now ssh
+sudo sshd -T | awk '/^port /{print "port SSH :", $2}'
+sudo ufw allow OpenSSH        # ou : sudo ufw allow <port>/tcp
+```
+
+et vérifie dans le manager OVH (**Network → Firewall**) que ce port n'est pas bloqué.
+Depuis ta machine :
+
+```powershell
+Test-NetConnection 37.59.97.158 -Port 22    # TcpTestSucceeded : True
+```
 
 ### 1.1 Réinstaller le VPS
 
@@ -575,16 +621,16 @@ sudo chown "$USER:$USER" /var/www
 REPO=https://github.com/ww-admission/ww-admission.github.io.git
 
 git clone -b develop "$REPO" /var/www/wwa-dev     # TEST
-git clone -b main    "$REPO" /var/www/wwa         # PRODUCTION
+git clone -b develop "$REPO" /var/www/wwa         # PRODUCTION (se placera sur un tag)
 ```
 
-> Clone **sans** `--single-branch` : GitHub Actions transmet au VPS le commit exact à
-> déployer, `deploy.sh` doit pouvoir le trouver après un `git fetch`.
+Les deux dossiers partent de `develop` : c'est `deploy.sh` qui place ensuite chaque
+environnement sur la bonne référence (pointe de `develop` pour le test, tag
+`vX.Y.Z` pour la production). `main` n'est pas utilisable pour cloner la production
+tant que la première version n'a pas été publiée (étape 0).
 
-> `main` doit avoir reçu le premier merge de `develop`
-> ([étape 0](#avant-le-premier-déploiement-de-production)). Sinon, clone `develop` dans
-> `/var/www/wwa` : `deploy.sh production` se placera sur `origin/main` au premier
-> déploiement.
+> Clone **sans** `--single-branch` : GitHub Actions transmet au VPS le commit ou le tag
+> exact à déployer, `deploy.sh` doit pouvoir le trouver après un `git fetch --tags`.
 
 > **Dépôt privé ?** Crée une clé de déploiement en **lecture seule** sur le VPS
 > (`ssh-keygen -t ed25519 -f ~/.ssh/wwa_deploy`), ajoute la publique dans
@@ -674,13 +720,22 @@ Sans argument, la cible est **staging** — c'est le défaut voulu.
 Le script commence par vérifier la cohérence de la configuration : environnement,
 hôtes, invariant du cookie, longueur et unicité du `JWT_SECRET`, base de données,
 CORS, clé Reverb, port Reverb. Il s'arrête avec un message explicite au premier
-écart. Puis il récupère le code, met à jour Laravel, rebuild Astro, corrige les
-permissions, redémarre les services et interroge `/health`.
+écart. Puis :
+
+1. récupère le code ;
+2. met l'API en maintenance ;
+3. **construit le frontend dans `dist-next/`** pendant que `dist/` reste en ligne — si
+   le build échoue, le code précédent est remis et rien n'a changé pour les visiteurs ;
+4. (production) **sauvegarde la base** dans `/var/backups/wwa/pre-deploy-*.dump` ;
+5. dépendances Composer, migrations, caches ;
+6. **bascule** `dist-next/` → `dist/` (l'ancien devient `dist-prev/`), redémarre ;
+7. interroge `/health` ; si le nouveau frontend ne répond pas, **remet `dist-prev/`**
+   automatiquement.
 
 Sortie attendue à la fin :
 
 ```
-  ✓ sante : {"status":"ok","env":"staging","release":"a1b2c3d"}
+  ✓ sante : {"status":"ok","env":"staging","version":null,"release":"a1b2c3d"}
   ✓ release en ligne : a1b2c3d
   OK  Deploiement staging termine — release a1b2c3d
 ```
@@ -718,10 +773,28 @@ php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --force
 
-sudo bash /var/www/wwa/deploy/deploy.sh production
 ```
 
-Ce dernier affiche une bannière rouge et demande de taper `PRODUCTION` en entier.
+La production ne déploie **que des versions**. Une fois le TEST validé (étape 6 +
+[10.5](#105-parcours-fonctionnel-sur-le-test)), publie la première depuis ta machine :
+
+```powershell
+npm run release:dry      # vérifier ce qui part
+npm run release          # type "minor" -> v1.1.0, tu retapes "v1.1.0"
+```
+
+Sur GitHub, le run **PRODUCTION ← v1.1.0** s'arrête sur l'approbation. **Ne l'approuve
+pas encore** (les secrets de l'étape 9 n'existent pas) : laisse-le en attente, et
+déploie cette version à la main sur le VPS :
+
+```bash
+sudo bash /var/www/wwa/deploy/deploy.sh production v1.1.0
+```
+
+Le script affiche une bannière rouge et demande de taper `PRODUCTION` en entier.
+
+Après l'étape 9, approuve le run resté en attente : il redéploie `v1.1.0` par SSH (ce
+qui valide la chaîne complète), crée la Release GitHub et avance `main`.
 
 ---
 
@@ -781,8 +854,9 @@ server {
 
 ## Étape 9 — Push-to-deploy
 
-Objectif : `git push` sur `develop` met à jour le test tout seul ; un merge de
-`develop` dans `main` met à jour la production.
+Objectif : `git push` sur `develop` met à jour le test tout seul ; un tag `vX.Y.Z`
+approuvé met à jour la production. GitHub Actions se connecte au VPS avec une clé qui
+**ne peut rien faire d'autre** que lancer un déploiement.
 
 ### 9.1 Utilisateur de déploiement sur le VPS
 
@@ -792,7 +866,11 @@ sudo mkdir -p /home/deploy/.ssh && sudo chmod 700 /home/deploy/.ssh
 
 # Paire de clés dédiée à GitHub Actions
 sudo -u deploy ssh-keygen -t ed25519 -N "" -f /home/deploy/.ssh/gh_actions -C "github-actions@wwa"
-sudo -u deploy cp /home/deploy/.ssh/gh_actions.pub /home/deploy/.ssh/authorized_keys
+
+# La clé n'a qu'une commande possible : /usr/local/sbin/wwa-deploy-gate (deploy/ssh-gate.sh).
+# `restrict` interdit shell interactif, transfert de fichiers et tunnels.
+echo "command=\"/usr/local/sbin/wwa-deploy-gate\",restrict $(sudo cat /home/deploy/.ssh/gh_actions.pub)" \
+  | sudo tee /home/deploy/.ssh/authorized_keys >/dev/null
 sudo chmod 600 /home/deploy/.ssh/authorized_keys
 sudo chown -R deploy:deploy /home/deploy/.ssh
 
@@ -813,17 +891,27 @@ Avec un utilisateur en second argument, `install.sh` :
   modifiable par `deploy` ;
 - écrit `/etc/sudoers.d/wwa-deploy` avec une seule autorisation :
   `deploy ALL=(root) NOPASSWD: /usr/local/sbin/wwa-deploy` ;
-- valide la règle avec `visudo -c` et l'annule si elle est invalide.
+- valide la règle avec `visudo -c` et l'annule si elle est invalide ;
+- installe **`/usr/local/sbin/wwa-deploy-gate`** (`deploy/ssh-gate.sh`), la commande
+  forcée de la clé : elle n'accepte que `staging [sha]` et `production vX.Y.Z`.
 
 > C'est une **copie** volontairement : si `sudoers` pointait directement sur
 > `deploy/deploy.sh`, l'utilisateur `deploy` pourrait éditer ce fichier et obtenir
 > root. Conséquence à retenir : après toute modification de `deploy/deploy.sh`, il faut
 > relancer `install.sh` pour rafraîchir la copie.
 
-Test :
+Test sur le VPS :
 
 ```bash
 sudo -u deploy sudo -n /usr/local/sbin/wwa-deploy staging --yes
+```
+
+Test de la clé depuis n'importe quelle machine (après avoir copié la clé privée
+temporairement) :
+
+```bash
+ssh -i gh_actions deploy@IP_DU_VPS staging          # lance un déploiement du test
+ssh -i gh_actions deploy@IP_DU_VPS 'cat /etc/passwd'  # doit être refusé
 ```
 
 ### 9.3 Récupérer les valeurs pour GitHub
@@ -836,19 +924,25 @@ curl -s ifconfig.me                                      # → secret VPS_HOST
 echo "$SSH_PORT"                                         # → secret VPS_PORT (si ≠ 22)
 ```
 
+Une fois `VPS_SSH_KEY` enregistré dans GitHub, **supprime la clé privée du VPS** : elle
+n'a plus rien à y faire.
+
+```bash
+sudo shred -u /home/deploy/.ssh/gh_actions
+```
+
 > Le port SSH doit être joignable **depuis Internet** : les runners GitHub Actions
 > n'ont pas d'IP fixe. S'il est filtré (pare-feu OVH, `ufw`, WAF), le déploiement
 > échoue à l'étape « Deployer ».
 
 ### 9.4 Réglages GitHub
 
-Suis [BRANCHING.md §4](BRANCHING.md#4-réglages-github-à-faire-une-seule-fois) :
+Suis [BRANCHING.md §7](BRANCHING.md#7-réglages-github-une-seule-fois) :
 
-- branche par défaut `develop`
-- merge commits uniquement (ni squash ni rebase)
-- protection de `main` (interdire force-push et suppression)
-- environnement `production` : branche `main` uniquement, « Required reviewers » au choix
-- les secrets **au niveau du dépôt** (le workflow de test n'a pas d'environnement)
+- environnement `production` : reviewers (déjà en place) + règle de tag `v*`
+- ruleset des tags `v*` (ni suppression, ni déplacement)
+- ruleset de `main` (ni suppression, ni force-push)
+- les cinq secrets **au niveau du dépôt**
 - GitHub Pages désactivé
 
 ### 9.5 Garde-fous sur ta machine
@@ -964,19 +1058,25 @@ git commit -m "test: verifier la chaine de deploiement"
 git push
 ```
 
-→ le workflow **Deploy - TEST (develop)** doit passer au vert, `dev.…/health` renvoyer
-le nouveau `release`, et `https://dev.worldwise-admission.com/deploy-check.txt`
-afficher l'horodatage.
+→ **TEST - deploiement** passe au vert ; `https://dev.worldwise-admission.com/deploy-check.txt`
+affiche l'horodatage.
 
-Puis merge `develop` dans `main` (Pull Request *Create a merge commit*, ou
-`npm run promote`) :
+```powershell
+npm run release          # type "patch"
+```
 
-→ le workflow **Deploy - PRODUCTION (main)** doit passer le job `guard`, attendre ton
-clic si « Required reviewers » est coché, puis passer au vert ;
-`https://worldwise-admission.com/deploy-check.txt` doit afficher le même horodatage.
+→ **PRODUCTION ← vX.Y.Z** : le résumé liste le commit de test, l'approbation est
+demandée, puis tout passe au vert ;
+`https://worldwise-admission.com/health` annonce `"version":"vX.Y.Z"` ;
+`https://worldwise-admission.com/deploy-check.txt` affiche le même horodatage ;
+la Release `vX.Y.Z` apparaît dans *Releases* et `main` pointe dessus.
 
-Enfin, supprime le fichier (`git rm public/deploy-check.txt`, commit, push) et
-refais un merge vers `main` pour le retirer aussi de la production.
+Puis teste le **retour arrière** : *Actions → PRODUCTION → Run workflow → Use workflow
+from : tag de la version précédente* → le résumé affiche **RETOUR ARRIERE** →
+après approbation, `/health` annonce l'ancienne version.
+
+Enfin, supprime le fichier (`git rm public/deploy-check.txt`, commit, push) et publie
+une nouvelle version pour revenir à un état propre.
 
 ---
 
@@ -1014,6 +1114,11 @@ Restauration :
 ```bash
 sudo -u postgres pg_restore -d wwa_production --clean /var/backups/wwa/db-20260818-0300.dump
 ```
+
+En plus de cette sauvegarde quotidienne, **chaque mise en production** sauvegarde la
+base juste avant les migrations (`deploy.sh`) :
+`/var/backups/wwa/pre-deploy-<date>-<version>.dump`, 20 dernières conservées. C'est
+celle à restaurer si une migration pose problème.
 
 > Une sauvegarde sur le VPS ne protège pas de la perte du VPS. Copie-les ailleurs
 > (`rsync` vers ta machine) ou active l'option **Snapshot / Backup automatisé** d'OVH.
@@ -1053,6 +1158,15 @@ anonymise**. À défaut d'un script d'anonymisation vérifié, reste sur le seed
 | Modification de `.env` sans effet | variable `PUBLIC_*` figée au build | relancer `deploy.sh` (pas un simple restart) |
 | Modification de `deploy.sh` sans effet en CI | la copie root n'est pas à jour | relancer `install.sh <cible> deploy` |
 | `un déploiement est déjà en cours` | verrou `flock` | attendre, ou `ls -l /var/lock/wwa-deploy-*` |
+| `la production ne deploie que des versions` | commit sans tag demandé en production | `npm run release`, ou `WWA_ALLOW_UNTAGGED=1` en urgence |
+| `wwa-deploy-gate : commande refusee` | commande SSH autre que `staging [sha]` / `production vX.Y.Z` | `journalctl -t wwa-deploy-gate` |
+| Workflow : `n'est pas construit sur la production actuelle` | un hotfix en ligne n'est pas dans `develop` | `git checkout develop; git merge origin/main; git push` puis nouvelle version |
+| Workflow : `Permission denied (publickey)` | clé absente d'`authorized_keys` ou mauvaise clé en secret | `sudo cat /home/deploy/.ssh/authorized_keys` |
+| Workflow : `Host key verification failed` | `VPS_SSH_KNOWN_HOSTS` vide ou d'un autre port | refaire `ssh-keyscan -p <port> -H <ip>` |
+| Workflow : `Connection refused` / timeout SSH | port SSH fermé (ufw, pare-feu OVH) | `Test-NetConnection <ip> -Port <port>` |
+| `build echoue ... Le site en ligne n'a pas ete touche` | erreur de build Astro | log du run ; le site sert toujours la version précédente |
+| `ancien frontend de nouveau en ligne` | le nouveau build ne répondait pas | `ls /var/www/wwa*/dist-failed`, `journalctl -u wwa-web -n 50` |
+| Ports 80/443 déjà pris, nginx ne démarre pas | SafeLine (ou autre) toujours actif | [étape 1.0](#10-état-du-vps-constaté-le-2026-09-16-à-lire-avant-tout) |
 
 **Journaux :**
 
@@ -1070,18 +1184,19 @@ sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 ## Checklist de mise en production
 
 ### Branches et GitHub
-- [ ] `git log --no-merges origin/develop..origin/main` vide (rien sur `main` qui manque à `develop`)
-- [ ] Premier merge `develop` → `main` fait après validation du test
+- [ ] `git merge-base --is-ancestor origin/main origin/develop` renvoie 0
 - [ ] Branche par défaut GitHub = `develop`
-- [ ] Pull Requests : merge commits uniquement (squash et rebase désactivés)
-- [ ] `main` protégée : force-push et suppression interdits
-- [ ] Environnement `production` limité à `main` ; « Required reviewers » selon ton choix
+- [ ] Environnement `production` : reviewers + règle de tag `v*`
+- [ ] Ruleset tags `v*` : suppression, force-push et mise à jour interdits
+- [ ] Ruleset `main` : suppression et force-push interdits
 - [ ] Secrets **du dépôt** renseignés (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `VPS_PORT` si SSH ≠ 22)
 - [ ] GitHub Pages désactivé, environnement `github-pages` supprimé
-- [ ] `ci.yml` (pipeline Docker) passé en `workflow_dispatch`
-- [ ] `npm run hooks:install` lancé sur ta machine
+- [ ] `ci.yml` (pipeline Docker) en `workflow_dispatch` uniquement
+- [ ] `npm run hooks:install` lancé sur chaque poste
 
 ### Infrastructure
+- [ ] SafeLine retiré : 80 et 443 tenus par nginx, 9443 fermé
+- [ ] SSH joignable depuis Internet sur le port déclaré dans `VPS_PORT`
 - [ ] Ubuntu 24.04 à jour, fuseau horaire réglé
 - [ ] SSH par clé, `PermitRootLogin no`, `PasswordAuthentication no`
 - [ ] `ufw` actif : 22 / 80 / 443 uniquement
@@ -1112,7 +1227,9 @@ sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 - [ ] `wwa:*` et `wwa-dev:*` : `RUNNING`
 - [ ] Ports 4321, 4322, 8080, 8081, 5432 tous sur `127.0.0.1`
 - [ ] Deux certificats Let's Encrypt émis, `certbot.timer` actif
-- [ ] `/usr/local/sbin/wwa-deploy` installé, `/etc/sudoers.d/wwa-deploy` valide
+- [ ] `/usr/local/sbin/wwa-deploy` et `wwa-deploy-gate` installés, `/etc/sudoers.d/wwa-deploy` valide
+- [ ] `authorized_keys` de `deploy` : `command="/usr/local/sbin/wwa-deploy-gate",restrict`
+- [ ] Clé privée `gh_actions` supprimée du VPS après copie dans GitHub
 
 ### Sécurité et SEO
 - [ ] Seul `worldwise-admission.com/robots.txt` contient `Allow: /`
@@ -1123,5 +1240,7 @@ sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 
 ### Fonctionnel
 - [ ] Toutes les vérifications de l'[étape 10](#étape-10--vérifications) passent
-- [ ] Chaîne `git push` → test → `promote` → production testée de bout en bout
+- [ ] Chaîne `git push` → TEST → `npm run release` → approbation → PRODUCTION testée ([10.6](#106-chaîne-complète-de-déploiement))
+- [ ] Retour arrière par *Run workflow* sur un tag testé une fois
+- [ ] Release GitHub créée et `main` = version en ligne
 - [ ] Sauvegarde quotidienne planifiée **et restauration testée une fois**

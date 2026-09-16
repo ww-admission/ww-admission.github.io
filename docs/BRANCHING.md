@@ -1,334 +1,317 @@
-# Branches et mise en ligne — WorldWise Admission
+# Mise en ligne — test, production, correctifs
 
-> Le quotidien : où on travaille, comment ça arrive en ligne, et comment on évite
-> de casser la production par accident.
+> Le quotidien : où on travaille, comment ça arrive en ligne, comment on corrige vite,
+> et comment on retrouve une ancienne version.
 
 ---
 
-## 1. Les deux branches, les deux sites
+## 1. En une image
 
-| Branche | Environnement | Ce qui la met à jour | Ce qui se passe ensuite |
+```
+  git push develop ──────────► TEST          dev.worldwise-admission.com
+        (automatique)                        app.dev.worldwise-admission.com
+
+  npm run release  ──► tag v1.4.0 ──► approbation ──► PRODUCTION   worldwise-admission.com
+        (tu retapes "v1.4.0")        (Review deployments)          app.worldwise-admission.com
+                                                        │
+                                                        └─► archive : Release GitHub v1.4.0
+                                                                      main = v1.4.0
+```
+
+| Quoi | Où | Déclencheur | Approbation |
 |---|---|---|---|
-| **`develop`** | **TEST** | un `git push` | déploiement **automatique** sur `dev.worldwise-admission.com` et `app.dev.worldwise-admission.com` |
-| **`main`** | **PRODUCTION** | un **merge de `develop` dans `main`** | déploiement **automatique** sur `worldwise-admission.com` et `app.worldwise-admission.com` |
+| **TEST** | branche `develop` | chaque `git push` | aucune |
+| **PRODUCTION** | un **tag de version** `vX.Y.Z` | `npm run release` | **oui**, dans GitHub |
+| **Version en ligne** | branche `main` | avancée automatiquement après chaque mise en production | — |
+| **Archive** | *Releases* GitHub + tags | créées automatiquement | — |
 
-`develop` est la branche par défaut : c'est là que tu arrives en clonant le dépôt,
-c'est là que tu travailles, c'est là que tu casses des choses.
+Trois règles suffisent :
 
-`main` ne reçoit **que des merges de `develop`**. On n'y committe jamais directement :
-tout ce qui arrive en production doit d'abord être passé par le test.
+1. **On travaille sur `develop`** (ou sur une branche `feature/*` / `fix/*` mergée dans `develop`).
+2. **La production ne reçoit que des versions** `vX.Y.Z`. Jamais une branche, jamais un commit isolé.
+3. **On ne touche jamais `main` à la main** : c'est le reflet exact de ce qui est en ligne.
+
+C'est le fonctionnement d'avant (tags `v1.0.0`, `v1.0.1`, approbation GitHub) —
+sans Harbor ni Komodo : le déploiement se fait directement sur le VPS OVH.
 
 ---
 
-## 2. Le cycle normal
-
-```
-   ┌─────────────┐   git push     ┌──────────────┐  auto   ┌──────────────────┐
-   │ Ta machine  │ ─────────────► │   develop    │ ──────► │  SITE DE TEST    │
-   │  (develop)  │                │  (GitHub)    │         │  dev.domaine.com │
-   └─────────────┘                └──────┬───────┘         └──────────────────┘
-                                         │
-                              merge develop → main
-                        (Pull Request  ou  npm run promote)
-                                         │
-                                         ▼
-                                  ┌──────────────┐   auto   ┌────────────────┐
-                                  │     main     │ ───────► │  SITE LIVE     │
-                                  │  (GitHub)    │          │  domaine.com   │
-                                  └──────────────┘          └────────────────┘
-```
-
-### Étape 1 — Travailler et publier sur le test
+## 2. Publier sur le TEST
 
 ```powershell
 git checkout develop
-# ... tu codes ...
-
-npm run dev          # vérifier en local d'abord
-git add .
-git commit -m "Description de ce que tu as changé"
+git pull
+# ... tu codes, tu vérifies en local (npm run dev) ...
+git commit -am "feat(candidature): description"
 git push
 ```
 
-Le workflow **Deploy - TEST (develop)** part tout seul. Au bout de 2 à 5 minutes :
+Le workflow **TEST - deploiement** part tout seul (2 à 5 minutes). Il apparaît dans
+**Actions** et dans **Deployments → staging**.
 
 - https://dev.worldwise-admission.com
 - https://app.dev.worldwise-admission.com/login
 
-Un **bandeau orange « Environnement de test »** apparaît en bas à gauche de chaque
-page du site de test, avec le numéro de version. Si tu ne le vois pas, tu es sur la
-production — arrête-toi.
+Le **bandeau orange « Environnement de test »** en bas à gauche affiche le commit en
+ligne. Si tu ne le vois pas, tu es sur la production.
 
-> Les commits qui ne touchent que de la documentation (`*.md`, `docs/`) ne
-> déclenchent aucun déploiement.
+> Les commits qui ne touchent que la documentation (`*.md`, `docs/`) ne déploient rien.
 
-### Étape 2 — Vérifier sérieusement
+### Vérifier avant de publier en production
 
-Sur le site de test, et seulement là :
-
-- [ ] Le workflow **Deploy - TEST (develop)** est vert dans l'onglet *Actions*
-- [ ] Le bandeau orange est bien présent
-- [ ] La modification que tu as faite fonctionne
+- [ ] Le workflow **TEST - deploiement** est vert
+- [ ] Le bandeau orange affiche le bon commit
 - [ ] Connexion admin sur `app.dev.…/login`
-- [ ] Le formulaire `/candidature` se soumet et la candidature apparaît dans l'admin
-- [ ] La messagerie temps réel fonctionne (message visible sans recharger)
-- [ ] Bascule clair / sombre puis rechargement
+- [ ] `/candidature` se soumet et la candidature apparaît dans l'admin
+- [ ] Messagerie temps réel (message visible sans recharger)
+- [ ] Bascule clair / sombre, puis rechargement
 - [ ] Aucune erreur rouge dans la console du navigateur
-
-### Étape 3 — Merger `develop` dans `main`
-
-Deux façons équivalentes. Les deux passent par les mêmes contrôles.
-
-#### Méthode A — Pull Request sur GitHub (recommandée)
-
-1. https://github.com/ww-admission/ww-admission.github.io/compare/main...develop
-2. **Create pull request**, titre par exemple « Mise en production 2026-09-20 »
-3. Relis l'onglet **Files changed** : c'est exactement ce qui part en ligne
-4. Attends que **CI - build** soit vert sur la PR
-5. **Merge pull request** avec l'option **Create a merge commit**
-
-> ⚠️ **Jamais « Squash and merge » ni « Rebase and merge ».** Ces deux options
-> réécrivent les commits : `main` contiendrait alors des commits absents de
-> `develop`, et le job `guard` **refuserait le déploiement**. Le plus sûr est de les
-> désactiver (§4.2).
-
-#### Méthode B — Depuis le terminal
-
-```powershell
-npm run promote
-```
-
-Le script, dans l'ordre :
-
-1. refuse s'il te reste des modifications non commitées ;
-2. refuse si `main` contient du code absent de `develop` (et te dit comment réparer) ;
-3. **te montre la liste exacte des commits** qui partiraient en production ;
-4. te demande de taper `PRODUCTION` en entier pour confirmer ;
-5. pose un **tag de retour arrière** sur l'état actuel de la production ;
-6. merge `develop` dans `main` (fast-forward si possible) et pousse.
-
-Rien n'est modifié avant l'étape 4 : tu peux annuler sans risque.
-
-Pour voir ce qui partirait sans rien faire :
-
-```powershell
-npm run promote:dry
-```
-
-### Étape 4 — Suivre le déploiement
-
-Le merge déclenche **Deploy - PRODUCTION (main)** :
-
-1. https://github.com/ww-admission/ww-admission.github.io/actions
-2. Le job **guard** vérifie que `main` ne contient que du code passé par `develop`
-3. Si l'environnement `production` exige une approbation (§4.3), clique
-   **Review deployments** → **Approve and deploy**
-4. Le job **deploy** met le VPS à jour puis vérifie tout seul que la production sert
-   bien le bon commit, que la vitrine est indexable et que le back-office ne l'est pas
 
 ---
 
-## 3. Les garde-fous, et ce que chacun protège
+## 3. Publier en PRODUCTION
+
+### 3.1 Voir ce qui partirait (sans rien faire)
+
+```powershell
+npm run release:dry
+```
+
+### 3.2 Publier
+
+```powershell
+npm run release
+```
+
+Le script :
+
+1. vérifie que ton dépôt est propre et à jour ;
+2. vérifie que `develop` est construit sur la production actuelle (sinon un correctif
+   en ligne serait effacé) ;
+3. **affiche la liste exacte des changements** et si le TEST sert bien ce code ;
+4. te demande le type de version :
+   - `patch` → corrections (`v1.3.0` → `v1.3.1`)
+   - `minor` → nouvelles fonctionnalités (`v1.3.0` → `v1.4.0`)
+   - `major` → changement majeur (`v1.3.0` → `v2.0.0`)
+5. **te fait retaper le numéro** (`v1.4.0`) : impossible de publier par réflexe ;
+6. crée le tag et le pousse.
+
+Rien n'est modifié avant l'étape 5.
+
+### 3.3 Approuver dans GitHub
+
+1. **Actions** → run **PRODUCTION ← v1.4.0**
+2. Le résumé du run affiche : type (nouvelle version / retour arrière), version en
+   ligne avant, **liste des changements**, passage ou non par le TEST, lien de comparaison
+3. **Review deployments** → coche `production` → **Approve and deploy**
+
+Personne ne peut envoyer en production sans ce clic (reviewers : `GRIMDERVALD`,
+`Steeve36`).
+
+Ensuite, tout seul :
+
+- déploiement sur le VPS (site jamais coupé pendant le build, base sauvegardée avant
+  les migrations) ;
+- vérification que `https://worldwise-admission.com/health` annonce bien
+  `"version":"v1.4.0"`, que la vitrine est indexable et le back-office non ;
+- **archive** : Release GitHub `v1.4.0` avec la liste des changements ;
+- `main` avancée sur `v1.4.0`.
+
+La mise en production est visible dans **Deployments → production**, version par version.
+
+---
+
+## 4. Corriger vite
+
+### 4.1 Un problème sur le TEST
+
+C'est le cas normal : corrige sur `develop` et pousse. Le TEST se met à jour tout seul.
+
+### 4.2 Un problème en PRODUCTION — correctif urgent (hotfix)
+
+Quand `develop` contient déjà des fonctionnalités **pas prêtes** pour la production,
+on corrige **à partir de ce qui est en ligne** (`main`), pas à partir de `develop` :
+
+```powershell
+git fetch origin
+git checkout -b hotfix/description-courte origin/main
+
+# ... le correctif, uniquement ...
+git commit -am "fix: description"
+git push -u origin hotfix/description-courte
+
+npm run release:hotfix        # propose v1.4.1, tu retapes, puis approbation GitHub
+```
+
+Pour tester le correctif avant de le publier (recommandé si tu as 5 minutes) :
+**Actions → TEST - deploiement → Run workflow → Branch : `hotfix/description-courte`**.
+
+Après la mise en ligne, le workflow **reporte automatiquement le correctif dans
+`develop`** et relance le TEST. En cas de conflit, le résumé du run indique les trois
+commandes à lancer — tant que ce n'est pas fait, `npm run release` refuse de publier
+une nouvelle version (pour ne pas effacer le correctif).
+
+> Si `develop` ne contient rien de plus que la production, pas besoin de branche
+> hotfix : corrige sur `develop`, pousse, puis `npm run release` (type `patch`).
+
+### 4.3 Revenir à la version précédente (le plus rapide)
+
+**Depuis GitHub** (rien à installer) :
+
+**Actions → PRODUCTION - mise en ligne d'une version → Run workflow →
+Use workflow from : Tags → `v1.3.0`** → approbation.
+
+Le résumé du run affiche **RETOUR ARRIERE** et la liste des changements retirés.
+`main` n'est pas modifiée : la correction se fait ensuite normalement, puis nouvelle
+version.
+
+**Depuis le VPS** (si GitHub est indisponible) :
+
+```bash
+sudo /usr/local/sbin/wwa-deploy production v1.3.0
+```
+
+> Un retour arrière **ne défait pas les migrations de base de données**. Chaque mise en
+> production sauvegarde la base juste avant de migrer, dans
+> `/var/backups/wwa/pre-deploy-<date>-<version>.dump`
+> ([DEPLOYMENT.md, étape 11](DEPLOYMENT.md#étape-11--sauvegardes-automatiques)).
+
+### 4.4 En dernier recours : directement sur le VPS
+
+Si GitHub Actions est en panne, le script de déploiement reste utilisable à la main,
+avec les mêmes contrôles :
+
+```bash
+sudo /usr/local/sbin/wwa-deploy                       # TEST, pointe de develop
+sudo /usr/local/sbin/wwa-deploy production v1.4.1     # PRODUCTION, confirmation "PRODUCTION"
+```
+
+Un commit sans tag n'est accepté en production qu'avec `WWA_ALLOW_UNTAGGED=1`, à
+réserver à une vraie urgence.
+
+---
+
+## 5. Les anciennes versions
+
+| Où | Ce qu'on y trouve |
+|---|---|
+| **Releases** (`/releases`) | chaque version, sa date, la liste des changements, le code source (zip / tar.gz) |
+| **Deployments → production** | quelle version a été mise en ligne, quand, par qui, approuvée par qui |
+| **Tags** (`/tags`) | `v1.0.0`, `v1.0.1`, … — jamais supprimés, jamais déplacés |
+| **VPS** `/var/backups/wwa/` | la base juste avant chaque mise en production (20 dernières) |
+| **VPS** `/var/www/wwa/dist-prev/` | le build précédent du frontend |
+
+Comparer deux versions :
+`https://github.com/ww-admission/ww-admission.github.io/compare/v1.3.0...v1.4.0`
+
+---
+
+## 6. Les garde-fous, et ce que chacun protège
 
 | Garde-fou | Où | Ce qu'il empêche |
 |---|---|---|
-| Hook `pre-push` | ta machine | pousser sur `main` du code absent de `origin/develop` |
-| Dépôt propre exigé | `promote.ps1` | promouvoir du code non commité |
-| Contrôle de divergence | `promote.ps1` | écraser un correctif présent seulement sur `main` |
-| Confirmation `PRODUCTION` à taper | `promote.ps1` | le clic réflexe |
-| Tag de retour arrière | `promote.ps1` | perdre l'état précédent |
-| Merge commit uniquement | réglages GitHub | squash / rebase qui désynchronisent `main` et `develop` |
-| Branche `main` protégée | GitHub | force-push et suppression de branche |
-| Job `guard` | GitHub Actions | déployer du code absent de `develop` |
-| Commit exact transmis au VPS | GitHub Actions | déployer autre chose que ce que `guard` a vérifié |
-| `environment: production` | GitHub Actions | (si reviewers requis) déploiement sans second clic |
-| Confirmation `PRODUCTION` | `deploy.sh` | lancement manuel distrait sur le VPS |
-| Préflight de configuration | `deploy.sh` | mauvais cookie, mauvaise base, mauvais environnement |
+| Numéro à retaper | `release.ps1` | la publication par réflexe |
+| Contrôle « construit sur main » | `release.ps1` + workflow | effacer un correctif déjà en ligne |
+| Build vérifié avant approbation | workflow | approuver une version qui ne compile pas |
+| **Approbation `production`** | GitHub | toute mise en production sans validation humaine |
+| Production = tag uniquement | workflow + `deploy.sh` + `ssh-gate.sh` | envoyer une branche ou un commit au hasard |
+| Clé SSH à commande forcée | VPS (`ssh-gate.sh`) | qu'une clé volée ouvre un shell sur le serveur |
+| Build à côté + bascule | `deploy.sh` | un site cassé pendant ou après un build raté |
+| Sauvegarde avant migration | `deploy.sh` | perdre des données sur une migration ratée |
+| Vérification `/health` + SEO | workflow | déclarer réussi un déploiement qui ne sert pas la bonne version |
+| Hook `pre-push` | ta machine | push direct sur `main`, suppression ou déplacement d'un tag |
+| Préflight des `.env` | `deploy.sh` | mauvais cookie, mauvaise base, mauvais environnement |
 | Bandeau orange | l'application | confondre le test et la production |
-
-**La règle commune** au hook, à `promote.ps1` et au job `guard` : le commit envoyé en
-production est accepté s'il est **dans `develop`** (fast-forward), ou s'il est **un
-merge de `develop` dont le contenu est identique au côté `develop`** (bouton
-*Create a merge commit*). Tout le reste est refusé.
 
 ### Activer le hook local (une fois par clone)
 
 ```powershell
 npm run hooks:install
-```
-
-Vérification :
-
-```powershell
 git config core.hooksPath      # doit afficher scripts/git-hooks
 ```
 
-Sans ça, la seule barrière locale disparaît. Le reste des garde-fous tient toujours.
-
 ---
 
-## 4. Réglages GitHub à faire une seule fois
+## 7. Réglages GitHub (une seule fois)
 
-### 4.1 Branche par défaut
+### 7.1 Environnement `production` — déjà en place
 
-**Settings → General → Default branch** → `develop`.
+**Settings → Environments → production** :
 
-C'est ce qui fait que tu « arrives » sur `develop` en clonant, et que les nouvelles
-pull requests visent `develop` par défaut.
+- ☑ **Required reviewers** : `GRIMDERVALD`, `Steeve36` (déjà configuré)
+- ☐ *Prevent self-review* : laisser décoché permet à une seule personne de publier un
+  correctif urgent ; le cocher impose un second regard à chaque mise en production
+- **Deployment branches and tags** → *Selected branches and tags* → ajouter la règle
+  de **tag** `v*` : seuls les tags de version peuvent utiliser cet environnement
 
-### 4.2 Merge commits uniquement
+### 7.2 Protéger les tags de version
 
-**Settings → General → Pull Requests** :
-
-- ☑ **Allow merge commits**
-- ☐ **Allow squash merging**
-- ☐ **Allow rebase merging**
-- ☐ **Automatically delete head branches** → **décoché**. Et après chaque merge, ne
-  clique jamais sur le bouton **Delete branch** que GitHub affiche sous la PR : il
-  supprimerait `develop`.
-
-### 4.3 Protéger `main`
-
-**Settings → Rules → Rulesets → New branch ruleset**, cible `main` :
+**Settings → Rules → Rulesets → New tag ruleset** — nom `versions`, cible
+`v*` :
 
 - ☑ **Restrict deletions**
 - ☑ **Block force pushes**
-- ☐ *Require a pull request before merging* → **laisser décoché** si tu veux garder
-  `npm run promote` ; coche-le si tu veux imposer la méthode A.
+- ☑ **Restrict updates**
 
-### 4.4 Environnement `production`
+### 7.3 Protéger `main`
 
-**Settings → Environments → production** (il existe déjà).
+**Settings → Rules → Rulesets → New branch ruleset** — nom `production`, cible `main` :
 
-- **Required reviewers** — c'est un **choix** :
-  - **décoché** : le merge suffit, la production se met à jour toute seule ;
-  - **coché** : après le merge, GitHub attend en plus ton clic
-    **Approve and deploy**. Double sécurité, un clic de plus.
-- **Deployment branches and tags** → **Selected branches** → `main` : empêche
-  qu'un autre workflow ou une autre branche utilise les secrets de production.
+- ☑ **Restrict deletions**
+- ☑ **Block force pushes**
 
-### 4.5 Secrets pour le push-to-deploy
+Ne coche **pas** *Restrict updates* ni *Require a pull request* : le workflow de
+production doit pouvoir avancer `main`.
 
-**Settings → Secrets and variables → Actions → New repository secret** — au niveau
-**du dépôt** (*Repository secrets*), pas seulement dans l'environnement
-`production`, sinon le déploiement de test ne les voit pas :
+### 7.4 Secrets du dépôt
+
+**Settings → Secrets and variables → Actions → New repository secret** :
 
 | Secret | Valeur |
 |---|---|
 | `VPS_HOST` | IP publique du VPS OVH |
 | `VPS_USER` | `deploy` |
-| `VPS_SSH_KEY` | clé privée SSH de `deploy` (contenu complet, en-têtes inclus) |
+| `VPS_SSH_KEY` | clé privée dédiée à GitHub Actions (contenu complet, en-têtes inclus) |
 | `VPS_SSH_KNOWN_HOSTS` | sortie de `ssh-keyscan -p <PORT> -H <IP_DU_VPS>` |
 | `VPS_PORT` | seulement si le SSH du VPS n'écoute pas sur 22 |
 
-`VPS_SSH_KNOWN_HOSTS` est fortement recommandé : sans lui, le workflow accepte
-l'empreinte du serveur à l'aveugle à chaque exécution.
-
-La création de l'utilisateur `deploy` et de sa clé est décrite dans
+Création de l'utilisateur `deploy` et de sa clé :
 [DEPLOYMENT.md, étape 9](DEPLOYMENT.md#étape-9--push-to-deploy).
 
-### 4.6 Désactiver l'ancien GitHub Pages
+### 7.5 Désactiver l'ancien GitHub Pages
 
-Le dépôt a servi de site GitHub Pages. **Settings → Pages** → *Source* : **None**
-(ou *Unpublish site*), puis supprime l'environnement `github-pages` dans
-**Settings → Environments**. Sinon `ww-admission.github.io` continue de revendiquer
-le domaine `worldwise-admission.com`.
+**Settings → Pages → Unpublish site**. Sinon GitHub reconstruit un site statique à
+chaque mise à jour de `main` et revendique le domaine `worldwise-admission.com`.
 
 ---
 
-## 5. Situations particulières
-
-### Un correctif urgent en production
-
-Le chemin reste le même — il est juste plus rapide. Ne committe pas directement sur
-`main` : le hook et le job `guard` le refuseraient.
+## 8. Aide-mémoire
 
 ```powershell
-git checkout develop
-# ... le correctif ...
-git commit -am "fix: description"
-git push
-# vérifier sur dev.worldwise-admission.com (workflow vert)
-npm run promote          # ou Pull Request develop → main
-```
+# TEST
+git push                          # sur develop
 
-### Revenir en arrière tout de suite
+# PRODUCTION
+npm run release:dry               # voir ce qui partirait
+npm run release                   # publier une version, puis approuver dans GitHub
 
-Depuis le VPS :
+# CORRECTIF URGENT
+git checkout -b hotfix/xxx origin/main
+git commit -am "fix: ..." ; git push -u origin hotfix/xxx
+npm run release:hotfix
 
-```bash
-sudo /usr/local/sbin/wwa-deploy production "$(cat /var/www/wwa/.deploy-previous)"
-```
+# RETOUR ARRIERE
+# Actions > PRODUCTION > Run workflow > Use workflow from : tag vX.Y.Z
 
-`deploy.sh` écrit le commit précédent dans `.deploy-previous` avant chaque
-déploiement, et affiche la commande exacte à la fin de chaque exécution.
-
-Ou avec le tag posé par `promote.ps1` :
-
-```bash
-git -C /var/www/wwa tag --list 'rollback-*' | tail -5
-sudo /usr/local/sbin/wwa-deploy production rollback-20260818-1430
-```
-
-> Un retour arrière **ne défait pas les migrations de base de données**. Si le
-> déploiement fautif a migré le schéma, restaure aussi la sauvegarde
-> ([DEPLOYMENT.md étape 11](DEPLOYMENT.md#étape-11--sauvegardes-automatiques)).
-
-> Le retour arrière remet le **VPS** sur l'ancien commit, pas la branche `main`. Le
-> prochain merge redéploiera la pointe de `main` : corrige d'abord sur `develop`.
-
-### `main` a divergé de `develop`
-
-Ça arrive si quelqu'un a utilisé *Squash* ou *Rebase*, ou a poussé directement sur
-`main` en contournant le hook. `promote.ps1` s'arrête et affiche les commits
-concernés, et le job `guard` refuse de déployer. Pour rapatrier :
-
-```powershell
-git checkout develop
-git merge origin/main
-git push origin develop
-# vérifier le test, puis nouveau merge develop → main
-```
-
-### Tester une modification du script de déploiement
-
-`deploy.sh` est copié dans `/usr/local/sbin/wwa-deploy` (propriété de root) pour que
-l'utilisateur `deploy` ne puisse pas s'octroyer les droits root en éditant le script.
-Après toute modification de `deploy/deploy.sh`, il faut donc réinstaller la copie :
-
-```bash
-sudo bash /var/www/wwa/deploy/install.sh production deploy
-```
-
----
-
-## 6. Aide-mémoire
-
-```powershell
-# publier sur le TEST
-git checkout develop
-git commit -am "message"
-git push
-
-# voir ce qui partirait en production, sans rien faire
-npm run promote:dry
-
-# mettre en PRODUCTION : Pull Request develop → main (merge commit), ou
-npm run promote
-
-# activer les garde-fous locaux (une fois par clone)
+# une fois par clone
 npm run hooks:install
 ```
 
 ```bash
-# depuis le VPS : déployer à la main
-sudo /usr/local/sbin/wwa-deploy              # test (par défaut)
-sudo /usr/local/sbin/wwa-deploy production   # production, avec confirmation
-
-# retour arrière
-sudo /usr/local/sbin/wwa-deploy production "$(cat /var/www/wwa/.deploy-previous)"
-
-# état des services
+# sur le VPS
+sudo /usr/local/sbin/wwa-deploy                        # TEST
+sudo /usr/local/sbin/wwa-deploy production v1.4.0      # PRODUCTION
+curl -s https://worldwise-admission.com/health          # version en ligne
 systemctl status wwa-web wwa-dev-web
 sudo supervisorctl status
 ```

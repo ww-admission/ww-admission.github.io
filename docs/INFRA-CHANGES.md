@@ -7,6 +7,13 @@ git commit par commit.
 
 Périmètre couvert : commits `fba9f6e` → `cdfe190` sur `develop`.
 
+> **Document historique.** Depuis septembre 2026, le déploiement ne passe plus par
+> Docker, Harbor et Komodo : le code est déployé directement sur le VPS OVH par GitHub
+> Actions (push `develop` → TEST, tag `vX.Y.Z` approuvé → PRODUCTION). Voir
+> [BRANCHING.md](BRANCHING.md) et [DEPLOYMENT.md](DEPLOYMENT.md). Les leçons de ce
+> document restent valables, en particulier §3 (`process.env` pour les variables
+> serveur).
+
 ---
 
 ## 1. Vue d'ensemble de la stack
