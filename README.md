@@ -361,4 +361,4 @@ sudo supervisorctl restart wwa:*     # Redémarrer après déploiement
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture complète, flux de données, système d'auth, patterns de code, composants clés |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Installation des deux environnements (TEST + PRODUCTION) sur VPS OVH : DNS (zone Hostinger), PostgreSQL, nginx, systemd, HTTPS, push-to-deploy, checklist |
-| [docs/BRANCHING.md](docs/BRANCHING.md) | Le quotidien : branches `develop` / `PROD`, mise en ligne, promotion, garde-fous, retour arrière |
+| [docs/BRANCHING.md](docs/BRANCHING.md) | Le quotidien : `develop` (test) → merge → `main` (production), garde-fous, retour arrière |

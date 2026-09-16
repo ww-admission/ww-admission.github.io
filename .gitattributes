@@ -1,0 +1,5 @@
+# Scripts executes sur Linux (VPS) ou par le sh de Git for Windows : un CRLF
+# les casse ("\r: command not found"). Forcer LF quel que soit core.autocrlf.
+*.sh                 text eol=lf
+scripts/git-hooks/*  text eol=lf
+deploy/**            text eol=lf

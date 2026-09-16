@@ -5,8 +5,8 @@
    npm run hooks:install
 
  Configure `core.hooksPath` sur scripts/git-hooks, ce qui active le hook
- pre-push. Ce hook refuse tout `git push` vers la branche PROD qui ne passe
- pas par scripts/promote.ps1.
+ pre-push. Ce hook refuse tout `git push` vers main (production) qui
+ contiendrait du code absent de origin/develop (donc non teste).
 
  A lancer une seule fois par clone du depot (la config est locale au clone,
  elle n'est pas versionnee).
@@ -33,8 +33,8 @@ Write-Host ""
 Write-Host "OK  garde-fous git actives" -ForegroundColor Green
 Write-Host "    core.hooksPath = $current"
 Write-Host ""
-Write-Host '    Effet : un "git push origin PROD" tape a la main est desormais refuse.'
-Write-Host '            Seul  npm run promote  peut mettre a jour la production.'
+Write-Host '    Effet : un "git push origin main" est refuse s il contient du code'
+Write-Host '            absent de develop. Merge develop -> main (PR ou npm run promote).'
 Write-Host ""
 Write-Host "    Verifier :  git config core.hooksPath"
 Write-Host "    Desactiver: git config --unset core.hooksPath"

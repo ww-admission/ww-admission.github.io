@@ -1,22 +1,19 @@
-name: Deploy - PRODUCTION (PROD)
+name: Deploy - PRODUCTION (main)
 
-# Push sur `PROD` => mise a jour du site LIVE :
+# Merge de develop dans `main` => mise a jour du site LIVE :
 #   https://worldwise-admission.com
 #   https://app.worldwise-admission.com
 #
-# ┌──────────────────────────────────────────────────────────────────────────┐
-# │ GARDE-FOU OBLIGATOIRE                                                    │
-# │ Le job utilise `environment: production`. Va dans                        │
-# │   Settings > Environments > production                                    │
-# │ et coche "Required reviewers" en t'ajoutant.                             │
-# │ Sans ce reglage, le deploiement partirait sans confirmation humaine.     │
-# └──────────────────────────────────────────────────────────────────────────┘
+# Le merge (Pull Request develop -> main, ou npm run promote) est l'acte
+# humain qui declenche la production. Si "Required reviewers" est coche dans
+#   Settings > Environments > production
+# GitHub attend en plus un clic "Approve and deploy" avant le job deploy.
 #
 # Secrets attendus : identiques a deploy-staging.yml.
 
 on:
   push:
-    branches: [PROD]
+    branches: [main]
     paths-ignore: ['**.md', 'docs/**', '.gitignore']
   workflow_dispatch: {}
 
@@ -40,16 +37,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verifier que PROD ne contient rien qui ne soit pas passe par develop
+      - name: Verifier que main ne contient rien qui ne soit pas passe par develop
+        # Deux formes acceptees, les seules que produit un merge develop -> main :
+        #  - fast-forward : le commit est dans develop ;
+        #  - merge commit (bouton "Create a merge commit") : son contenu est
+        #    identique a celui du cote develop, donc rien n'a ete ajoute en route.
+        # Refuse : squash, rebase, commit pousse directement sur main.
         run: |
           set -euo pipefail
+          # "Run workflow" manuel sur develop enverrait develop en production sans merge.
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::la production ne se deploie que depuis main (ref recue : $GITHUB_REF)"
+            exit 1
+          fi
           git fetch --no-tags origin develop:refs/remotes/origin/develop
           if git merge-base --is-ancestor HEAD origin/develop; then
-            echo "OK  le commit deploye est bien contenu dans develop (donc teste)"
+            echo "OK  le commit deploye est dans develop (fast-forward)"
+          elif git rev-parse --verify --quiet 'HEAD^2' >/dev/null \
+            && git merge-base --is-ancestor 'HEAD^2' origin/develop \
+            && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'HEAD^2^{tree}')" ]; then
+            echo "OK  merge de develop ($(git rev-parse --short 'HEAD^2')) sans aucune modification supplementaire"
           else
-            echo "::error::le commit $GITHUB_SHA n'est PAS contenu dans develop."
+            echo "::error::le commit $GITHUB_SHA contient du code absent de develop."
             echo "::error::Du code arriverait en production sans etre passe par le test."
-            echo "::error::Passe par develop puis relance scripts/promote.ps1."
+            echo "::error::Merge develop -> main avec 'Create a merge commit' (pas Squash ni Rebase), ou npm run promote."
             exit 1
           fi
 
@@ -65,7 +76,7 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| Commit | \`$release\` |"
-            echo "| Branche | \`PROD\` |"
+            echo "| Branche | \`main\` |"
             echo "| Vitrine | https://worldwise-admission.com |"
             echo "| Back-office | https://app.worldwise-admission.com |"
             echo ""
@@ -79,7 +90,7 @@ jobs:
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Approbation humaine requise si "Required reviewers" est configure
+    # Approbation supplementaire seulement si "Required reviewers" est coche
     # sur cet environnement GitHub.
     environment:
       name: production
@@ -106,6 +117,8 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deployer
+        # On deploie exactement le commit controle par `guard`, et non la pointe
+        # de main au moment ou le VPS la lit (un merge suivant a pu arriver entre-temps).
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -117,7 +130,7 @@ jobs:
               -o BatchMode=yes \
               -p "${VPS_PORT:-22}" \
               "$VPS_USER@$VPS_HOST" \
-              'sudo /usr/local/sbin/wwa-deploy production --yes'
+              "sudo /usr/local/sbin/wwa-deploy production --yes $GITHUB_SHA"
 
       - name: Verifier que la production sert bien le commit pousse
         env:

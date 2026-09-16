@@ -5,10 +5,10 @@ name: CI - build
 
 on:
   push:
-    branches: [develop, PROD]
+    branches: [develop, main]
     paths-ignore: ['**.md', 'docs/**', '.gitignore']
   pull_request:
-    branches: [develop, PROD]
+    branches: [develop, main]
   workflow_dispatch: {}
 
 permissions:

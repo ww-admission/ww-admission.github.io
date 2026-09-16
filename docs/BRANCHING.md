@@ -7,18 +7,16 @@
 
 ## 1. Les deux branches, les deux sites
 
-| Branche | Environnement | Ce qui se passe quand tu pousses | Approbation |
+| Branche | Environnement | Ce qui la met à jour | Ce qui se passe ensuite |
 |---|---|---|---|
-| **`develop`** | **TEST** | Mise en ligne **automatique** sur `dev.worldwise-admission.com` et `app.dev.worldwise-admission.com` | aucune |
-| **`PROD`** | **PRODUCTION** | Mise en ligne sur `worldwise-admission.com` et `app.worldwise-admission.com` | **manuelle, obligatoire** |
+| **`develop`** | **TEST** | un `git push` | déploiement **automatique** sur `dev.worldwise-admission.com` et `app.dev.worldwise-admission.com` |
+| **`main`** | **PRODUCTION** | un **merge de `develop` dans `main`** | déploiement **automatique** sur `worldwise-admission.com` et `app.worldwise-admission.com` |
 
 `develop` est la branche par défaut : c'est là que tu arrives en clonant le dépôt,
 c'est là que tu travailles, c'est là que tu casses des choses.
 
-`PROD` est protégée. On ne pousse **jamais** dessus à la main.
-
-> La branche `main` n'est plus utilisée. Le hook `pre-push` t'avertit si tu essaies
-> encore de pousser dessus.
+`main` ne reçoit **que des merges de `develop`**. On n'y committe jamais directement :
+tout ce qui arrive en production doit d'abord être passé par le test.
 
 ---
 
@@ -30,14 +28,14 @@ c'est là que tu travailles, c'est là que tu casses des choses.
    │  (develop)  │                │  (GitHub)    │         │  dev.domaine.com │
    └─────────────┘                └──────┬───────┘         └──────────────────┘
                                          │
-                                  npm run promote
-                                   (+ confirmation)
+                              merge develop → main
+                        (Pull Request  ou  npm run promote)
                                          │
                                          ▼
-                                  ┌──────────────┐  approbation  ┌────────────────┐
-                                  │     PROD     │ ────────────► │  SITE LIVE     │
-                                  │  (GitHub)    │   GitHub UI   │  domaine.com   │
-                                  └──────────────┘               └────────────────┘
+                                  ┌──────────────┐   auto   ┌────────────────┐
+                                  │     main     │ ───────► │  SITE LIVE     │
+                                  │  (GitHub)    │          │  domaine.com   │
+                                  └──────────────┘          └────────────────┘
 ```
 
 ### Étape 1 — Travailler et publier sur le test
@@ -61,10 +59,14 @@ Un **bandeau orange « Environnement de test »** apparaît en bas à gauche de 
 page du site de test, avec le numéro de version. Si tu ne le vois pas, tu es sur la
 production — arrête-toi.
 
+> Les commits qui ne touchent que de la documentation (`*.md`, `docs/`) ne
+> déclenchent aucun déploiement.
+
 ### Étape 2 — Vérifier sérieusement
 
 Sur le site de test, et seulement là :
 
+- [ ] Le workflow **Deploy - TEST (develop)** est vert dans l'onglet *Actions*
 - [ ] Le bandeau orange est bien présent
 - [ ] La modification que tu as faite fonctionne
 - [ ] Connexion admin sur `app.dev.…/login`
@@ -73,7 +75,24 @@ Sur le site de test, et seulement là :
 - [ ] Bascule clair / sombre puis rechargement
 - [ ] Aucune erreur rouge dans la console du navigateur
 
-### Étape 3 — Promouvoir en production
+### Étape 3 — Merger `develop` dans `main`
+
+Deux façons équivalentes. Les deux passent par les mêmes contrôles.
+
+#### Méthode A — Pull Request sur GitHub (recommandée)
+
+1. https://github.com/ww-admission/ww-admission.github.io/compare/main...develop
+2. **Create pull request**, titre par exemple « Mise en production 2026-09-20 »
+3. Relis l'onglet **Files changed** : c'est exactement ce qui part en ligne
+4. Attends que **CI - build** soit vert sur la PR
+5. **Merge pull request** avec l'option **Create a merge commit**
+
+> ⚠️ **Jamais « Squash and merge » ni « Rebase and merge ».** Ces deux options
+> réécrivent les commits : `main` contiendrait alors des commits absents de
+> `develop`, et le job `guard` **refuserait le déploiement**. Le plus sûr est de les
+> désactiver (§4.2).
+
+#### Méthode B — Depuis le terminal
 
 ```powershell
 npm run promote
@@ -82,11 +101,11 @@ npm run promote
 Le script, dans l'ordre :
 
 1. refuse s'il te reste des modifications non commitées ;
-2. refuse si `PROD` a divergé de `develop` (et te dit comment réparer) ;
+2. refuse si `main` contient du code absent de `develop` (et te dit comment réparer) ;
 3. **te montre la liste exacte des commits** qui partiraient en production ;
-4. te demande de taper `PROD` en entier pour confirmer ;
+4. te demande de taper `PRODUCTION` en entier pour confirmer ;
 5. pose un **tag de retour arrière** sur l'état actuel de la production ;
-6. avance `PROD` et le pousse.
+6. merge `develop` dans `main` (fast-forward si possible) et pousse.
 
 Rien n'est modifié avant l'étape 4 : tu peux annuler sans risque.
 
@@ -96,16 +115,16 @@ Pour voir ce qui partirait sans rien faire :
 npm run promote:dry
 ```
 
-### Étape 4 — Approuver dans GitHub
+### Étape 4 — Suivre le déploiement
 
-Le push sur `PROD` déclenche **Deploy - PRODUCTION (PROD)**, qui **s'arrête et attend
-ton clic**.
+Le merge déclenche **Deploy - PRODUCTION (main)** :
 
 1. https://github.com/ww-admission/ww-admission.github.io/actions
-2. Ouvre le run en cours → **Review deployments** → **Approve and deploy**
-
-Le workflow vérifie ensuite tout seul que la production sert bien le bon commit, que
-la vitrine est indexable et que le back-office ne l'est pas.
+2. Le job **guard** vérifie que `main` ne contient que du code passé par `develop`
+3. Si l'environnement `production` exige une approbation (§4.3), clique
+   **Review deployments** → **Approve and deploy**
+4. Le job **deploy** met le VPS à jour puis vérifie tout seul que la production sert
+   bien le bon commit, que la vitrine est indexable et que le back-office ne l'est pas
 
 ---
 
@@ -113,17 +132,24 @@ la vitrine est indexable et que le back-office ne l'est pas.
 
 | Garde-fou | Où | Ce qu'il empêche |
 |---|---|---|
-| Hook `pre-push` | ta machine | `git push origin PROD` tapé à la main |
+| Hook `pre-push` | ta machine | pousser sur `main` du code absent de `origin/develop` |
 | Dépôt propre exigé | `promote.ps1` | promouvoir du code non commité |
-| Contrôle de divergence | `promote.ps1` | écraser un correctif appliqué en prod |
-| Confirmation `PROD` à taper | `promote.ps1` | le clic réflexe |
+| Contrôle de divergence | `promote.ps1` | écraser un correctif présent seulement sur `main` |
+| Confirmation `PRODUCTION` à taper | `promote.ps1` | le clic réflexe |
 | Tag de retour arrière | `promote.ps1` | perdre l'état précédent |
-| Branche `PROD` protégée | GitHub | force-push et suppression de branche |
-| Job `guard` | GitHub Actions | déployer un commit absent de `develop` |
-| `environment: production` | GitHub Actions | déploiement sans approbation humaine |
+| Merge commit uniquement | réglages GitHub | squash / rebase qui désynchronisent `main` et `develop` |
+| Branche `main` protégée | GitHub | force-push et suppression de branche |
+| Job `guard` | GitHub Actions | déployer du code absent de `develop` |
+| Commit exact transmis au VPS | GitHub Actions | déployer autre chose que ce que `guard` a vérifié |
+| `environment: production` | GitHub Actions | (si reviewers requis) déploiement sans second clic |
 | Confirmation `PRODUCTION` | `deploy.sh` | lancement manuel distrait sur le VPS |
 | Préflight de configuration | `deploy.sh` | mauvais cookie, mauvaise base, mauvais environnement |
 | Bandeau orange | l'application | confondre le test et la production |
+
+**La règle commune** au hook, à `promote.ps1` et au job `guard` : le commit envoyé en
+production est accepté s'il est **dans `develop`** (fast-forward), ou s'il est **un
+merge de `develop` dont le contenu est identique au côté `develop`** (bouton
+*Create a merge commit*). Tout le reste est refusé.
 
 ### Activer le hook local (une fois par clone)
 
@@ -148,42 +174,52 @@ Sans ça, la seule barrière locale disparaît. Le reste des garde-fous tient to
 **Settings → General → Default branch** → `develop`.
 
 C'est ce qui fait que tu « arrives » sur `develop` en clonant, et que les nouvelles
-pull requests visent `develop`.
+pull requests visent `develop` par défaut.
 
-### 4.2 Protéger `PROD`
+### 4.2 Merge commits uniquement
 
-**Settings → Branches → Add branch ruleset** (ou *Add rule*), pattern `PROD` :
+**Settings → General → Pull Requests** :
+
+- ☑ **Allow merge commits**
+- ☐ **Allow squash merging**
+- ☐ **Allow rebase merging**
+- ☐ **Automatically delete head branches** → **décoché**. Et après chaque merge, ne
+  clique jamais sur le bouton **Delete branch** que GitHub affiche sous la PR : il
+  supprimerait `develop`.
+
+### 4.3 Protéger `main`
+
+**Settings → Rules → Rulesets → New branch ruleset**, cible `main` :
 
 - ☑ **Restrict deletions**
 - ☑ **Block force pushes**
-- ☐ *Require a pull request before merging* → **laisser décoché**
+- ☐ *Require a pull request before merging* → **laisser décoché** si tu veux garder
+  `npm run promote` ; coche-le si tu veux imposer la méthode A.
 
-> Pourquoi laisser le PR décoché : `promote.ps1` pousse directement sur `PROD`. La
-> validation humaine ne se fait pas ici mais à l'étape suivante, au moment du
-> déploiement — c'est plus utile, parce que tu approuves en voyant le résumé de ce
-> qui part vraiment en ligne.
+### 4.4 Environnement `production`
 
-### 4.3 Exiger ton approbation avant chaque déploiement en production
+**Settings → Environments → production** (il existe déjà).
 
-**Settings → Environments → New environment** → nom exact : `production`
+- **Required reviewers** — c'est un **choix** :
+  - **décoché** : le merge suffit, la production se met à jour toute seule ;
+  - **coché** : après le merge, GitHub attend en plus ton clic
+    **Approve and deploy**. Double sécurité, un clic de plus.
+- **Deployment branches and tags** → **Selected branches** → `main` : empêche
+  qu'un autre workflow ou une autre branche utilise les secrets de production.
 
-- ☑ **Required reviewers** → ajoute-toi
-- (optionnel) **Wait timer** : 0
+### 4.5 Secrets pour le push-to-deploy
 
-C'est **le garde-fou le plus important**. Sans lui, un push sur `PROD` déploierait
-sans rien demander.
-
-### 4.4 Secrets pour le push-to-deploy
-
-**Settings → Secrets and variables → Actions → New repository secret** :
+**Settings → Secrets and variables → Actions → New repository secret** — au niveau
+**du dépôt** (*Repository secrets*), pas seulement dans l'environnement
+`production`, sinon le déploiement de test ne les voit pas :
 
 | Secret | Valeur |
 |---|---|
 | `VPS_HOST` | IP publique du VPS OVH |
 | `VPS_USER` | `deploy` |
 | `VPS_SSH_KEY` | clé privée SSH de `deploy` (contenu complet, en-têtes inclus) |
-| `VPS_SSH_KNOWN_HOSTS` | sortie de `ssh-keyscan -H <IP_DU_VPS>` |
-| `VPS_PORT` | seulement si ton SSH n'est pas sur 22 |
+| `VPS_SSH_KNOWN_HOSTS` | sortie de `ssh-keyscan -p <PORT> -H <IP_DU_VPS>` |
+| `VPS_PORT` | seulement si le SSH du VPS n'écoute pas sur 22 |
 
 `VPS_SSH_KNOWN_HOSTS` est fortement recommandé : sans lui, le workflow accepte
 l'empreinte du serveur à l'aveugle à chaque exécution.
@@ -191,24 +227,29 @@ l'empreinte du serveur à l'aveugle à chaque exécution.
 La création de l'utilisateur `deploy` et de sa clé est décrite dans
 [DEPLOYMENT.md, étape 9](DEPLOYMENT.md#étape-9--push-to-deploy).
 
+### 4.6 Désactiver l'ancien GitHub Pages
+
+Le dépôt a servi de site GitHub Pages. **Settings → Pages** → *Source* : **None**
+(ou *Unpublish site*), puis supprime l'environnement `github-pages` dans
+**Settings → Environments**. Sinon `ww-admission.github.io` continue de revendiquer
+le domaine `worldwise-admission.com`.
+
 ---
 
 ## 5. Situations particulières
 
 ### Un correctif urgent en production
 
-Le chemin reste le même — il est juste plus rapide. Ne pousse pas directement sur
-`PROD` : le job `guard` refuserait le déploiement, parce que le commit ne serait pas
-dans `develop`.
+Le chemin reste le même — il est juste plus rapide. Ne committe pas directement sur
+`main` : le hook et le job `guard` le refuseraient.
 
 ```powershell
 git checkout develop
 # ... le correctif ...
 git commit -am "fix: description"
 git push
-# vérifier sur dev.worldwise-admission.com
-npm run promote
-# approuver dans GitHub
+# vérifier sur dev.worldwise-admission.com (workflow vert)
+npm run promote          # ou Pull Request develop → main
 ```
 
 ### Revenir en arrière tout de suite
@@ -233,21 +274,21 @@ sudo /usr/local/sbin/wwa-deploy production rollback-20260818-1430
 > déploiement fautif a migré le schéma, restaure aussi la sauvegarde
 > ([DEPLOYMENT.md étape 11](DEPLOYMENT.md#étape-11--sauvegardes-automatiques)).
 
-### `PROD` a divergé de `develop`
+> Le retour arrière remet le **VPS** sur l'ancien commit, pas la branche `main`. Le
+> prochain merge redéploiera la pointe de `main` : corrige d'abord sur `develop`.
 
-Ça arrive si quelqu'un a poussé sur `PROD` en contournant le processus.
-`promote.ps1` s'arrête et affiche les commits concernés. Pour rapatrier :
+### `main` a divergé de `develop`
+
+Ça arrive si quelqu'un a utilisé *Squash* ou *Rebase*, ou a poussé directement sur
+`main` en contournant le hook. `promote.ps1` s'arrête et affiche les commits
+concernés, et le job `guard` refuse de déployer. Pour rapatrier :
 
 ```powershell
 git checkout develop
-git merge origin/PROD
+git merge origin/main
 git push origin develop
-npm run promote
+# vérifier le test, puis nouveau merge develop → main
 ```
-
-### Créer `PROD` la première fois
-
-`promote.ps1` la crée tout seul à partir de `develop` si elle n'existe pas encore.
 
 ### Tester une modification du script de déploiement
 
@@ -272,7 +313,7 @@ git push
 # voir ce qui partirait en production, sans rien faire
 npm run promote:dry
 
-# promouvoir en PRODUCTION (puis approuver dans GitHub)
+# mettre en PRODUCTION : Pull Request develop → main (merge commit), ou
 npm run promote
 
 # activer les garde-fous locaux (une fois par clone)

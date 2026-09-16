@@ -45,7 +45,7 @@ Sept noms de domaine, deux environnements isolés, **une seule machine**.
         ┌────────────────────────┴────────────────────────┐
         │                                                 │
    PRODUCTION                                          TEST
-   branche PROD                                     branche develop
+   branche main                                     branche develop
         │                                                 │
   ┌─────┴──────┬──────────────┐              ┌────────────┼──────────────┐
   ▼            ▼              ▼              ▼            ▼              ▼
@@ -72,7 +72,7 @@ domaine.com  app.domaine   api.domaine   dev.domaine  app.dev.dom   api.dev.dom
 
 | | PRODUCTION | TEST |
 |---|---|---|
-| Branche git | `PROD` | `develop` |
+| Branche git | `main` (reçoit les merges de `develop`) | `develop` (branche par défaut) |
 | Dossier | `/var/www/wwa` | `/var/www/wwa-dev` |
 | Vitrine | `worldwise-admission.com` | `dev.worldwise-admission.com` |
 | Back-office | `app.worldwise-admission.com` | `app.dev.worldwise-admission.com` |
@@ -179,7 +179,7 @@ aucun secret de build figé dans dist/                  → OK
 ```
 deploy/
 ├── targets/
-│   ├── production.conf          branche PROD, /var/www/wwa, ports 4321/8080
+│   ├── production.conf          branche main, /var/www/wwa, ports 4321/8080
 │   └── staging.conf             branche develop, /var/www/wwa-dev, ports 4322/8081
 ├── deploy.sh                    déploiement, préflight, verrou, retour arrière
 ├── install.sh                   installe systemd + supervisor + nginx + sudoers
@@ -205,12 +205,13 @@ endroit évite qu'ils divergent.
 
 | Fichier | Rôle |
 |---|---|
-| `scripts/promote.ps1` | Promotion `develop` → `PROD`, avec contrôles et confirmation |
-| `scripts/git-hooks/pre-push` | Refuse tout `git push` sur `PROD` hors promotion |
+| `scripts/promote.ps1` | Merge `develop` → `main` depuis le terminal, avec contrôles et confirmation |
+| `scripts/git-hooks/pre-push` | Refuse un `git push` sur `main` contenant du code absent de `develop` |
 | `scripts/install-git-hooks.ps1` | Active `core.hooksPath` |
-| `.github/workflows/ci-build.yml` | Build + typage + contrôle du bundle |
+| `.gitattributes` | Force LF sur les scripts shell et `deploy/` (sinon CRLF sous Windows) |
+| `.github/workflows/ci-build.yml` | Build + typage + contrôle du bundle, sur `develop`, `main` et les PR |
 | `.github/workflows/deploy-staging.yml` | Push `develop` → déploiement TEST automatique |
-| `.github/workflows/deploy-production.yml` | Push `PROD` → contrôle + **approbation** → PRODUCTION |
+| `.github/workflows/deploy-production.yml` | Merge dans `main` → contrôle `guard` → PRODUCTION (approbation optionnelle) |
 
 ### Variables `PUBLIC_*` : figées au build
 
@@ -221,88 +222,48 @@ Astro remplace `import.meta.env.PUBLIC_*` par sa valeur **au moment du
 
 ---
 
-## Étape 0 — Réconcilier les branches
+## Étape 0 — Les branches
 
-> **À faire avant tout le reste.** Rien ne fonctionnera tant que les branches ne sont
-> pas en ordre.
+| Branche | Environnement | Déclencheur |
+|---|---|---|
+| `develop` (par défaut) | TEST | `git push` |
+| `main` | PRODUCTION | merge de `develop` dans `main` (Pull Request *Create a merge commit*, ou `npm run promote`) |
 
-### La situation actuelle
+> **Ne supprime jamais `main`** : c'est la branche de production. Le workflow
+> quotidien est décrit dans [BRANCHING.md](BRANCHING.md).
+
+### Réconciliation (faite le 2026-09-16)
+
+`main` et `develop` avaient divergé (15 commits Docker/CI/CVE d'un côté, les annuaires
+universités/formations de l'autre). Ils ont été réconciliés par un merge, et `develop`
+contient désormais tout l'historique de `main`. Contrôle :
 
 ```powershell
 git fetch --prune origin
-git log --oneline main..develop | Measure-Object -Line   # commits sur develop absents de main
-git log --oneline develop..main | Measure-Object -Line   # commits sur main absents de develop
+git log --oneline --no-merges origin/develop..origin/main   # doit être vide
 ```
 
-Au moment de l'écriture de ce document :
+Si cette commande affiche des commits, **ne merge pas `develop` dans `main`** avant
+d'avoir rapatrié ces commits dans `develop`
+([BRANCHING.md §5](BRANCHING.md#main-a-divergé-de-develop)).
 
-- `develop` a **15 commits** que `main` n'a pas (dockerisation, CI, correctifs CVE, `LLM.txt`)
-- `main` a **1 commit** que `develop` n'a pas : `33b5c2c` — les annuaires universités / formations
-- la branche `PROD` **n'existe pas encore**
+### Avant le premier déploiement de production
 
-Les deux branches ont donc divergé. Un `merge --ff-only` échouerait.
+`origin/main` est encore dans l'état de l'ancien site GitHub Pages : pas de dossier
+`deploy/`, pas de `/health`, et un workflow `.github/workflows/deploy.yml` (GitHub
+Pages) que `develop` a supprimé. Le premier merge `develop` → `main` (un fast-forward)
+met `main` au niveau de `develop`. Tant que ce merge n'a pas eu lieu, `/var/www/wwa`
+cloné sur `main` ne contient pas de quoi se déployer : fais ce premier merge **après**
+avoir validé le test (étape 6), et **avant** l'étape 7.
 
-### La réconciliation
-
-Le merge de `main` dans `develop` a été vérifié : il est **propre, sans conflit**
-(`git merge-tree --write-tree main develop` → code retour 0).
-
-Attention toutefois : **13 fichiers** modifiés par le travail d'infrastructure en
-cours sont aussi modifiés sur `develop`. Une fois ce travail commité, ces fichiers
-demanderont une résolution manuelle :
-
-```
-README.md                              src/config/navigationBar.ts
-astro.config.mjs                       src/env.d.ts
-package.json  package-lock.json        src/layouts/DashboardLayout.astro
-docs/ARCHITECTURE.md                   src/lib/auth.ts
-docs/DEPLOYMENT.md                     src/pages/api/auth/login.ts
-api/supervisord.conf (supprimé ici)    src/pages/api/auth/register.ts
-```
-
-Règle de résolution pour ces conflits : **garder les deux apports**, ils sont
-complémentaires et non contradictoires.
-
-- `src/lib/auth.ts` — garder `process.env` (venu de `develop`) **et** les fonctions
-  `cookieDomain()` / `sessionCookieOptions()` (venues d'ici).
-- `src/pages/api/auth/{login,register}.ts` — garder `process.env.BACKEND_URL` **et**
-  l'appel à `sessionCookieOptions()`.
-- `astro.config.mjs` — `develop` a déjà l'adapter Node ; garder en plus le sitemap
-  conditionnel et `site` lu depuis `process.env`.
-- `package.json` — fusionner les deux listes de scripts et les `overrides` de sécurité
-  de `develop`.
-- `api/supervisord.conf` — accepter la suppression (remplacé par `deploy/supervisor/`).
-
-### La séquence
-
-```powershell
-# 1. Commiter le travail d'infrastructure
-git add -A
-git commit -m "infra: deux environnements (TEST/PROD) sur VPS OVH, sous-domaines et garde-fous"
-
-# 2. Rapatrier develop dans cette branche, résoudre les 13 fichiers ci-dessus
-git merge origin/develop
-#    ... résolution ...
-git add -A && git commit
-
-# 3. Basculer le tout sur develop
-git checkout develop
-git merge main            # doit être un fast-forward maintenant
-git push origin develop
-
-# 4. Créer PROD (promote.ps1 le fait tout seul la première fois)
-npm run promote
-```
-
-À partir de là, `main` est obsolète. Une fois `PROD` en ligne et vérifié :
-
-```powershell
-git push origin --delete main       # optionnel, quand tu es sûr
-```
+> Ce premier merge déclenche **Deploy - PRODUCTION (main)**. Si l'étape 7 n'est pas
+> encore faite, ce run échouera sans rien casser : relance-le depuis l'onglet
+> *Actions* (**Re-run jobs**) une fois la production installée.
 
 Fais ensuite les réglages GitHub de
 [BRANCHING.md §4](BRANCHING.md#4-réglages-github-à-faire-une-seule-fois) :
-branche par défaut `develop`, protection de `PROD`, environnement `production`.
+branche par défaut `develop`, merge commits uniquement, protection de `main`,
+environnement `production`, secrets, désactivation de GitHub Pages.
 
 ### Le pipeline Docker existant sur `develop`
 
@@ -614,12 +575,16 @@ sudo chown "$USER:$USER" /var/www
 REPO=https://github.com/ww-admission/ww-admission.github.io.git
 
 git clone -b develop "$REPO" /var/www/wwa-dev     # TEST
-git clone -b PROD    "$REPO" /var/www/wwa         # PRODUCTION
+git clone -b main    "$REPO" /var/www/wwa         # PRODUCTION
 ```
 
-> La branche `PROD` doit exister sur GitHub (étape 0). Si ce n'est pas encore le cas,
-> clone d'abord `develop` dans `/var/www/wwa` et `deploy.sh` basculera dessus au
-> premier déploiement de production.
+> Clone **sans** `--single-branch` : GitHub Actions transmet au VPS le commit exact à
+> déployer, `deploy.sh` doit pouvoir le trouver après un `git fetch`.
+
+> `main` doit avoir reçu le premier merge de `develop`
+> ([étape 0](#avant-le-premier-déploiement-de-production)). Sinon, clone `develop` dans
+> `/var/www/wwa` : `deploy.sh production` se placera sur `origin/main` au premier
+> déploiement.
 
 > **Dépôt privé ?** Crée une clé de déploiement en **lecture seule** sur le VPS
 > (`ssh-keygen -t ed25519 -f ~/.ssh/wwa_deploy`), ajoute la publique dans
@@ -816,8 +781,8 @@ server {
 
 ## Étape 9 — Push-to-deploy
 
-Objectif : `git push` sur `develop` met à jour le test tout seul ; `PROD` met à jour
-la production après ton approbation.
+Objectif : `git push` sur `develop` met à jour le test tout seul ; un merge de
+`develop` dans `main` met à jour la production.
 
 ### 9.1 Utilisateur de déploiement sur le VPS
 
@@ -865,18 +830,26 @@ sudo -u deploy sudo -n /usr/local/sbin/wwa-deploy staging --yes
 
 ```bash
 sudo cat /home/deploy/.ssh/gh_actions        # → secret VPS_SSH_KEY (tout, en-têtes inclus)
-ssh-keyscan -H "$(curl -s ifconfig.me)"      # → secret VPS_SSH_KNOWN_HOSTS
-curl -s ifconfig.me                          # → secret VPS_HOST
+SSH_PORT=$(sudo sshd -T | awk '/^port /{print $2; exit}')
+ssh-keyscan -p "$SSH_PORT" -H "$(curl -s ifconfig.me)"   # → secret VPS_SSH_KNOWN_HOSTS
+curl -s ifconfig.me                                      # → secret VPS_HOST
+echo "$SSH_PORT"                                         # → secret VPS_PORT (si ≠ 22)
 ```
+
+> Le port SSH doit être joignable **depuis Internet** : les runners GitHub Actions
+> n'ont pas d'IP fixe. S'il est filtré (pare-feu OVH, `ufw`, WAF), le déploiement
+> échoue à l'étape « Deployer ».
 
 ### 9.4 Réglages GitHub
 
 Suis [BRANCHING.md §4](BRANCHING.md#4-réglages-github-à-faire-une-seule-fois) :
 
 - branche par défaut `develop`
-- protection de `PROD` (interdire force-push et suppression)
-- **environnement `production` avec « Required reviewers »** ← le garde-fou essentiel
-- les cinq secrets
+- merge commits uniquement (ni squash ni rebase)
+- protection de `main` (interdire force-push et suppression)
+- environnement `production` : branche `main` uniquement, « Required reviewers » au choix
+- les secrets **au niveau du dépôt** (le workflow de test n'a pas d'environnement)
+- GitHub Pages désactivé
 
 ### 9.5 Garde-fous sur ta machine
 
@@ -979,23 +952,31 @@ Puis les mêmes vérifications en production, **sans** le bandeau orange.
 
 ### 10.6 Chaîne complète de déploiement
 
+Le fichier de test doit être **hors** de `docs/` et des `*.md` : les workflows
+ignorent ces chemins, un commit qui ne touche qu'eux ne déploie rien.
+
 ```powershell
 git checkout develop
-"test $(Get-Date -Format o)" | Out-File -Encoding utf8 -Append docs/scratch.md
-git add docs/scratch.md
+$stamp = Get-Date -Format o
+"deploy-check $stamp" | Out-File -Encoding ascii public/deploy-check.txt
+git add public/deploy-check.txt
 git commit -m "test: verifier la chaine de deploiement"
 git push
 ```
 
-→ le workflow **Deploy - TEST** doit passer au vert et `dev.…/health` renvoyer le
-nouveau `release`.
+→ le workflow **Deploy - TEST (develop)** doit passer au vert, `dev.…/health` renvoyer
+le nouveau `release`, et `https://dev.worldwise-admission.com/deploy-check.txt`
+afficher l'horodatage.
 
-```powershell
-npm run promote     # puis approuver dans GitHub
-```
+Puis merge `develop` dans `main` (Pull Request *Create a merge commit*, ou
+`npm run promote`) :
 
-→ le workflow **Deploy - PRODUCTION** doit s'arrêter en attente d'approbation, puis
-passer au vert. Supprime ensuite le fichier de test.
+→ le workflow **Deploy - PRODUCTION (main)** doit passer le job `guard`, attendre ton
+clic si « Required reviewers » est coché, puis passer au vert ;
+`https://worldwise-admission.com/deploy-check.txt` doit afficher le même horodatage.
+
+Enfin, supprime le fichier (`git rm public/deploy-check.txt`, commit, push) et
+refais un merge vers `main` pour le retirer aussi de la production.
 
 ---
 
@@ -1089,12 +1070,14 @@ sudo tail -f /var/log/supervisor/wwa-dev-reverb.log
 ## Checklist de mise en production
 
 ### Branches et GitHub
-- [ ] `main` et `develop` réconciliés, `develop` contient les annuaires
-- [ ] `PROD` créée et à jour
+- [ ] `git log --no-merges origin/develop..origin/main` vide (rien sur `main` qui manque à `develop`)
+- [ ] Premier merge `develop` → `main` fait après validation du test
 - [ ] Branche par défaut GitHub = `develop`
-- [ ] `PROD` protégée : force-push et suppression interdits
-- [ ] Environnement GitHub `production` avec **Required reviewers**
-- [ ] Cinq secrets renseignés (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `VPS_PORT` si besoin)
+- [ ] Pull Requests : merge commits uniquement (squash et rebase désactivés)
+- [ ] `main` protégée : force-push et suppression interdits
+- [ ] Environnement `production` limité à `main` ; « Required reviewers » selon ton choix
+- [ ] Secrets **du dépôt** renseignés (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `VPS_PORT` si SSH ≠ 22)
+- [ ] GitHub Pages désactivé, environnement `github-pages` supprimé
 - [ ] `ci.yml` (pipeline Docker) passé en `workflow_dispatch`
 - [ ] `npm run hooks:install` lancé sur ta machine
 

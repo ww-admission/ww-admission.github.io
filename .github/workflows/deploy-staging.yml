@@ -71,7 +71,7 @@ jobs:
               -o BatchMode=yes \
               -p "${VPS_PORT:-22}" \
               "$VPS_USER@$VPS_HOST" \
-              'sudo /usr/local/sbin/wwa-deploy staging --yes'
+              "sudo /usr/local/sbin/wwa-deploy staging --yes $GITHUB_SHA"
 
       - name: Verifier que le site de test sert bien le commit pousse
         env:

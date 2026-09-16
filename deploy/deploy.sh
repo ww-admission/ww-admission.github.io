@@ -5,7 +5,8 @@
 #   sudo bash /var/www/wwa-dev/deploy/deploy.sh              → STAGING (défaut)
 #   sudo bash /var/www/wwa-dev/deploy/deploy.sh staging
 #   sudo bash /var/www/wwa/deploy/deploy.sh production
-#   sudo bash /var/www/wwa/deploy/deploy.sh production <ref> → retour arrière
+#   sudo bash /var/www/wwa/deploy/deploy.sh production <ref> → commit précis
+#                                         (GitHub Actions) ou retour arrière
 #
 # La cible par défaut est STAGING : déployer en production demande de le dire
 # explicitement, et de confirmer en tapant PRODUCTION.
@@ -221,7 +222,11 @@ git fetch --prune --tags origin
 if [ -n "$REF" ]; then
   git rev-parse --verify "$REF^{commit}" >/dev/null 2>&1 || die "reference git inconnue : $REF"
   TARGET_SHA=$(git rev-parse "$REF^{commit}")
-  warn "deploiement d'une reference figee : $REF"
+  if git merge-base --is-ancestor "$TARGET_SHA" "origin/$GIT_BRANCH" 2>/dev/null; then
+    ok "commit demande : $REF (contenu dans origin/$GIT_BRANCH)"
+  else
+    warn "commit demande : $REF — absent de origin/$GIT_BRANCH (retour arriere ?)"
+  fi
 else
   git rev-parse --verify "origin/$GIT_BRANCH" >/dev/null 2>&1 \
     || die "la branche origin/$GIT_BRANCH n'existe pas. Cree-la et pousse-la d'abord."
