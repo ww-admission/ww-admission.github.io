@@ -1,62 +1,48 @@
 #!/bin/sh
 # ============================================================================
-# pre-push — empeche d'envoyer en production du code qui n'est pas passe par le test
+# pre-push — garde-fous locaux autour de la production
 #
 # Active via :  git config core.hooksPath scripts/git-hooks
 #               (fait par scripts/install-git-hooks.ps1)
 #
-# `main` est la branche de PRODUCTION. Un push vers main n'est accepte que si
-# le commit pousse ne contient que du code deja present sur origin/develop :
-#   - soit il est dans develop (merge en fast-forward, npm run promote),
-#   - soit c'est un merge de develop dont le contenu est identique au cote develop.
-# C'est la meme regle que le job `guard` de deploy-production.yml.
+# Refuse :
+#   - tout push direct sur `main` : main est avance automatiquement par le
+#     workflow PRODUCTION sur la version en ligne, jamais a la main ;
+#   - la suppression ou le deplacement d'un tag de version vX.Y.Z : chaque tag
+#     est l'archive d'une version passee en production.
 #
 # Contournement d'urgence (a n'utiliser qu'en connaissance de cause) :
-#   WWA_PROMOTE=1 git push origin main        (bash)
-#   $env:WWA_PROMOTE=1; git push origin main  (PowerShell)
+#   WWA_FORCE_PUSH=1 git push ...        (bash)
+#   $env:WWA_FORCE_PUSH=1; git push ...  (PowerShell)
 # ============================================================================
 
-PROD_BRANCH="main"
-TEST_REF="refs/remotes/origin/develop"
 ZERO="0000000000000000000000000000000000000000"
 RED=$(printf '\033[1;31m'); YEL=$(printf '\033[1;33m'); OFF=$(printf '\033[0m')
 
-tested() {
-  git merge-base --is-ancestor "$1" "$TEST_REF" 2>/dev/null && return 0
-  git rev-parse --verify --quiet "$1^2" >/dev/null 2>&1 || return 1
-  git merge-base --is-ancestor "$1^2" "$TEST_REF" 2>/dev/null || return 1
-  [ "$(git rev-parse "$1^{tree}")" = "$(git rev-parse "$1^2^{tree}")" ]
-}
-
 refuse() {
   printf '\n%s==================================================================%s\n' "$RED" "$OFF" >&2
-  printf '%s  PUSH REFUSE vers %s (PRODUCTION)%s\n' "$RED" "$PROD_BRANCH" "$OFF" >&2
+  printf '%s  PUSH REFUSE%s\n' "$RED" "$OFF" >&2
   printf '%s==================================================================%s\n' "$RED" "$OFF" >&2
   printf '\n  %s\n\n' "$1" >&2
-  printf '  Pousser sur %s met a jour le site LIVE vu par les candidats.\n\n' "$PROD_BRANCH" >&2
   printf '  Le bon chemin :\n' >&2
-  printf '    1. travailler et pousser sur  develop\n' >&2
-  printf '    2. verifier sur  https://dev.worldwise-admission.com\n' >&2
-  printf '    3. merger develop dans main : Pull Request sur GitHub, ou  npm run promote\n\n' >&2
-  printf '  Si develop vient d etre pousse depuis une autre machine :  git fetch origin\n\n' >&2
+  printf '    TEST        : pousser sur develop\n' >&2
+  printf '    PRODUCTION  : npm run release           (nouvelle version depuis develop)\n' >&2
+  printf '                  npm run release:hotfix    (correctif depuis une branche hotfix/*)\n\n' >&2
   exit 1
 }
 
-if [ -z "$(git rev-parse --verify --quiet "$TEST_REF")" ]; then
-  git fetch --quiet origin develop 2>/dev/null
-fi
-
-while read -r _local_ref local_sha remote_ref _remote_sha; do
-  [ "$remote_ref" = "refs/heads/$PROD_BRANCH" ] || continue
-
-  if [ "$WWA_PROMOTE" = "1" ]; then
-    printf '%s  Contournement WWA_PROMOTE=1 : push vers %s sans controle.%s\n' "$YEL" "$PROD_BRANCH" "$OFF" >&2
-    continue
-  fi
-
-  [ "$local_sha" != "$ZERO" ] || refuse "Suppression de la branche $PROD_BRANCH interdite."
-
-  tested "$local_sha" || refuse "Le commit $(git rev-parse --short "$local_sha") contient du code absent de origin/develop."
+while read -r _local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main)
+      [ "$WWA_FORCE_PUSH" = "1" ] && { printf '%s  WWA_FORCE_PUSH=1 : push sur main sans controle.%s\n' "$YEL" "$OFF" >&2; continue; }
+      refuse "main est mis a jour par le workflow PRODUCTION, pas a la main."
+      ;;
+    refs/tags/v*)
+      [ "$WWA_FORCE_PUSH" = "1" ] && { printf '%s  WWA_FORCE_PUSH=1 : tag %s modifie sans controle.%s\n' "$YEL" "${remote_ref#refs/tags/}" "$OFF" >&2; continue; }
+      [ "$local_sha" = "$ZERO" ] && refuse "Suppression du tag ${remote_ref#refs/tags/} interdite : c'est l'archive d'une version."
+      [ "$remote_sha" != "$ZERO" ] && refuse "Le tag ${remote_ref#refs/tags/} existe deja sur GitHub : une version publiee ne se deplace pas. Cree la version suivante."
+      ;;
+  esac
 done
 
 exit 0

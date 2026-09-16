@@ -34,3 +34,6 @@ Thumbs.db
 CLAUDE.md
 .claude/
 context-demande-claude-ia.txt
+dist-next/
+dist-prev/
+dist-failed/

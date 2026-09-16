@@ -17,7 +17,9 @@ const IS_PRODUCTION = process.env.PUBLIC_ENV_NAME === "production";
 export default defineConfig({
   site: process.env.PUBLIC_SITE_URL || 'https://worldwise-admission.com',
   base: '/',
-  outDir: 'dist',
+  // deploy.sh construit dans un dossier à part puis bascule : le site en ligne
+  // n'est jamais servi depuis un build en cours ou raté.
+  outDir: process.env.WWA_OUT_DIR || 'dist',
   output: 'server',
   // Serveur Node autonome (systemd) derrière nginx sur le VPS OVH
   adapter: node({ mode: 'standalone' }),

@@ -107,6 +107,10 @@ if [ -n "$DEPLOY_USER" ]; then
   install -m 0755 -o root -g root "$SCRIPT_DIR/deploy.sh" /usr/local/sbin/wwa-deploy
   ok "/usr/local/sbin/wwa-deploy installe (copie root-only de deploy.sh)"
 
+  # Commande forcée de la clé SSH de GitHub Actions (voir deploy/ssh-gate.sh).
+  install -m 0755 -o root -g root "$SCRIPT_DIR/ssh-gate.sh" /usr/local/sbin/wwa-deploy-gate
+  ok "/usr/local/sbin/wwa-deploy-gate installe (seule commande permise a la cle GitHub)"
+
   SUDOERS=/etc/sudoers.d/wwa-deploy
   {
     echo "# Genere par deploy/install.sh — ne pas editer a la main."

@@ -16,6 +16,7 @@ interface ImportMetaEnv {
   // ── Identité de l'environnement ──────────────────────────────────────────
   readonly PUBLIC_ENV_NAME: 'production' | 'staging' | undefined
   readonly PUBLIC_RELEASE: string | undefined   // sha court du build
+  readonly PUBLIC_VERSION: string | undefined   // tag vX.Y.Z si le build vient d'une release
 
   // ── Hôtes publics ────────────────────────────────────────────────────────
   readonly PUBLIC_SITE_URL: string              // vitrine

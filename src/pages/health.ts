@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro'
-import { ENV_NAME, RELEASE } from '../lib/urls'
+import { ENV_NAME, RELEASE, VERSION } from '../lib/urls'
 
 export const prerender = false
 
@@ -10,7 +10,12 @@ export const prerender = false
  */
 export const GET: APIRoute = () => {
   return new Response(
-    JSON.stringify({ status: 'ok', env: ENV_NAME, release: RELEASE || null }),
+    JSON.stringify({
+      status: 'ok',
+      env: ENV_NAME,
+      version: VERSION || null,
+      release: RELEASE || null,
+    }),
     {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },

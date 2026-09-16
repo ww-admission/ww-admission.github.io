@@ -44,6 +44,9 @@ export const IS_STAGING = ENV_NAME === 'staging'
 /** Référence du build (sha court), injectée par deploy/deploy.sh */
 export const RELEASE = (import.meta.env.PUBLIC_RELEASE || '').trim()
 
+/** Version publiée (tag vX.Y.Z) quand le build vient d'une release, vide sinon */
+export const VERSION = (import.meta.env.PUBLIC_VERSION || '').trim()
+
 const rawSite = import.meta.env.PUBLIC_SITE_URL || 'http://localhost:4321'
 const rawApp = import.meta.env.PUBLIC_APP_URL || rawSite
 

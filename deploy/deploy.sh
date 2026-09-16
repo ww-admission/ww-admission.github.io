@@ -2,19 +2,24 @@
 # ============================================================================
 # deploy.sh — Déploiement de WWA sur le VPS OVH
 #
-#   sudo bash /var/www/wwa-dev/deploy/deploy.sh              → STAGING (défaut)
-#   sudo bash /var/www/wwa-dev/deploy/deploy.sh staging
-#   sudo bash /var/www/wwa/deploy/deploy.sh production
-#   sudo bash /var/www/wwa/deploy/deploy.sh production <ref> → commit précis
-#                                         (GitHub Actions) ou retour arrière
+#   sudo bash /var/www/wwa-dev/deploy/deploy.sh                 → STAGING, pointe de develop
+#   sudo bash /var/www/wwa-dev/deploy/deploy.sh staging <sha>
+#   sudo bash /var/www/wwa/deploy/deploy.sh production v1.2.0   → une version publiée
+#   sudo bash /var/www/wwa/deploy/deploy.sh production v1.1.0   → retour arrière
 #
 # La cible par défaut est STAGING : déployer en production demande de le dire
-# explicitement, et de confirmer en tapant PRODUCTION.
+# explicitement, de confirmer en tapant PRODUCTION, et de désigner un tag de
+# version vX.Y.Z (sans argument : la version pointée par origin/main).
+#
+# Déroulé sans coupure du site : le nouveau frontend est construit dans
+# dist-next/ pendant que dist/ reste servi, puis les deux sont échangés.
+# Si le nouveau build ne répond pas, l'ancien est remis en place.
 #
 # Variables d'environnement acceptées :
-#   WWA_YES=1       saute la confirmation interactive (GitHub Actions)
-#   WWA_NO_BUILD=1  saute le build Astro (diagnostic uniquement)
-#   PHP_FPM=...     nom du service php-fpm (défaut : php8.3-fpm)
+#   WWA_YES=1              saute la confirmation interactive (GitHub Actions)
+#   WWA_NO_BUILD=1         saute le build Astro (diagnostic uniquement)
+#   WWA_ALLOW_UNTAGGED=1   autorise en production un commit sans tag (urgence)
+#   PHP_FPM=...            nom du service php-fpm (défaut : php8.3-fpm)
 # ============================================================================
 set -euo pipefail
 
@@ -217,26 +222,41 @@ ok "service systemd $SYSTEMD_UNIT present"
 log "Récupération du code"
 cd "$APP_DIR"
 git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-git fetch --prune --tags origin
+git fetch --prune --tags --force origin
 
 if [ -n "$REF" ]; then
   git rev-parse --verify "$REF^{commit}" >/dev/null 2>&1 || die "reference git inconnue : $REF"
   TARGET_SHA=$(git rev-parse "$REF^{commit}")
-  if git merge-base --is-ancestor "$TARGET_SHA" "origin/$GIT_BRANCH" 2>/dev/null; then
-    ok "commit demande : $REF (contenu dans origin/$GIT_BRANCH)"
-  else
-    warn "commit demande : $REF — absent de origin/$GIT_BRANCH (retour arriere ?)"
-  fi
 else
   git rev-parse --verify "origin/$GIT_BRANCH" >/dev/null 2>&1 \
     || die "la branche origin/$GIT_BRANCH n'existe pas. Cree-la et pousse-la d'abord."
   TARGET_SHA=$(git rev-parse "origin/$GIT_BRANCH")
 fi
 
+# Version publiée : le tag demandé, sinon un tag vX.Y.Z posé exactement sur ce commit.
+VERSION=""
+if [ -n "$REF" ] && git rev-parse -q --verify "refs/tags/$REF" >/dev/null; then
+  VERSION="$REF"
+else
+  VERSION=$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' "$TARGET_SHA" 2>/dev/null || true)
+fi
+
+if [ "$TARGET" = production ]; then
+  if [ -z "$VERSION" ]; then
+    [ "${WWA_ALLOW_UNTAGGED:-}" = "1" ] || die "la production ne deploie que des versions (tag vX.Y.Z).
+     $(git rev-parse --short "$TARGET_SHA") n'a pas de tag. Publie une version (npm run release),
+     ou, en urgence seulement : WWA_ALLOW_UNTAGGED=1"
+    warn "commit sans tag deploye en production (WWA_ALLOW_UNTAGGED=1)"
+  else
+    printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+      || die "tag '$VERSION' hors convention (attendu : vMAJEUR.MINEUR.PATCH)"
+  fi
+fi
+
 PREV_SHA=$(git rev-parse HEAD 2>/dev/null || echo '')
 if [ -n "$PREV_SHA" ]; then
   printf '%s\n' "$PREV_SHA" > "$APP_DIR/.deploy-previous"
-  ok "version precedente memorisee : $(git rev-parse --short "$PREV_SHA")"
+  ok "version precedente memorisee : $(git describe --tags --always "$PREV_SHA" 2>/dev/null)"
 fi
 
 if [ "$PREV_SHA" = "$TARGET_SHA" ]; then
@@ -247,15 +267,66 @@ else
 fi
 
 git reset --hard "$TARGET_SHA"
-# Pas de -x : les fichiers ignores (.env, node_modules, dist, api/vendor) sont preserves.
+# Pas de -x : les fichiers ignores (.env, node_modules, dist*, api/vendor) sont preserves.
 git clean -fd
 RELEASE_SHA=$(git rev-parse --short HEAD)
-ok "code sur $RELEASE_SHA"
+ok "code sur ${VERSION:+$VERSION · }$RELEASE_SHA"
 
-# ── 6. Backend Laravel ─────────────────────────────────────────────────────
+# ── 6. Maintenance de l'API ────────────────────────────────────────────────
+# Le code PHP vient de changer : l'API reste en maintenance jusqu'à ce que
+# dépendances et migrations correspondent. La vitrine continue d'être servie
+# par l'ancien process Node et l'ancien dist/.
 cd "$API_DIR"
 php artisan down --retry=15 >/dev/null 2>&1 || true
 trap 'cd "$API_DIR" 2>/dev/null && php artisan up >/dev/null 2>&1 || true' EXIT
+
+# Échec avant toute modification de vendor/ ou de la base : on remet le code
+# précédent pour que l'API redémarre sur une version cohérente.
+abort_before_migration() {
+  if [ -n "$PREV_SHA" ]; then
+    git -C "$APP_DIR" reset --hard "$PREV_SHA" >/dev/null 2>&1 \
+      && warn "code remis sur $(git -C "$APP_DIR" rev-parse --short "$PREV_SHA") : le site en ligne n'a pas change"
+  fi
+  die "$1"
+}
+
+# ── 7. Frontend Astro : build à côté de la version en ligne ────────────────
+cd "$APP_DIR"
+if [ "${WWA_NO_BUILD:-}" = "1" ]; then
+  warn "build Astro saute (WWA_NO_BUILD=1)"
+else
+  log "Frontend : dépendances npm"
+  # --include=dev : @astrojs/partytown et @tailwindcss/typography sont des
+  # devDependencies necessaires au build, meme avec NODE_ENV=production.
+  npm ci --include=dev --no-audit --no-fund \
+    || abort_before_migration "npm ci a echoue"
+
+  log "Frontend : build Astro ($ENV_NAME, ${VERSION:+$VERSION, }release $RELEASE_SHA)"
+  rm -rf "$APP_DIR/dist-next"
+  # Les PUBLIC_* sont figees ici. PUBLIC_RELEASE et PUBLIC_VERSION n'existent que
+  # dans process.env, jamais dans .env -> aucun conflit de precedence.
+  WWA_OUT_DIR=dist-next PUBLIC_RELEASE="$RELEASE_SHA" PUBLIC_VERSION="$VERSION" npm run build \
+    || abort_before_migration "le build Astro a echoue"
+  [ -f "$APP_DIR/dist-next/server/entry.mjs" ] \
+    || abort_before_migration "build incomplet : dist-next/server/entry.mjs absent"
+  ok "build pret dans dist-next/ (dist/ toujours en ligne)"
+fi
+
+# ── 8. Backend Laravel : sauvegarde, dépendances, migrations ───────────────
+cd "$API_DIR"
+
+if [ "$TARGET" = production ]; then
+  log "Backend : sauvegarde de la base avant migration"
+  BACKUP_DIR=/var/backups/wwa
+  install -d -m 0700 "$BACKUP_DIR"
+  dump="$BACKUP_DIR/pre-deploy-$(date +%Y%m%d-%H%M%S)-${VERSION:-$RELEASE_SHA}.dump"
+  runuser -u postgres -- pg_dump -Fc "$DB_NAME" > "$dump" \
+    || abort_before_migration "sauvegarde de $DB_NAME impossible : aucune migration lancee"
+  chmod 600 "$dump"
+  # On garde les 20 dernieres sauvegardes pre-deploiement.
+  ls -1t "$BACKUP_DIR"/pre-deploy-*.dump 2>/dev/null | tail -n +21 | xargs -r rm -f
+  ok "base sauvegardee : $dump"
+fi
 
 log "Backend : dépendances Composer"
 COMPOSER_ALLOW_SUPERUSER=1 composer install \
@@ -272,31 +343,23 @@ php artisan event:cache
 # Pas de storage:link : les pieces jointes sont servies par le BFF Astro,
 # jamais en direct par nginx (cf. deploy/nginx/wwa-api.conf).
 
-# ── 7. Frontend Astro ──────────────────────────────────────────────────────
+# ── 9. Bascule du frontend + permissions ───────────────────────────────────
 cd "$APP_DIR"
-if [ "${WWA_NO_BUILD:-}" = "1" ]; then
-  warn "build Astro saute (WWA_NO_BUILD=1)"
-else
-  log "Frontend : dépendances npm"
-  # --include=dev : @astrojs/partytown et @tailwindcss/typography sont des
-  # devDependencies necessaires au build, meme avec NODE_ENV=production.
-  npm ci --include=dev --no-audit --no-fund
-
-  log "Frontend : build Astro ($ENV_NAME, release $RELEASE_SHA)"
-  # Les PUBLIC_* sont figees ici. PUBLIC_RELEASE n'existe que dans process.env,
-  # jamais dans .env -> aucun conflit de precedence.
-  PUBLIC_RELEASE="$RELEASE_SHA" npm run build
-  [ -f "$APP_DIR/dist/server/entry.mjs" ] || die "build echoue : dist/server/entry.mjs absent"
+if [ -d "$APP_DIR/dist-next" ]; then
+  log "Bascule du frontend"
+  rm -rf "$APP_DIR/dist-prev"
+  [ -d "$APP_DIR/dist" ] && mv "$APP_DIR/dist" "$APP_DIR/dist-prev"
+  mv "$APP_DIR/dist-next" "$APP_DIR/dist"
+  ok "dist/ = nouvelle version, dist-prev/ = version precedente"
 fi
 
-# ── 8. Permissions ─────────────────────────────────────────────────────────
 log "Permissions"
 chown -R www-data:www-data "$APP_DIR/dist" "$API_DIR/storage" "$API_DIR/bootstrap/cache"
 find "$API_DIR/storage" "$API_DIR/bootstrap/cache" -type d -exec chmod 775 {} +
 chown www-data:www-data "$FE_ENV" "$API_ENV"
 chmod 600 "$FE_ENV" "$API_ENV"
 
-# ── 9. Redémarrages ────────────────────────────────────────────────────────
+# ── 10. Redémarrages ────────────────────────────────────────────────────────
 log "Redémarrage des services"
 systemctl reload "$PHP_FPM"
 systemctl restart "$SYSTEMD_UNIT"
@@ -310,19 +373,32 @@ fi
 cd "$API_DIR" && php artisan up
 trap - EXIT
 
-# ── 10. Vérification ───────────────────────────────────────────────────────
+# ── 11. Vérification (et remise en place de l'ancien frontend si échec) ────
 log "Vérification"
-systemctl is-active --quiet "$SYSTEMD_UNIT" \
-  || die "$SYSTEMD_UNIT inactif -> journalctl -u $SYSTEMD_UNIT -n 50"
 
-health=''
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  health=$(curl -fsS --max-time 5 "http://127.0.0.1:$NODE_PORT/health" 2>/dev/null || true)
-  [ -n "$health" ] && break
-  sleep 2
-done
-[ -n "$health" ] \
-  || die "/health ne repond pas sur 127.0.0.1:$NODE_PORT -> journalctl -u $SYSTEMD_UNIT -n 50"
+wait_health() {
+  local body=''
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    body=$(curl -fsS --max-time 5 "http://127.0.0.1:$NODE_PORT/health" 2>/dev/null || true)
+    [ -n "$body" ] && break
+    sleep 2
+  done
+  printf '%s' "$body"
+}
+
+health=$(wait_health)
+if [ -z "$health" ] || ! systemctl is-active --quiet "$SYSTEMD_UNIT"; then
+  if [ -d "$APP_DIR/dist-prev" ]; then
+    warn "le nouveau frontend ne repond pas : remise en place de la version precedente"
+    rm -rf "$APP_DIR/dist-failed"
+    mv "$APP_DIR/dist" "$APP_DIR/dist-failed"
+    mv "$APP_DIR/dist-prev" "$APP_DIR/dist"
+    systemctl restart "$SYSTEMD_UNIT"
+    [ -n "$(wait_health)" ] && warn "ancien frontend de nouveau en ligne (build rate conserve dans dist-failed/)"
+  fi
+  die "/health ne repondait pas sur 127.0.0.1:$NODE_PORT avec la nouvelle version -> journalctl -u $SYSTEMD_UNIT -n 50
+     Attention : les migrations de base ont deja ete appliquees."
+fi
 
 case "$health" in
   *"\"env\":\"$ENV_NAME\""*) ok "sante : $health" ;;
@@ -330,7 +406,7 @@ case "$health" in
      PUBLIC_ENV_NAME n'a probablement pas ete pris en compte au build." ;;
 esac
 case "$health" in
-  *"\"release\":\"$RELEASE_SHA\""*) ok "release en ligne : $RELEASE_SHA" ;;
+  *"\"release\":\"$RELEASE_SHA\""*) ok "release en ligne : ${VERSION:+$VERSION · }$RELEASE_SHA" ;;
   *) warn "release annoncee differente de $RELEASE_SHA (build saute ?)" ;;
 esac
 
@@ -341,11 +417,13 @@ else
 fi
 
 printf "\n${C_OK}==================================================================${C_OFF}\n"
-printf "${C_OK}  OK  Deploiement %s termine — release %s${C_OFF}\n" "$TARGET" "$RELEASE_SHA"
+printf "${C_OK}  OK  Deploiement %s termine — %s${C_OFF}\n" "$TARGET" "${VERSION:+$VERSION · }$RELEASE_SHA"
 printf "${C_OK}==================================================================${C_OFF}\n"
 printf "  vitrine     : https://%s\n" "$SITE_HOST"
 printf "  back-office : https://%s/login\n" "$APP_HOST"
-if [ -n "$PREV_SHA" ]; then
+if [ -n "$PREV_SHA" ] && [ "$PREV_SHA" != "$TARGET_SHA" ]; then
+  prev_ref=$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' "$PREV_SHA" 2>/dev/null \
+    || git rev-parse --short "$PREV_SHA")
   printf "\n  retour arriere si besoin :\n"
-  printf "    sudo bash %s/deploy.sh %s %s\n\n" "$SCRIPT_DIR" "$TARGET" "$(git rev-parse --short "$PREV_SHA")"
+  printf "    sudo /usr/local/sbin/wwa-deploy %s %s\n\n" "$TARGET" "$prev_ref"
 fi

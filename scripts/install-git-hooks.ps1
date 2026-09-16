@@ -5,8 +5,8 @@
    npm run hooks:install
 
  Configure `core.hooksPath` sur scripts/git-hooks, ce qui active le hook
- pre-push. Ce hook refuse tout `git push` vers main (production) qui
- contiendrait du code absent de origin/develop (donc non teste).
+ pre-push. Ce hook refuse un push direct sur main (avancee par le workflow
+ PRODUCTION) et la suppression ou le deplacement d'un tag de version vX.Y.Z.
 
  A lancer une seule fois par clone du depot (la config est locale au clone,
  elle n'est pas versionnee).
@@ -33,8 +33,8 @@ Write-Host ""
 Write-Host "OK  garde-fous git actives" -ForegroundColor Green
 Write-Host "    core.hooksPath = $current"
 Write-Host ""
-Write-Host '    Effet : un "git push origin main" est refuse s il contient du code'
-Write-Host '            absent de develop. Merge develop -> main (PR ou npm run promote).'
+Write-Host '    Effet : push direct sur main refuse, tags de version vX.Y.Z intouchables.'
+Write-Host '            Production : npm run release  (ou release:hotfix).'
 Write-Host ""
 Write-Host "    Verifier :  git config core.hooksPath"
 Write-Host "    Desactiver: git config --unset core.hooksPath"

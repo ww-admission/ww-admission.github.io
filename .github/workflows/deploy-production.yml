@@ -1,140 +1,174 @@
-name: Deploy - PRODUCTION (main)
+name: PRODUCTION - mise en ligne d'une version
 
-# Merge de develop dans `main` => mise a jour du site LIVE :
+# Un tag de version vX.Y.Z (cree par `npm run release`) => cette version part
+# en PRODUCTION, apres approbation :
 #   https://worldwise-admission.com
 #   https://app.worldwise-admission.com
 #
-# Le merge (Pull Request develop -> main, ou npm run promote) est l'acte
-# humain qui declenche la production. Si "Required reviewers" est coche dans
-#   Settings > Environments > production
-# GitHub attend en plus un clic "Approve and deploy" avant le job deploy.
+# Deroule, visible dans l'onglet Actions puis dans Deployments > production :
+#   1. prepare  : resume de ce qui part (version, commits, passage par le TEST)
+#   2. build    : la version compile (meme controle que CI - build)
+#   3. deploy   : ATTEND L'APPROBATION (environnement `production`), puis
+#                 deploie sur le VPS et verifie que la bonne version est en ligne
+#   4. publish  : archive la version (Release GitHub), avance `main` sur ce qui
+#                 est en ligne, reporte un hotfix dans `develop`
 #
-# Secrets attendus : identiques a deploy-staging.yml.
+# Revenir a une version precedente : Actions > ce workflow > Run workflow >
+# "Use workflow from" = le tag voulu (ex. v1.1.0).
+#
+# Secrets : identiques a deploy-staging.yml.
+
+run-name: "PRODUCTION ← ${{ github.ref_name }}"
 
 on:
   push:
-    branches: [main]
-    paths-ignore: ['**.md', 'docs/**', '.gitignore']
+    tags: ['v*.*.*']
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
-# Jamais deux deploiements de production en parallele, et on n'interrompt
-# jamais celui qui tourne : l'arreter en pleine migration casserait le site.
+# Jamais deux mises en production en parallele, et jamais interrompue en cours
+# (l'arreter en pleine migration casserait le site).
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  guard:
-    name: Controle avant production
+  prepare:
+    name: Ce qui part en production
     runs-on: ubuntu-latest
     outputs:
-      release: ${{ steps.info.outputs.release }}
+      mode: ${{ steps.plan.outputs.mode }}
+      previous: ${{ steps.plan.outputs.previous }}
     steps:
+      - name: Refuser tout ce qui n'est pas un tag de version
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/tags/v*) ;;
+            *) echo "::error::la production ne se deploie que depuis un tag vX.Y.Z (recu : $GITHUB_REF). Dans 'Run workflow', choisis un tag, pas une branche."
+               exit 1 ;;
+          esac
+          printf '%s' "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            || { echo "::error::tag '$GITHUB_REF_NAME' hors convention vMAJEUR.MINEUR.PATCH"; exit 1; }
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Verifier que main ne contient rien qui ne soit pas passe par develop
-        # Deux formes acceptees, les seules que produit un merge develop -> main :
-        #  - fast-forward : le commit est dans develop ;
-        #  - merge commit (bouton "Create a merge commit") : son contenu est
-        #    identique a celui du cote develop, donc rien n'a ete ajoute en route.
-        # Refuse : squash, rebase, commit pousse directement sur main.
+      - name: Determiner le type de mise en ligne
+        id: plan
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # "Run workflow" manuel sur develop enverrait develop en production sans merge.
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo "::error::la production ne se deploie que depuis main (ref recue : $GITHUB_REF)"
-            exit 1
-          fi
-          git fetch --no-tags origin develop:refs/remotes/origin/develop
-          if git merge-base --is-ancestor HEAD origin/develop; then
-            echo "OK  le commit deploye est dans develop (fast-forward)"
-          elif git rev-parse --verify --quiet 'HEAD^2' >/dev/null \
-            && git merge-base --is-ancestor 'HEAD^2' origin/develop \
-            && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'HEAD^2^{tree}')" ]; then
-            echo "OK  merge de develop ($(git rev-parse --short 'HEAD^2')) sans aucune modification supplementaire"
+          git fetch --no-tags origin main:refs/remotes/origin/main develop:refs/remotes/origin/develop
+          sha=$(git rev-parse "$TAG^{commit}")
+          main=$(git rev-parse origin/main)
+          previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' origin/main 2>/dev/null || true)
+
+          # main = ce qui est en production. Une nouvelle version doit etre construite
+          # dessus, sinon elle effacerait un correctif deja en ligne.
+          if [ "$sha" = "$main" ]; then
+            mode=redeploy;  label="redeploiement de la version en ligne"
+          elif git merge-base --is-ancestor origin/main "$sha"; then
+            mode=release;   label="nouvelle version"
+          elif git merge-base --is-ancestor "$sha" origin/main; then
+            mode=rollback;  label="RETOUR ARRIERE vers une version precedente"
           else
-            echo "::error::le commit $GITHUB_SHA contient du code absent de develop."
-            echo "::error::Du code arriverait en production sans etre passe par le test."
-            echo "::error::Merge develop -> main avec 'Create a merge commit' (pas Squash ni Rebase), ou npm run promote."
+            echo "::error::$TAG n'est pas construit sur la production actuelle (main)."
+            echo "::error::main contient des commits absents de $TAG : un hotfix non reporte dans develop ?"
+            echo "::error::Correctif : git checkout develop && git merge origin/main && git push, puis nouvelle version."
             exit 1
           fi
 
-      - name: Resumer ce qui part en production
-        id: info
-        run: |
-          set -euo pipefail
-          release="$(git rev-parse --short HEAD)"
-          echo "release=$release" >> "$GITHUB_OUTPUT"
+          dev_health=$(curl -fsS --max-time 10 https://dev.worldwise-admission.com/health 2>/dev/null || true)
+          dev_release=$(printf '%s' "$dev_health" | sed -nE 's/.*"release":"([0-9a-f]+)".*/\1/p')
+          if [ -n "$dev_release" ] && [ "${sha#"$dev_release"}" != "$sha" ]; then
+            tested="oui : ce commit est en ligne sur le TEST"
+          elif git merge-base --is-ancestor "$sha" origin/develop; then
+            tested="le commit est dans develop, mais le TEST affiche actuellement ${dev_release:-rien}"
+          else
+            tested="NON : commit absent de develop (hotfix)"
+          fi
+
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "::notice title=PRODUCTION ← $TAG::$label (en ligne avant : ${previous:-aucune version})"
+
           {
-            echo "## Deploiement production"
+            echo "## PRODUCTION ← \`$TAG\`"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Commit | \`$release\` |"
-            echo "| Branche | \`main\` |"
-            echo "| Vitrine | https://worldwise-admission.com |"
-            echo "| Back-office | https://app.worldwise-admission.com |"
+            echo "| Type | **$label** |"
+            echo "| Version en ligne avant | \`${previous:-aucune}\` |"
+            echo "| Commit | \`$(git rev-parse --short "$sha")\` |"
+            echo "| Passe par le TEST | $tested |"
+            echo "| Sites | https://worldwise-admission.com · https://app.worldwise-admission.com |"
             echo ""
-            echo "### Derniers commits"
-            echo ""
-            git --no-pager log --oneline -10 | sed 's/^/- /'
+            if [ -n "$previous" ] && [ "$previous" != "$TAG" ]; then
+              if [ "$mode" = rollback ]; then
+                echo "### Changements RETIRES de la production"
+                range="$sha..$previous"
+              else
+                echo "### Changements depuis $previous"
+                range="$previous..$sha"
+              fi
+              echo ""
+              git --no-pager log --no-merges --format='- %h %s (%an)' "$range" | head -60
+              echo ""
+              echo "[Comparer sur GitHub](https://github.com/$REPO/compare/$previous...$TAG)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Verifier que la version compile
+    needs: prepare
+    uses: ./.github/workflows/ci-build.yml
 
   deploy:
     name: Deployer en production
-    needs: guard
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Approbation supplementaire seulement si "Required reviewers" est coche
-    # sur cet environnement GitHub.
+    # Approbation humaine : "Required reviewers" de l'environnement production.
     environment:
       name: production
       url: https://worldwise-admission.com
     steps:
-      - name: Preparer la cle SSH
+      - name: Preparer la connexion SSH
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           set -euo pipefail
-          test -n "$SSH_KEY"  || { echo "::error::secret VPS_SSH_KEY absent"; exit 1; }
-          test -n "$VPS_HOST" || { echo "::error::secret VPS_HOST absent"; exit 1; }
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          if [ -n "$KNOWN_HOSTS" ]; then
-            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          else
-            echo "::warning::VPS_SSH_KNOWN_HOSTS absent - premiere connexion en confiance aveugle (TOFU)"
-            ssh-keyscan -H "$VPS_HOST" > ~/.ssh/known_hosts 2>/dev/null
-          fi
-          chmod 600 ~/.ssh/known_hosts
+          test -n "$SSH_KEY"     || { echo "::error::secret VPS_SSH_KEY absent"; exit 1; }
+          test -n "$VPS_HOST"    || { echo "::error::secret VPS_HOST absent"; exit 1; }
+          test -n "$KNOWN_HOSTS" || { echo "::error::secret VPS_SSH_KNOWN_HOSTS absent (ssh-keyscan -p <port> -H <ip>)"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
 
-      - name: Deployer
-        # On deploie exactement le commit controle par `guard`, et non la pointe
-        # de main au moment ou le VPS la lit (un merge suivant a pu arriver entre-temps).
+      - name: Deployer ${{ github.ref_name }}
+        # Commande forcee cote VPS (deploy/ssh-gate.sh) : seul "production vX.Y.Z" est accepte.
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/id_deploy \
-              -o StrictHostKeyChecking=yes \
-              -o BatchMode=yes \
-              -p "${VPS_PORT:-22}" \
-              "$VPS_USER@$VPS_HOST" \
-              "sudo /usr/local/sbin/wwa-deploy production --yes $GITHUB_SHA"
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes \
+              -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" "production $TAG"
 
-      - name: Verifier que la production sert bien le commit pousse
+      - name: Verifier que la production sert bien ${{ github.ref_name }}
         env:
           SITE: https://worldwise-admission.com
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           body="$(curl -fsS --max-time 15 "$SITE/health")"
@@ -143,11 +177,13 @@ jobs:
             || { echo "::error::/health ne renvoie pas status=ok"; exit 1; }
           echo "$body" | grep -q '"env":"production"' \
             || { echo "::error::la production n'annonce pas env=production"; exit 1; }
+          echo "$body" | grep -q "\"version\":\"$TAG\"" \
+            || { echo "::error::la production n'annonce pas la version $TAG"; exit 1; }
           release="$(printf '%s' "$body" | sed -nE 's/.*"release":"([0-9a-f]+)".*/\1/p')"
           test -n "$release" || { echo "::error::/health ne renvoie aucune release"; exit 1; }
           case "$GITHUB_SHA" in
-            "$release"*) echo "OK  release $release correspond a $GITHUB_SHA" ;;
-            *) echo "::error::en ligne = $release mais commit pousse = $GITHUB_SHA"; exit 1 ;;
+            "$release"*) echo "OK  $TAG en ligne (release $release)" ;;
+            *) echo "::error::en ligne = $release mais $TAG = $GITHUB_SHA"; exit 1 ;;
           esac
 
       - name: Verifier le SEO de la production
@@ -170,12 +206,94 @@ jobs:
         if: always()
         run: rm -f ~/.ssh/id_deploy
 
-      - name: Rappel en cas de probleme
+      - name: Que faire en cas d'echec
         if: failure()
+        env:
+          PREVIOUS: ${{ needs.prepare.outputs.previous }}
         run: |
-          echo "## Le deploiement a echoue" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Retour arriere depuis le VPS :" >> "$GITHUB_STEP_SUMMARY"
-          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
-          echo 'sudo /usr/local/sbin/wwa-deploy production "$(cat /var/www/wwa/.deploy-previous)"' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## La mise en production a echoue"
+            echo ""
+            echo "Si le frontend ne repondait plus, deploy.sh a deja remis l'ancien en place."
+            echo "Pour revenir entierement a la version precedente (${PREVIOUS:-aucune}) :"
+            echo ""
+            echo "- **GitHub** : Actions > PRODUCTION > Run workflow > Use workflow from = \`${PREVIOUS:-vX.Y.Z}\`"
+            echo "- **ou sur le VPS** : \`sudo /usr/local/sbin/wwa-deploy production ${PREVIOUS:-vX.Y.Z}\`"
+            echo ""
+            echo "Une sauvegarde de la base prise juste avant les migrations est dans \`/var/backups/wwa/pre-deploy-*.dump\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Archiver la version
+    needs: [prepare, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # avancer main, creer la release, reporter dans develop
+      actions: write    # relancer le deploiement du TEST apres un report
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Avancer main sur la version en ligne
+        if: needs.prepare.outputs.mode == 'release'
+        run: |
+          set -euo pipefail
+          # Push sans force : refuse si main a bouge entre-temps (rien n'est ecrase).
+          git push origin "$GITHUB_SHA:refs/heads/main"
+          echo "main = $GITHUB_REF_NAME ($GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publier la release GitHub (archive de la version)
+        if: needs.prepare.outputs.mode != 'rollback'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PREVIOUS: ${{ needs.prepare.outputs.previous }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG deja publiee"
+            exit 0
+          fi
+          args=(--title "$TAG" --generate-notes --verify-tag)
+          if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "$TAG" ]; then
+            args+=(--notes-start-tag "$PREVIOUS")
+          fi
+          gh release create "$TAG" "${args[@]}"
+          echo "Release archivee : https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reporter la version dans develop (hotfix)
+        if: needs.prepare.outputs.mode == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch origin develop
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/develop; then
+            echo "develop contient deja $TAG : rien a reporter"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B develop origin/develop
+          if git merge --no-ff "$GITHUB_SHA" -m "chore(release): report de $TAG (production) dans develop"; then
+            git push origin develop
+            # Un push fait avec GITHUB_TOKEN ne declenche pas les workflows : on relance le TEST.
+            gh workflow run deploy-staging.yml --ref develop
+            echo "Hotfix $TAG reporte dans develop, TEST relance." >> "$GITHUB_STEP_SUMMARY"
+          else
+            git merge --abort
+            echo "::warning::$TAG n'a pas pu etre reporte automatiquement dans develop (conflit)."
+            {
+              echo "## A faire : reporter $TAG dans develop"
+              echo ""
+              echo '```powershell'
+              echo "git checkout develop; git pull"
+              echo "git merge origin/main   # resoudre le conflit"
+              echo "git push"
+              echo '```'
+              echo ""
+              echo "Tant que ce n'est pas fait, aucune nouvelle version ne pourra partir en production."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

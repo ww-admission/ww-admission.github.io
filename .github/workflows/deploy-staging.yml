@@ -1,17 +1,23 @@
-name: Deploy - TEST (develop)
+name: TEST - deploiement
 
-# Push sur `develop` => mise a jour automatique de :
+# Push sur `develop` => mise a jour automatique du TEST :
 #   https://dev.worldwise-admission.com
 #   https://app.dev.worldwise-admission.com
 #
-# Aucune approbation requise : c'est l'environnement ou on casse des choses.
+# "Run workflow" (onglet Actions) permet aussi d'envoyer sur le TEST n'importe
+# quelle branche, par exemple hotfix/xxx avant de la publier en production.
 #
-# Secrets attendus (Settings > Secrets and variables > Actions) :
-#   VPS_HOST              IP ou nom d'hote du VPS OVH
-#   VPS_USER              utilisateur SSH de deploiement (ex: deploy)
-#   VPS_SSH_KEY           cle privee SSH de cet utilisateur
-#   VPS_SSH_KNOWN_HOSTS   (recommande) sortie de `ssh-keyscan -H <ip>`
+# Aucune approbation : c'est l'environnement ou on casse des choses.
+# Chaque deploiement apparait dans Deployments > staging.
+#
+# Secrets du depot (Settings > Secrets and variables > Actions) :
+#   VPS_HOST              IP du VPS OVH
+#   VPS_USER              utilisateur SSH de deploiement (deploy)
+#   VPS_SSH_KEY           cle privee dediee a GitHub Actions (commande forcee sur le VPS)
+#   VPS_SSH_KNOWN_HOSTS   sortie de `ssh-keyscan -p <port> -H <ip>`
 #   VPS_PORT              (optionnel) port SSH, defaut 22
+
+run-name: "TEST ← ${{ github.ref_name }}"
 
 on:
   push:
@@ -22,58 +28,50 @@ on:
 permissions:
   contents: read
 
-# Un seul deploiement de test a la fois. On ne coupe pas un deploiement en
-# cours (cancel-in-progress: false) : l'interrompre laisserait le VPS a moitie
-# migre. Le flock de deploy.sh est la seconde barriere.
+# Un seul deploiement de test a la fois, jamais interrompu en cours de route
+# (le flock de deploy.sh est la seconde barriere).
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deployer sur le test
+    name: Deployer sur le TEST
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    environment:
+      name: staging
+      url: https://dev.worldwise-admission.com
     steps:
-      - name: Preparer la cle SSH
+      - name: Preparer la connexion SSH
+        # Les secrets passent par `env:`, jamais par interpolation directe dans
+        # le script (cf. docs/INFRA-CHANGES.md §5.2).
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
-        # Les secrets passent par `env:` et jamais par une interpolation
-        # directe dans le script : une valeur contenant `$` serait tronquee
-        # par bash (cf. docs/INFRA-CHANGES.md §5.2).
         run: |
           set -euo pipefail
-          test -n "$SSH_KEY"  || { echo "::error::secret VPS_SSH_KEY absent"; exit 1; }
-          test -n "$VPS_HOST" || { echo "::error::secret VPS_HOST absent"; exit 1; }
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          if [ -n "$KNOWN_HOSTS" ]; then
-            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-            echo "empreinte du serveur fournie par le secret VPS_SSH_KNOWN_HOSTS"
-          else
-            echo "::warning::VPS_SSH_KNOWN_HOSTS absent - premiere connexion en confiance aveugle (TOFU)"
-            ssh-keyscan -H "$VPS_HOST" > ~/.ssh/known_hosts 2>/dev/null
-          fi
-          chmod 600 ~/.ssh/known_hosts
+          test -n "$SSH_KEY"     || { echo "::error::secret VPS_SSH_KEY absent"; exit 1; }
+          test -n "$VPS_HOST"    || { echo "::error::secret VPS_HOST absent"; exit 1; }
+          test -n "$KNOWN_HOSTS" || { echo "::error::secret VPS_SSH_KNOWN_HOSTS absent (ssh-keyscan -p <port> -H <ip>)"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
 
-      - name: Deployer
+      - name: Deployer ${{ github.ref_name }}
+        # La cle est limitee cote VPS a une commande forcee (deploy/ssh-gate.sh) :
+        # on n'envoie que "staging <sha>", jamais une commande shell.
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/id_deploy \
-              -o StrictHostKeyChecking=yes \
-              -o BatchMode=yes \
-              -p "${VPS_PORT:-22}" \
-              "$VPS_USER@$VPS_HOST" \
-              "sudo /usr/local/sbin/wwa-deploy staging --yes $GITHUB_SHA"
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes \
+              -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" "staging $GITHUB_SHA"
 
-      - name: Verifier que le site de test sert bien le commit pousse
+      - name: Verifier que le TEST sert bien ce commit
         env:
           SITE: https://dev.worldwise-admission.com
         run: |
@@ -84,15 +82,14 @@ jobs:
             || { echo "::error::/health ne renvoie pas status=ok"; exit 1; }
           echo "$body" | grep -q '"env":"staging"' \
             || { echo "::error::le site de test n'annonce pas env=staging"; exit 1; }
-          # La release est le sha court : doit etre un prefixe du sha pousse.
           release="$(printf '%s' "$body" | sed -nE 's/.*"release":"([0-9a-f]+)".*/\1/p')"
           test -n "$release" || { echo "::error::/health ne renvoie aucune release"; exit 1; }
           case "$GITHUB_SHA" in
             "$release"*) echo "OK  release $release correspond a $GITHUB_SHA" ;;
-            *) echo "::error::en ligne = $release mais commit pousse = $GITHUB_SHA"; exit 1 ;;
+            *) echo "::error::en ligne = $release mais commit demande = $GITHUB_SHA"; exit 1 ;;
           esac
 
-      - name: Verifier que le test n'est pas indexable
+      - name: Verifier que le TEST n'est pas indexable
         env:
           SITE: https://dev.worldwise-admission.com
           APP: https://app.dev.worldwise-admission.com

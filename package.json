@@ -9,8 +9,9 @@
     "check": "astro check",
     "preview": "astro preview",
     "astro": "astro",
-    "promote": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/promote.ps1",
-    "promote:dry": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/promote.ps1 -DryRun",
+    "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1",
+    "release:hotfix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 -Hotfix",
+    "release:dry": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 -DryRun",
     "hooks:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1"
   },
   "dependencies": {
