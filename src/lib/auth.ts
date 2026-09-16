@@ -109,7 +109,7 @@ export function sessionCookieClearOptions(): { path: string; domain?: string } {
 
 // Helper pour appels serveur Astro → Laravel
 export function backendFetch(path: string, session: Session | null, init?: RequestInit): Promise<Response> {
-  const base = process.env.BACKEND_URL ?? 'http://localhost:8000'
+  const base = (process.env.BACKEND_URL ?? 'http://localhost:8000').trim()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',

@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+# ---------- Stage 1: build (full deps, compiles dist/) ----------
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# ---------- Stage 2: runtime (prod deps only + built output) ----------
+FROM node:22-alpine AS runtime
+WORKDIR /app
+
+# Astro's Node standalone adapter doesn't bundle every dependency (e.g. sharp's
+# native bindings) into dist/ — production node_modules must still be present.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=4321
+
+EXPOSE 4321
+
+# wget (busybox) is already present on alpine — avoids installing curl just
+# for the healthcheck. 127.0.0.1 (not localhost) because /etc/hosts resolves
+# localhost to ::1 first here, and the server only binds the IPv4 wildcard.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- --spider http://127.0.0.1:4321/health || exit 1
+
+ENTRYPOINT ["node", "./dist/server/entry.mjs"]
