@@ -1,15 +1,9 @@
 name: Build, test, scan & push
 
+# Pipeline Docker/Harbor (runner self-hosted `ndewo` + Tailscale) : cette infra
+# n'existe pas sur le VPS OVH. Déclenchement manuel uniquement, cf.
+# docs/DEPLOYMENT.md étape 0. Pour réactiver, restaurer le bloc push/tags.
 on:
-  push:
-    branches:
-      - develop
-    tags:
-      - 'v*.*.*'
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'docs/**'
   workflow_dispatch: {}
 
 env:
