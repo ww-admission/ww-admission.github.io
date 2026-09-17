@@ -15,11 +15,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // ── Super Admin (toujours créé) ────────────────────────────────
-        $email    = env('SUPER_ADMIN_EMAIL');
+        $email = env('SUPER_ADMIN_EMAIL');
         $password = env('SUPER_ADMIN_PASSWORD');
 
         if (! $email || ! $password) {
             $this->command->error('SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD must be set in .env');
+
             return;
         }
 
@@ -29,78 +30,94 @@ class DatabaseSeeder extends Seeder
         );
 
         // ── Données de démo (dev/test uniquement) ─────────────────────
-        if (app()->environment('production')) return;
+        if (app()->environment('production')) {
+            return;
+        }
 
-        $candidate1 = User::factory()->create([
-            'name'     => 'Jean-Baptiste Ondo',
-            'email'    => 'jb.ondo@example.com',
-            'password' => Hash::make('password'),
-            'role'     => 'candidate',
-        ]);
+        $candidate1 = User::updateOrCreate(
+            ['email' => 'jb.ondo@example.com'],
+            [
+                'name' => 'Jean-Baptiste Ondo',
+                'password' => Hash::make('password'),
+                'role' => 'candidate',
+            ],
+        );
 
-        $candidate2 = User::factory()->create([
-            'name'     => 'Prisca Moussavou',
-            'email'    => 'prisca.moussavou@example.com',
-            'password' => Hash::make('password'),
-            'role'     => 'candidate',
-        ]);
+        $candidate2 = User::updateOrCreate(
+            ['email' => 'prisca.moussavou@example.com'],
+            [
+                'name' => 'Prisca Moussavou',
+                'password' => Hash::make('password'),
+                'role' => 'candidate',
+            ],
+        );
 
-        $cand1 = Candidature::factory()->create([
-            'user_id'       => $candidate1->id,
-            'destination'   => 'chine',
-            'programme'     => 'Médecine générale',
-            'niveau_vise'   => 'Licence',
-            'status'        => 'reviewing',
-            'personal_info' => ['nom' => 'Ondo', 'prenom' => 'Jean-Baptiste', 'telephone' => '+241 06 12 34 56'],
-            'academic_info' => ['niveauEtude' => 'Baccalauréat', 'etablissement' => 'Lycée Léon Mba', 'moyenne' => '14.5'],
-            'submitted_at'  => now()->subDays(15),
-        ]);
+        $cand1 = Candidature::updateOrCreate(
+            ['user_id' => $candidate1->id, 'destination' => 'chine'],
+            [
+                'destination' => 'chine',
+                'programme' => 'Médecine générale',
+                'niveau_vise' => 'Licence',
+                'status' => 'reviewing',
+                'personal_info' => ['nom' => 'Ondo', 'prenom' => 'Jean-Baptiste', 'telephone' => '+241 06 12 34 56'],
+                'academic_info' => ['niveauEtude' => 'Baccalauréat', 'etablissement' => 'Lycée Léon Mba', 'moyenne' => '14.5'],
+                'submitted_at' => now()->subDays(15),
+            ],
+        );
 
-        $cand2 = Candidature::factory()->create([
-            'user_id'       => $candidate2->id,
-            'destination'   => 'ghana',
-            'programme'     => 'Informatique',
-            'niveau_vise'   => 'Master',
-            'status'        => 'pending',
-            'personal_info' => ['nom' => 'Moussavou', 'prenom' => 'Prisca', 'telephone' => '+241 07 98 76 54'],
-            'academic_info' => ['niveauEtude' => 'Licence', 'etablissement' => 'Université Omar Bongo', 'moyenne' => '15.2'],
-            'submitted_at'  => now()->subDays(5),
-        ]);
+        $cand2 = Candidature::updateOrCreate(
+            ['user_id' => $candidate2->id, 'destination' => 'ghana'],
+            [
+                'destination' => 'ghana',
+                'programme' => 'Informatique',
+                'niveau_vise' => 'Master',
+                'status' => 'pending',
+                'personal_info' => ['nom' => 'Moussavou', 'prenom' => 'Prisca', 'telephone' => '+241 07 98 76 54'],
+                'academic_info' => ['niveauEtude' => 'Licence', 'etablissement' => 'Université Omar Bongo', 'moyenne' => '15.2'],
+                'submitted_at' => now()->subDays(5),
+            ],
+        );
 
-        CandidatureComment::create([
+        CandidatureComment::firstOrCreate(
+            [
+                'candidature_id' => $cand1->id,
+                'user_id' => $admin->id,
+                'content' => 'Dossier complet, en attente de la traduction des documents académiques.',
+            ],
+        );
+
+        $conv1 = Conversation::firstOrCreate([
+            'candidate_id' => $candidate1->id,
             'candidature_id' => $cand1->id,
-            'user_id'        => $admin->id,
-            'content'        => 'Dossier complet, en attente de la traduction des documents académiques.',
         ]);
 
-        $conv1 = Conversation::create([
-            'candidate_id'   => $candidate1->id,
-            'candidature_id' => $cand1->id,
-        ]);
+        Message::firstOrCreate(
+            [
+                'conversation_id' => $conv1->id,
+                'sender_id' => $admin->id,
+                'content' => 'Bonjour Jean-Baptiste, nous avons bien reçu votre dossier. Pouvez-vous nous envoyer votre diplôme de baccalauréat en format PDF ?',
+            ],
+            ['read_at' => now()->subHours(2)],
+        );
 
-        Message::create([
-            'conversation_id' => $conv1->id,
-            'sender_id'       => $admin->id,
-            'content'         => "Bonjour Jean-Baptiste, nous avons bien reçu votre dossier. Pouvez-vous nous envoyer votre diplôme de baccalauréat en format PDF ?",
-            'read_at'         => now()->subHours(2),
-        ]);
+        Message::firstOrCreate(
+            [
+                'conversation_id' => $conv1->id,
+                'sender_id' => $candidate1->id,
+                'content' => "Bonjour, oui bien sûr ! Je vais scanner le document et vous l'envoyer dans la journée.",
+            ],
+            ['read_at' => now()->subHour()],
+        );
 
-        Message::create([
-            'conversation_id' => $conv1->id,
-            'sender_id'       => $candidate1->id,
-            'content'         => "Bonjour, oui bien sûr ! Je vais scanner le document et vous l'envoyer dans la journée.",
-            'read_at'         => now()->subHour(),
-        ]);
-
-        $conv2 = Conversation::create([
-            'candidate_id'   => $candidate2->id,
+        $conv2 = Conversation::firstOrCreate([
+            'candidate_id' => $candidate2->id,
             'candidature_id' => $cand2->id,
         ]);
 
-        Message::create([
+        Message::firstOrCreate([
             'conversation_id' => $conv2->id,
-            'sender_id'       => $admin->id,
-            'content'         => "Bienvenue Prisca ! Votre candidature pour le Master Informatique au Ghana a bien été reçue.",
+            'sender_id' => $admin->id,
+            'content' => 'Bienvenue Prisca ! Votre candidature pour le Master Informatique au Ghana a bien été reçue.',
         ]);
     }
 }

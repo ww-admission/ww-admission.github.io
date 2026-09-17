@@ -159,7 +159,7 @@ Navigateur          Astro SSR              Laravel
 npm install
 
 # Backend
-cd api && composer install && cd ..
+cd api && composer install && composer dump-autoload --optimize && cd ..
 ```
 
 ### 2. Configurer les variables d'environnement
@@ -190,6 +190,17 @@ php artisan key:generate
 cd api
 php artisan migrate --seed
 cd ..
+```
+
+Le seeder de développement est réexécutable : relancer `php artisan migrate --seed`
+ne recrée pas les comptes ni les données de démonstration. Si Artisan signale
+`Class "Laravel\Octane\Octane" not found` après une installation interrompue ou un
+ancien dossier `vendor`, régénérer l'autoload avec :
+
+```bash
+cd api
+composer dump-autoload --optimize
+php artisan --version
 ```
 
 ### 4. Lancer les serveurs en développement
