@@ -277,9 +277,11 @@ Rien n'a été supprimé : le pipeline se réactive en restaurant son bloc `on:`
 
 ## Étape 1 — Commander et sécuriser le VPS
 
-### 1.0 État du VPS constaté le 2026-09-16 (à lire avant tout)
+### 1.0 État du VPS constaté le 2026-09-18 (à lire avant tout)
 
-Vu de l'extérieur, le VPS (`37.59.97.158`, `vps-d51894c8.vps.ovh.net`) n'est **pas**
+Le VPS actif est `137.74.174.253` (`vps-c0ea6058.vps.ovh.net`). L'ancienne IP
+`37.59.97.158` peut encore répondre pendant la propagation DNS et ne doit plus être
+utilisée pour le déploiement. Vu de l'extérieur, le VPS n'est **pas**
 vierge :
 
 - les ports **80 et 443** sont tenus par **SafeLine**, un pare-feu applicatif
@@ -333,7 +335,7 @@ et vérifie dans le manager OVH (**Network → Firewall**) que ce port n'est pas
 Depuis ta machine :
 
 ```powershell
-Test-NetConnection 37.59.97.158 -Port 22    # TcpTestSucceeded : True
+Test-NetConnection 137.74.174.253 -Port 22  # TcpTestSucceeded : True
 ```
 
 ### 1.1 Réinstaller le VPS
@@ -715,6 +717,21 @@ php artisan db:seed --force        # crée le compte super admin
 sudo bash /var/www/wwa-dev/deploy/deploy.sh
 ```
 
+Pour exécuter le déploiement staging sans invite interactive (CI ou intervention
+automatisée) :
+
+```bash
+sudo bash /var/www/wwa-dev/deploy/deploy.sh staging --yes
+```
+
+Si le nom du service PHP-FPM n'est pas `php8.3-fpm`, préciser le service réellement
+installé avant de lancer le script :
+
+```bash
+sudo env PHP_FPM=php8.5-fpm \
+  bash /var/www/wwa-dev/deploy/deploy.sh staging --yes
+```
+
 Sans argument, la cible est **staging** — c'est le défaut voulu.
 
 Le script commence par vérifier la cohérence de la configuration : environnement,
@@ -810,26 +827,99 @@ toucher la production.
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
 
-# PRODUCTION
-sudo certbot --nginx \
+# Le webroot doit être commun aux trois vhosts.
+sudo install -d -o www-data -g www-data -m 0755 \
+  /var/www/letsencrypt/.well-known/acme-challenge
+
+# Le bloc /.well-known/acme-challenge/ doit exister dans les trois vhosts HTTP
+# avant cette commande (il est présent dans deploy/nginx/wwa-*.conf).
+sudo nginx -t && sudo systemctl reload nginx
+
+# TEST — méthode robuste, même si certbot ne peut pas modifier temporairement nginx.
+sudo certbot certonly --webroot -w /var/www/letsencrypt -n \
+  --agree-tos -m info@worldwise-admission.com \
+  --cert-name wwa-staging \
+  -d dev.worldwise-admission.com \
+  -d app.dev.worldwise-admission.com \
+  -d api.dev.worldwise-admission.com
+
+# Installer le certificat dans les vhosts et activer HTTP → HTTPS.
+sudo certbot install --cert-name wwa-staging --nginx --redirect -n
+
+# PRODUCTION — utiliser un autre nom de certificat.
+sudo certbot certonly --webroot -w /var/www/letsencrypt -n \
+  --agree-tos -m info@worldwise-admission.com \
+  --cert-name wwa-production \
   -d worldwise-admission.com \
   -d www.worldwise-admission.com \
   -d app.worldwise-admission.com \
-  -d api.worldwise-admission.com \
-  --agree-tos -m info@worldwise-admission.com --redirect
-
-# TEST
-sudo certbot --nginx \
-  -d dev.worldwise-admission.com \
-  -d app.dev.worldwise-admission.com \
-  -d api.dev.worldwise-admission.com \
-  --agree-tos -m info@worldwise-admission.com --redirect
+  -d api.worldwise-admission.com
+sudo certbot install --cert-name wwa-production --nginx --redirect -n
 ```
 
 ```bash
-sudo systemctl status certbot.timer
+sudo nginx -t
+sudo systemctl reload nginx
+sudo systemctl status certbot.timer --no-pager
 sudo certbot renew --dry-run
 ```
+
+Vérifier le challenge avant de demander le certificat :
+
+```bash
+printf 'acme-check\n' | sudo tee \
+  /var/www/letsencrypt/.well-known/acme-challenge/healthcheck >/dev/null
+curl -fsS http://dev.worldwise-admission.com/.well-known/acme-challenge/healthcheck
+curl -fsS http://app.dev.worldwise-admission.com/.well-known/acme-challenge/healthcheck
+curl -fsS http://api.dev.worldwise-admission.com/.well-known/acme-challenge/healthcheck
+```
+
+Les trois commandes doivent renvoyer `acme-check`. Si l'une renvoie une ancienne
+IP, `404`, `504` ou un timeout, corriger d'abord DNS/proxy : l'autorité Let's Encrypt
+doit atteindre le VPS sur le port 80. Après une modification DNS, vérifier directement
+les serveurs autoritaires et vider le cache DNS local :
+
+```powershell
+Resolve-DnsName dev.worldwise-admission.com -Type A -Server ns1.dns-parking.com
+Resolve-DnsName app.dev.worldwise-admission.com -Type A -Server ns1.dns-parking.com
+Resolve-DnsName api.dev.worldwise-admission.com -Type A -Server ns1.dns-parking.com
+Clear-DnsClientCache
+```
+
+Si un ancien proxy (par exemple SafeLine) garde encore l'ancienne IP, il faut le
+retirer ou mettre à jour son origine avant de relancer Certbot. Le VPS doit écouter
+sur 80 et 443 :
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443)\b'
+sudo nginx -t
+```
+
+Le serveur lui-même peut conserver une ancienne résolution DNS pendant la propagation.
+Dans ce cas, les appels SSR Astro vers `BACKEND_URL=https://api.dev...` échouent avec
+`ERR_TLS_CERT_ALTNAME_INVALID`, même si les DNS publics sont corrects. Vérifier depuis
+le VPS :
+
+```bash
+getent ahostsv4 api.dev.worldwise-admission.com
+curl -fsS https://api.dev.worldwise-admission.com/up
+```
+
+Si l'ancienne IP est encore retournée, ajouter temporairement les trois hôtes staging
+dans `/etc/hosts` vers l'IP actuelle du VPS, puis redémarrer le service Astro :
+
+```bash
+for h in dev.worldwise-admission.com \
+         app.dev.worldwise-admission.com \
+         api.dev.worldwise-admission.com; do
+  sudo sed -i -E "/[[:space:]]$h( |$)/d" /etc/hosts
+  echo "137.74.174.253 $h" | sudo tee -a /etc/hosts >/dev/null
+done
+sudo systemctl restart wwa-dev-web
+```
+
+Retirer ces lignes une fois la résolution DNS du VPS revenue à jour. Ne jamais
+désactiver la vérification TLS de Node (`NODE_TLS_REJECT_UNAUTHORIZED=0`).
 
 > `install.sh` **ne réécrit pas** un vhost contenant déjà `listen 443` : il détecte
 > le passage de certbot et te prévient. Si tu modifies un fichier `deploy/nginx/*`

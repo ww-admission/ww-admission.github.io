@@ -103,7 +103,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
       ;(function () {
         var t
         try { t = localStorage.getItem('theme') } catch (_) {}
-        var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var dark = t === 'dark'
         document.documentElement.classList.toggle('dark', dark)
       })()
     </script>
@@ -355,7 +355,7 @@ const userInitial = (session.name || '?').charAt(0).toUpperCase()
         // 1. Relire localStorage et réappliquer la classe (belt-and-suspenders nav)
         let t: string | null = null
         try { t = localStorage.getItem('theme') } catch (_) {}
-        const dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        const dark = t === 'dark'
         if (dark) {
           document.documentElement.classList.add('dark')
         } else {

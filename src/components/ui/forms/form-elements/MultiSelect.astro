@@ -2,7 +2,7 @@
 // Multi-Select - Nationalités
 // ------------
 // Description: Sélection multiple avec tags supprimables.
-// Charge les pays via RestCountries API.
+// Charge les pays et les gentilés depuis le jeu de données Rest Countries.
 // Visuellement cohérent avec InputField.astro (mêmes classes Tailwind directes).
 
 type Props = {
@@ -74,13 +74,31 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
 </div>
 
 <script>
-  interface Country { code: string; name: string; flag: string }
+  import { NATIONALITY_OPTIONS } from '../../../../data/nationalities'
+
+  interface Country {
+    code: string
+    name: string
+    nationalities: string[]
+    searchTerms: string[]
+  }
+
+  function normalise(value: string): string {
+    return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('fr')
+  }
+
+  function flagEmoji(code: string): string {
+    return String.fromCodePoint(...code.toUpperCase().split('').map((char) => 127397 + char.charCodeAt(0)))
+  }
 
   document.addEventListener('astro:page-load', () => {
     document.querySelectorAll<HTMLElement>('[data-multiselect]').forEach(initMultiSelect)
   })
 
   function initMultiSelect(container: HTMLElement) {
+    if (container.dataset.multiselectInitialized === 'true') return
+    container.dataset.multiselectInitialized = 'true'
+
     const id = container.dataset.id!
     const searchInput = container.querySelector<HTMLInputElement>('[data-multiselect-search]')!
     const dropdown = container.querySelector<HTMLElement>('[data-multiselect-dropdown]')!
@@ -96,22 +114,15 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
     let selected: Country[] = []
     let isOpen = false
 
-    async function loadCountries() {
-      try {
-        const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,flags')
-        const data = await res.json()
-        allCountries = (data as any[])
-          .map((c) => ({
-            code: c.cca2 as string,
-            name: c.name.common as string,
-            flag: c.flags?.svg || c.flags?.png || '',
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-        loadingEl.classList.add('hidden')
-        renderList(allCountries)
-      } catch {
-        loadingEl.textContent = 'Erreur de chargement.'
-      }
+    function loadCountries() {
+      allCountries = NATIONALITY_OPTIONS.map((option) => ({
+        code: option.code,
+        name: option.country,
+        nationalities: [...option.nationalities],
+        searchTerms: [option.country, ...option.nationalities].map(normalise),
+      }))
+      loadingEl.classList.add('hidden')
+      renderList(allCountries)
     }
 
     function renderList(countries: Country[]) {
@@ -131,10 +142,24 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
         const li = document.createElement('li')
         li.className = 'flex cursor-pointer items-center gap-2.5 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800'
         li.setAttribute('role', 'option')
-        li.innerHTML = `
-          <img src="${country.flag}" alt="" class="h-3.5 w-5 rounded-sm object-cover flex-shrink-0" aria-hidden="true" />
-          <span>${country.name}</span>
-        `
+        const flag = document.createElement('span')
+        flag.textContent = flagEmoji(country.code)
+        flag.className = 'text-base leading-none'
+        flag.setAttribute('aria-hidden', 'true')
+        li.appendChild(flag)
+
+        const labels = document.createElement('span')
+        labels.className = 'flex min-w-0 flex-col'
+        const countryName = document.createElement('span')
+        countryName.textContent = country.name
+        labels.appendChild(countryName)
+        if (country.nationalities.length) {
+          const nationality = document.createElement('span')
+          nationality.className = 'text-xs text-neutral-400 dark:text-neutral-500'
+          nationality.textContent = country.nationalities.join(' / ')
+          labels.appendChild(nationality)
+        }
+        li.appendChild(labels)
         li.addEventListener('mousedown', (e) => { e.preventDefault(); selectCountry(country) })
         list.appendChild(li)
       })
@@ -164,7 +189,7 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
         const tag = document.createElement('span')
         tag.className = 'flex items-center gap-1 rounded bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-950 dark:text-primary-300'
         tag.innerHTML = `
-          <img src="${country.flag}" alt="" class="h-3 w-4 rounded-sm object-cover flex-shrink-0" aria-hidden="true" />
+          <span aria-hidden="true">${flagEmoji(country.code)}</span>
           <span>${country.name}</span>
           <button type="button" class="flex items-center text-primary-500 hover:text-primary-700 transition-colors" aria-label="Retirer ${country.name}" data-remove="${country.code}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -187,9 +212,9 @@ const { id, label, placeholder = 'Rechercher un pays…', required, helperText, 
     }
 
     function filter(query: string) {
-      const q = query.toLowerCase().trim()
+      const q = normalise(query.trim())
       const filtered = allCountries.filter(
-        (c) => c.name.toLowerCase().includes(q) && !selected.find((s) => s.code === c.code)
+        (c) => c.searchTerms.some((term) => term.includes(q)) && !selected.find((s) => s.code === c.code)
       )
       renderList(filtered.slice(0, 50))
     }

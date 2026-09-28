@@ -51,14 +51,12 @@ const timelineSteps: TStep[] = [
 
   <div class="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
 
-    <!-- En-tête -->
     <div>
       <p class="text-xs font-semibold uppercase tracking-widest text-neutral-400 mb-1">Mon espace</p>
       <h1 class="font-headings text-2xl font-bold text-neutral-800 dark:text-neutral-100">Bonjour, {session.name.split(' ')[0]} 👋</h1>
     </div>
 
     {!candidature ? (
-      <!-- CTA déposer candidature -->
       <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
         <div class="h-1.5 bg-primary-500"></div>
         <div class="p-8 flex flex-col items-center text-center">
@@ -84,7 +82,6 @@ const timelineSteps: TStep[] = [
       </div>
     ) : (
       <>
-        <!-- Carte statut candidature -->
         <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
           <div class="h-1.5 bg-primary-500"></div>
           <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -114,10 +111,8 @@ const timelineSteps: TStep[] = [
           </div>
         </div>
 
-        <!-- Grille : Timeline + Accès rapide -->
         <div class="grid lg:grid-cols-5 gap-6">
 
-          <!-- Timeline de suivi (col-span-3) -->
           <div class="lg:col-span-3 bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
             <div class="px-5 py-4 border-b border-neutral-50 flex items-center gap-2 dark:border-neutral-800">
               <div class="h-6 w-1 rounded-full bg-primary-500"></div>
@@ -127,7 +122,6 @@ const timelineSteps: TStep[] = [
               <ol class="relative space-y-4">
                 {timelineSteps.map((step, i) => (
                   <li class="flex items-start gap-4">
-                    <!-- Indicateur -->
                     <div class="flex flex-col items-center shrink-0">
                       <div class={`h-8 w-8 rounded-full border-2 flex items-center justify-center ${
                         step.done
@@ -150,7 +144,6 @@ const timelineSteps: TStep[] = [
                         <div class={`w-px flex-1 mt-1 h-4 ${step.done ? 'bg-primary-200 dark:bg-primary-800' : 'bg-neutral-100 dark:bg-neutral-800'}`}></div>
                       )}
                     </div>
-                    <!-- Label -->
                     <div class="pt-1.5">
                       <p class={`text-sm font-semibold ${step.done ? 'text-neutral-700 dark:text-neutral-200' : i === currentStep + 1 ? 'text-gold-700 dark:text-gold-400' : 'text-neutral-300 dark:text-neutral-600'}`}>
                         {step.label}
@@ -164,7 +157,6 @@ const timelineSteps: TStep[] = [
             </div>
           </div>
 
-          <!-- Actions rapides (col-span-2) -->
           <div class="lg:col-span-2 space-y-4">
 
             <div class="bg-white border border-neutral-100 rounded overflow-hidden dark:bg-neutral-900 dark:border-neutral-800">
@@ -186,7 +178,6 @@ const timelineSteps: TStep[] = [
               </nav>
             </div>
 
-            <!-- Notification contextuelle selon statut -->
             {candidature.status === 'accepted' && (
               <div class="rounded border border-primary-100 bg-primary-50 p-4 dark:bg-primary-950 dark:border-primary-900">
                 <p class="text-sm font-bold text-primary-700 dark:text-primary-300 mb-1">Candidature acceptée</p>

@@ -4,9 +4,15 @@ import partytown from "@astrojs/partytown";
 import tailwind from "@astrojs/tailwind";
 import icon from "astro-icon";
 import sitemap from "@astrojs/sitemap";
+import { loadEnv } from "vite";
 
 // Pages servies uniquement par l'hôte du back-office → jamais dans le sitemap public
 const APP_ONLY = ["/login", "/register", "/admin", "/dashboard"];
+
+const fileEnv = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
+for (const [key, value] of Object.entries(fileEnv)) {
+  if (process.env[key] === undefined) process.env[key] = value;
+}
 
 // Seule la production publie un sitemap. En staging le site est entièrement
 // interdit à l'indexation (robots.txt + X-Robots-Tag), un sitemap n'aurait aucun

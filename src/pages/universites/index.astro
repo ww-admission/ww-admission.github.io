@@ -44,7 +44,7 @@ const total       = universites.length
 
 <Layout title="Universités partenaires - WorldWise Admission" description="Découvrez nos universités partenaires en Chine, au Ghana, en Russie et ailleurs. Candidatez directement depuis notre plateforme.">
 
-  <!-- Hero -->
+
   <section class="bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
     <div class="container mx-auto px-6 py-12 sm:py-16">
       <div class="max-w-2xl">
@@ -62,12 +62,11 @@ const total       = universites.length
     </div>
   </section>
 
-  <!-- Filtres -->
+
   <section class="bg-neutral-50 dark:bg-neutral-950 border-b border-neutral-100 dark:border-neutral-800">
     <div class="container mx-auto px-6 py-3">
       <form method="GET" action="/universites" class="flex flex-wrap gap-2 items-center">
 
-        <!-- Recherche -->
         <div class="relative flex-1 min-w-[200px]">
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -81,7 +80,6 @@ const total       = universites.length
           />
         </div>
 
-        <!-- Pays -->
         <select
           name="pays"
           class="py-2 pl-3 pr-8 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -94,7 +92,6 @@ const total       = universites.length
           ))}
         </select>
 
-        <!-- Type -->
         <select
           name="type"
           class="py-2 pl-3 pr-8 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-700 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -121,7 +118,6 @@ const total       = universites.length
           </a>
         )}
 
-        <!-- View toggle -->
         <div class="ml-auto flex items-center gap-1 border border-neutral-200 dark:border-neutral-700 rounded-lg p-1 bg-white dark:bg-neutral-800">
           <button
             type="button"
@@ -148,12 +144,10 @@ const total       = universites.length
     </div>
   </section>
 
-  <!-- Contenu -->
   <section class="bg-neutral-50 dark:bg-neutral-950">
     <div class="container mx-auto px-6 py-8">
 
       {total === 0 ? (
-        <!-- État vide -->
         <div class="flex flex-col items-center justify-center py-24 text-center">
           <div class="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +159,6 @@ const total       = universites.length
         </div>
       ) : (
         <>
-          <!-- Universités vedettes -->
           {vedettes.length > 0 && (
             <div class="mb-10">
               <h2 class="text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-4">
@@ -179,7 +172,6 @@ const total       = universites.length
                     style="width:360px;flex-shrink:0"
                     data-list-hidden
                   >
-                    <!-- Cover -->
                     <div class="h-28 relative overflow-hidden bg-neutral-900">
                       {u.couverture_image_url ? (
                         <img src={u.couverture_image_url} alt="" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
@@ -197,7 +189,6 @@ const total       = universites.length
                         À la une
                       </span>
                     </div>
-                    <!-- Info -->
                     <div class="p-4">
                       <h3 class="text-base font-medium text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2 mb-1">
                         {u.nom}
@@ -227,7 +218,6 @@ const total       = universites.length
             </div>
           )}
 
-          <!-- Toutes les universités -->
           {nonVedettes.length > 0 && (
             <div>
               {vedettes.length > 0 && (
@@ -236,7 +226,6 @@ const total       = universites.length
                 </h2>
               )}
 
-              <!-- Vue grille -->
               <div id="directory-grid-all" class="flex flex-wrap gap-4">
                 {nonVedettes.map(u => (
                   <a
@@ -286,18 +275,15 @@ const total       = universites.length
                 ))}
               </div>
 
-              <!-- Vue liste (cachée par défaut) -->
               <div id="directory-list-all" class="hidden flex-col gap-2">
                 {nonVedettes.map(u => (
                   <a
                     href={`/universites/${u.slug}`}
                     class="group flex items-center gap-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4 hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
                   >
-                    <!-- Initiales -->
                     <div class={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center ${u.couleur_bg}`}>
                       <span class="text-xs font-black text-white/80">{u.initiales}</span>
                     </div>
-                    <!-- Info -->
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-base font-medium text-neutral-800 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">

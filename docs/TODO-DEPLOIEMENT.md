@@ -7,6 +7,11 @@
 > tâche indique **qui** la fait, **comment**, et **comment vérifier**. Les commandes
 > détaillées sont dans [DEPLOYMENT.md](DEPLOYMENT.md) ; le fonctionnement au quotidien
 > dans [BRANCHING.md](BRANCHING.md).
+>
+> **Archive de suivi :** cette checklist décrit l'état historique du 2026-09-17.
+> Pour une nouvelle installation ou un redéploiement, suivre `DEPLOYMENT.md` :
+> l'IP VPS active est `137.74.174.253`, le staging est installé et le certificat
+> staging est géré par Certbot sous le nom `wwa-staging`.
 
 ---
 
